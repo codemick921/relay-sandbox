@@ -17,11 +17,11 @@
   },
   {
     "path": "hosted/funding-drafts.mjs",
-    "sha256": "6faa496e232406685af0a1ab0bb962257f1b236e2ccce66f2db5fb2feeac5c6e"
+    "sha256": "12a8efb4bdec9dc3082702c61cf918fcc742c6c611eabbd53d6e49180ced0578"
   },
   {
     "path": "hosted/funding-drafts.sql",
-    "sha256": "ff8058487e82c5083d0aa7daec133d9cc7d5327aee17da91c0d1f9716cbedec4"
+    "sha256": "6e0f56d42d96a452adfdcb4bcc9a90149aeb5f30bd511ef6ae8e255bd9234017"
   },
   {
     "path": "hosted/funding-journey.mjs",
@@ -45,7 +45,7 @@
   },
   {
     "path": "hosted/live-store.mjs",
-    "sha256": "7ddb419fe6718f7078ba3ef46b75bccea1f88d16073455449b940c465a487d22"
+    "sha256": "2a5f5949caa5494c4819def91d658e0fdab5c648a773bf0144db481bf8b61840"
   },
   {
     "path": "hosted/live-worker.mjs",
@@ -81,7 +81,7 @@
   },
   {
     "path": "hosted/revolut-test.mjs",
-    "sha256": "fb7a4fa54555ecae2c2d13efefe9ba84babf476e474ce2e36eb35b358982670b"
+    "sha256": "abb3ec7ea06c10d732db6240b394a1e468bcb9df9efa8faf68a2bed0a2e67ddd"
   },
   {
     "path": "hosted/revolut-test.sql",
@@ -112,6 +112,10 @@
     "sha256": "d2b9824cc5c310604dbe5b1939b94c528f7e8745c820427c68a87c105ff4d8a7"
   },
   {
+    "path": "server/funding-amount.mjs",
+    "sha256": "7684bcb1dd4f7415be425dcc2b2450913fd2b7dd1bbf67de938350fce4964953"
+  },
+  {
     "path": "server/index.mjs",
     "sha256": "dbf82a7b45fbc7e7e22ab75230cafe3f595cc0e4cde36d0d9149a5632de56de5"
   },
@@ -121,7 +125,7 @@
   },
   {
     "path": "server/pay-contract.mjs",
-    "sha256": "6b89ea2f27b604b30fa6bd0d5a4ed85ffeac730606ce0ebaf5f9c9c176750fea"
+    "sha256": "f98aff210c82a334ce2dd8a4e3eae74b0973e71f0c42ecdc25e9e47b593ac050"
   },
   {
     "path": "server/pay-delivery.mjs",
@@ -133,7 +137,7 @@
   },
   {
     "path": "server/pay-live-create.mjs",
-    "sha256": "afeb916ebfc3cdbfaa8173b42b59fc3e0926b7a1c01e221e22d4a12bfb4d04b3"
+    "sha256": "0eb8dc621237dcddf20de22f2792af00754128a43cf3f1827ed007e7af72f73f"
   },
   {
     "path": "server/pay-payin.mjs",
@@ -305,7 +309,7 @@
   },
   {
     "path": "tests/revolut-test.test.mjs",
-    "sha256": "09c69085428241a25fac28568f58248b69f6dcb4dfbf5eb3777cf36766d5ea9d"
+    "sha256": "0ffa3748cd13b618ebeb368ac0591496bb0b7e23e9374de56158f3b588bd05cf"
   },
   {
     "path": "tests/webhook-ingress.test.mjs",

@@ -1,6 +1,7 @@
 import {readFileSync} from 'node:fs';
 import {randomUUID} from 'node:crypto';
 import {InputError,address,pence} from '../server/validation.mjs';
+import {fundingPence} from '../server/funding-amount.mjs';
 export const fundingDisabled=Object.freeze({paymentsEnabled:false,draftsEnabled:true,currency:'GBP',rail:'wise',network:'Base',token:'USDC',extensionFreeVerified:false});
 const uuid=v=>typeof v==='string'&&/^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(v);
 const customer=owner=>{if(!/^customer:[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(owner))throw new InputError('Customer sign-in required.',403);};
@@ -15,7 +16,7 @@ export function createFundingDrafts(base,{clock=Date.now}={}){
  return {
   async migrate(){await base.tx(async c=>{await c.query('SELECT pg_advisory_xact_lock(431929)');await c.query(readFileSync(new URL('./funding-drafts.sql',import.meta.url),'utf8'));});},
   async list(owner){customer(owner);const r=await base.query('SELECT d.id,d.rail,d.agent,d.pence,d.status,d.created_at,d.agent_revision,a.funding_revision AS current_revision,a.data AS current_agent FROM relay_funding_drafts d LEFT JOIN relay_agents a ON a.id=d.agent_id AND a.owner=d.owner WHERE d.owner=$1 ORDER BY d.created_at DESC LIMIT 100',[owner]);return r.rows.map(d=>({id:d.id,rail:d.rail,agent:d.agent,pence:d.pence,status:d.status,createdAt:d.created_at,walletCurrent:String(d.agent_revision)===String(d.current_revision)&&!!d.current_agent&&matches(d.agent,d.current_agent),source:'draft'}));},
-  async prepare(owner,input){customer(owner);fields(input,['agentId','requestId','amount','confirm','rail']);if(!uuid(input.agentId)||!uuid(input.requestId)||input.confirm!==true)throw new InputError('Check your amount and saved wallet before saving.');const amount=pence(input.amount),rail=input.rail??'wise';if(!['wise','revolut'].includes(rail))throw new InputError('Unsupported payment route.');
+  async prepare(owner,input){customer(owner);fields(input,['agentId','requestId','amount','confirm','rail']);if(!uuid(input.agentId)||!uuid(input.requestId)||input.confirm!==true)throw new InputError('Check your amount and saved wallet before saving.');const rail=input.rail??'wise',amount=fundingPence(input.amount,rail);if(!['wise','revolut'].includes(rail))throw new InputError('Unsupported payment route.');
    return base.tx(async c=>{await lock(c,owner);
     const old=(await c.query('SELECT * FROM relay_funding_drafts WHERE owner=$1 AND request_id=$2',[owner,input.requestId])).rows[0];
     if(old){if(old.agent_id!==input.agentId||old.pence!==amount||old.rail!==rail)throw new InputError('This request belongs to another funding draft.',409);return {id:old.id};}

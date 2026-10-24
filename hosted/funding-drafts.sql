@@ -20,6 +20,8 @@ CREATE TABLE IF NOT EXISTS relay_funding_drafts (
  CHECK(status NOT IN ('bound','closed') OR (provider_id IS NOT NULL AND requested_usdc IS NOT NULL))
 );
 ALTER TABLE relay_funding_drafts ADD COLUMN IF NOT EXISTS rail text NOT NULL DEFAULT 'wise' CHECK(rail IN ('wise','revolut'));
+ALTER TABLE relay_funding_drafts DROP CONSTRAINT IF EXISTS relay_funding_drafts_pence_check;
+ALTER TABLE relay_funding_drafts ADD CONSTRAINT relay_funding_drafts_pence_check CHECK((rail='wise' AND pence BETWEEN 200 AND 100000) OR (rail='revolut' AND pence BETWEEN 1 AND 1000));
 CREATE UNIQUE INDEX IF NOT EXISTS relay_funding_one_active ON relay_funding_drafts(owner) WHERE status NOT IN ('cancelled','closed');
 CREATE TABLE IF NOT EXISTS relay_funding_audit (
  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, draft_id uuid NOT NULL REFERENCES relay_funding_drafts(id),

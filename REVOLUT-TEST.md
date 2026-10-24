@@ -4,7 +4,7 @@ The web service and simulation worker cannot create live checkouts. General paym
 
 ## Boundaries
 
-- The source and immutable database policy limit the test to one customer, one saved wallet revision, Base USDC, Revolut GBP, £2–£10 order principal and a maximum 24-hour approval. A permanent singleton attempt prevents another creation, including after restart or an unknown response.
+- The source and immutable database policy limit the test to one customer, one saved wallet revision, Base USDC, Revolut GBP, £0.01–£10 order principal and a maximum 24-hour approval. A permanent singleton attempt prevents another creation, including after restart or an unknown response.
 - The £10 total budget remains a human payment limit. Relay cannot enforce fees charged outside Peer or prevent repeated transfers in Revolut. An available quote is advisory and reserves nothing.
 - Merchant-pays fees reduce settlement. Revolut uses buyer verification; follow the checkout's iPhone verification instructions. Seller-only release is not claimed.
 - The customer-only `/api/revolut-test/checkout` route releases an already-bound private link after current provider reads, account and wallet checks. It does not create orders. Revocation blocks subsequent release but cannot invalidate a link already copied from Peer.

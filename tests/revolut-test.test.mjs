@@ -12,19 +12,20 @@ import {createRevolutPolicy,createRevolutRelease} from '../hosted/revolut-test.m
 import {createRevolutOperator} from '../hosted/revolut-operator.mjs';
 import {createLiveStore} from '../hosted/live-store.mjs';
 import {createLiveReadService} from '../server/pay-readonly.mjs';
+import {fundingPence} from '../server/funding-amount.mjs';
 import {remote,payment,rpc} from './fixtures/live-evidence.mjs';
 const envelope=x=>new Response(JSON.stringify({success:true,responseObject:x}));
-async function setup(){
+async function setup({amount='10'}={}){
  const f=await fixture(),drafts=createFundingDrafts(f.store);await drafts.migrate();await createRestrictedTestPolicy(f.store).migrate();
  const policy=createRevolutPolicy(f.store);await policy.migrate();const tracker=createLiveStore(f.pool,{merchantId:'merchant'});await tracker.migrate();
  const accounts=createAccounts(f.store),a=await accounts.signup({email:'revolut@example.test',password:'revolut fixture account password',name:'Revolut fixture',acceptSandbox:true}),owner=(await accounts.session(a.token)).owner;
  const agent={id:randomUUID(),name:'Agent',address:remote().destinationAddress,network:'Base',token:'USDC'};await f.store.addAgent(owner,agent);
- const {id}=await drafts.prepare(owner,{agentId:agent.id,requestId:randomUUID(),amount:'10',rail:'revolut',confirm:true});
+ const {id}=await drafts.prepare(owner,{agentId:agent.id,requestId:randomUUID(),amount,rail:'revolut',confirm:true});
  const flags={available:true,loseResponse:false,settled:false,wrongRail:false},calls=[];
  const merchant={id:'merchant',environment:'LIVE',merchantConfig:{enabledRails:['wise'],quotePreference:'PREFER_SAR',feePayer:'MERCHANT',buyerFeeShareBps:0}};
- const order=()=>({...remote(),status:flags.settled?'FULFILLED':'CREATED',remainingUsdcAmount:flags.settled?'0':'12.5',requestedFiat:{amount:'10',currency:'GBP'},enabledRails:[flags.wrongRail?'wise':'revolut'],dynamicOrdersEnabled:false,buyerFeeShareBps:0,notes:{relayOrderId:id},successUrl:'https://relay.example/?checkout='+id});
+ const order=()=>({...remote(),status:flags.settled?'FULFILLED':'CREATED',remainingUsdcAmount:flags.settled?'0':'12.5',requestedFiat:{amount,currency:'GBP'},enabledRails:[flags.wrongRail?'wise':'revolut'],dynamicOrdersEnabled:false,buyerFeeShareBps:0,notes:{relayOrderId:id},successUrl:'https://relay.example/?checkout='+id});
  const p=()=>({...payment(),rail:'revolut',paymentAmount:'10',quote:{...payment().quote,signalIntent:{...payment().quote.signalIntent,processorName:'revolut'}}});
- const fetcher=async(url,opts)=>{calls.push([url,opts.method??'GET']);if(url.endsWith('/me'))return envelope(merchant);if(url.includes('availability'))return envelope({available:flags.available,quoteCount:flags.available?1:0,nearbySuggestions:null});if(opts.method==='POST'){const b=JSON.parse(opts.body);assert.equal(b.requestedFiatAmount,'10.00');assert.deepEqual(b.enabledRails,['revolut']);assert.equal(b.feePayer,'MERCHANT');assert.equal(b.dynamicOrdersEnabled,false);if(flags.loseResponse)throw Error('lost');return envelope({order:order(),orderToken:'private-fixture'});}if(url.endsWith('/payments'))return envelope({payments:flags.settled?[p()]:[]});return envelope({merchant,order:order(),currentPayment:flags.settled?p():null});};
+ const fetcher=async(url,opts)=>{calls.push([url,opts.method??'GET']);if(url.endsWith('/me'))return envelope(merchant);if(url.includes('availability'))return envelope({available:flags.available,quoteCount:flags.available?1:0,nearbySuggestions:null});if(opts.method==='POST'){const b=JSON.parse(opts.body);assert.equal(b.requestedFiatAmount,Number(amount).toFixed(2));assert.deepEqual(b.enabledRails,['revolut']);assert.equal(b.feePayer,'MERCHANT');assert.equal(b.dynamicOrdersEnabled,false);if(flags.loseResponse)throw Error('lost');return envelope({order:order(),orderToken:'private-fixture'});}if(url.endsWith('/payments'))return envelope({payments:flags.settled?[p()]:[]});return envelope({merchant,order:order(),currentPayment:flags.settled?p():null});};
  const operator=createRevolutOperator({base:f.store,drafts,policy,tracker,merchantId:'merchant',apiKey:'fixture',origin:'https://relay.example',fetcher});
  const approve=opts=>operator.provision(owner,id,{walletAddress:agent.address,approvalRef:'fixture-approval',consentRef:'fixture-consent',...opts});
  const reader=createLiveReadService({apiKey:'fixture',merchantId:'merchant',rpc:rpc(),fetcher});
@@ -77,3 +78,16 @@ test('private release HTTP route requires customer auth and same-origin review; 
  assert.equal((await request('/api/revolut-test/checkout')).status,200);
  assert.equal(f.calls.filter(([u,m])=>m==='POST').length,before);
  }finally{if(server)await new Promise(r=>server.close(r));await f.close();}});
+
+test('sub-£2 Revolut offers preserve exact pennies and do not lower the Wise minimum',async()=>{
+ assert.equal(fundingPence('1.94','revolut'),194);
+ for(const value of ['0','-1','1.943452','1e1','10.01',' 1.94'])assert.throws(()=>fundingPence(value,'revolut'));
+ assert.throws(()=>fundingPence('1.94','wise'));
+ const f=await setup({amount:'1.94'});try{
+  await f.approve();await f.operator.start(f.owner,f.id);
+  assert.equal((await f.tracker.state(f.owner)).orders[0].quote.pence,194);
+  assert.equal((await f.release(f.owner,{id:f.id,confirm:true})).amountPence,194);
+  await f.drafts.migrate();
+  assert.equal((await f.drafts.review(f.owner,f.id)).pence,194);
+ }finally{await f.close();}
+});

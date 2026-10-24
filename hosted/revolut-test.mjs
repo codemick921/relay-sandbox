@@ -9,7 +9,7 @@ export function createRevolutPolicy(base){
  async function checked(c,row,merchantId,lock=false){
   const p=(await c.query(`SELECT *,clock_timestamp()<expires_at AS current FROM relay_revolut_policy WHERE singleton=true ${lock?'FOR UPDATE':''}`)).rows[0];
   const a=(await c.query('SELECT funding_revision,data FROM relay_agents WHERE owner=$1 AND id=$2 FOR SHARE',[row.owner,row.agent_id])).rows[0];
-  if(!p||p.revoked||!p.current||p.owner!==row.owner||p.draft_id!==row.id||p.draft_hash!==revolutFingerprint(row)||row.rail!=='revolut'||p.merchant_id!==merchantId||p.wallet_address!==row.agent.address.toLowerCase()||row.agent.network!=='Base'||row.agent.token!=='USDC'||!Number.isSafeInteger(row.pence)||row.pence<200||row.pence>p.max_total_pence||p.max_total_pence>1000||!a||String(a.funding_revision)!==String(row.agent_revision)||a.data.address.toLowerCase()!==p.wallet_address)throw new InputError('This Revolut test is not authorised for the saved account and wallet.',403);
+  if(!p||p.revoked||!p.current||p.owner!==row.owner||p.draft_id!==row.id||p.draft_hash!==revolutFingerprint(row)||row.rail!=='revolut'||p.merchant_id!==merchantId||p.wallet_address!==row.agent.address.toLowerCase()||row.agent.network!=='Base'||row.agent.token!=='USDC'||!Number.isSafeInteger(row.pence)||row.pence<1||row.pence>p.max_total_pence||p.max_total_pence>1000||!a||String(a.funding_revision)!==String(row.agent_revision)||a.data.address.toLowerCase()!==p.wallet_address)throw new InputError('This Revolut test is not authorised for the saved account and wallet.',403);
   return p;
  }
  return Object.freeze({

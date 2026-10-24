@@ -14,7 +14,7 @@ export const liveOrderView=row=>({...row.request,...row.result,id:row.id,created
 
 function immutableIntent(input){
  if(input?.source!=='live'||input.kind!=='checkout'||!uuid(input.id)||!identifier(input.providerOrderId)||!identifier(input.merchantId)||
-  !Number.isInteger(input.quote?.pence)||input.quote.pence<200||input.quote.pence>100000||!['wise','revolut'].includes(input.quote.platform)||
+  !Number.isInteger(input.quote?.pence)||input.quote.pence<(input.quote.platform==='revolut'?1:200)||input.quote.pence>(input.quote.platform==='revolut'?1000:100000)||!['wise','revolut'].includes(input.quote.platform)||
   input.agent?.network!=='Base'||input.agent?.token!=='USDC'||!uuid(input.agent.id)||typeof input.agent.name!=='string'||input.agent.name.length>60||!input.agent.name.trim()||microUsdc(input.requestedUsdcAmount)<=0n)throw new InputError('Invalid trusted live intent.');
  // Keep only immutable inputs; never accept prefilled success/receipt/checkout URLs.
  return {id:input.id,kind:'checkout',source:'live',merchantId:input.merchantId,providerOrderId:input.providerOrderId,
