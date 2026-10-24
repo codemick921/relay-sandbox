@@ -61,3 +61,10 @@ test('HTTP private access, cookie policy, origins, sandbox-only routes and sign-
  }finally{if(server)await new Promise(r=>server.close(r));await f.close();}
 });
 test('configuration rejects live credentials and insecure origins',()=>{const e={RELAY_MODE:'sandbox',PUBLIC_ORIGIN:'https://sandbox.example',SANDBOX_TESTERS:JSON.stringify([{label:'tester',sha256hex:digest('code')}]),DATABASE_URL:'postgres://example',PEER_PAY_SANDBOX_API_KEY:'test',PEER_PAY_SANDBOX_MERCHANT_ID:'test',PEER_PAY_SANDBOX_WEBHOOK_SECRET:'test'};assert.equal(config(e).host,'sandbox.example');assert.throws(()=>config({...e,PEER_PAY_LIVE_API_KEY:'not-allowed'}),/Live credentials/);assert.throws(()=>config({...e,PUBLIC_ORIGIN:'http://sandbox.example'}),/HTTPS/);});
+
+test('startup retries transient database readiness, bounds attempts and exposes schema errors',async()=>{
+ const {migrateWhenReady}=await import('../hosted/startup.mjs');let calls=0;
+ await migrateWhenReady({migrate:async()=>{if(++calls<3)throw Object.assign(Error('not ready'),{code:'ECONNREFUSED'});}},{delay:async()=>{},notify:()=>{}});assert.equal(calls,3);
+ calls=0;await assert.rejects(migrateWhenReady({migrate:async()=>{calls++;throw Object.assign(Error('schema invalid'),{code:'42601'});}},{delay:async()=>{},notify:()=>{}}),/schema invalid/);assert.equal(calls,1);
+ calls=0;await assert.rejects(migrateWhenReady({migrate:async()=>{calls++;throw Object.assign(Error('still unavailable'),{code:'ECONNREFUSED'});}},{attempts:2,delay:async()=>{},notify:()=>{}}),/still unavailable/);assert.equal(calls,2);
+});

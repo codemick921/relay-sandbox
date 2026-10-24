@@ -1,3 +1,4 @@
+import {migrateWhenReady} from './startup.mjs';
 import http from 'node:http';
 import {readFile} from 'node:fs/promises';
 import path from 'node:path';
@@ -91,7 +92,7 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
  return server;
 }
 if(process.argv[1]===fileURLToPath(import.meta.url)){
- const config=readConfig(),store=createStore(createPool());await store.migrate();
+ const config=readConfig(),store=createStore(createPool());await migrateWhenReady(store);
  const server=createHostedServer({store,config});server.listen(Number(process.env.PORT??10000),'0.0.0.0',()=>console.log('Relay hosted sandbox ready.'));
  let closing=false;for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>{if(closing)return;closing=true;server.close(async()=>{await store.close();process.exit(0);});setTimeout(()=>process.exit(1),25000).unref();});
 }

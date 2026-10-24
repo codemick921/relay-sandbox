@@ -25,11 +25,11 @@
   },
   {
     "path": "hosted/server.mjs",
-    "sha256": "c7121eae0fc3a36c1c24e295031dd8b5c719bcc7ab97fb3a174df1407eaee596"
+    "sha256": "b898cdc60bf0d0f983a5707a896d8f9289befb2770385a5bbd34c487b1f95d91"
   },
   {
     "path": "hosted/worker.mjs",
-    "sha256": "2450baa80d5baa2410419d95951c64018b65b3f06b6907b825190763928ff07a"
+    "sha256": "972f095039c3466cef78e75e8917427770adb326def465c2f599bc0af6f1cd05"
   },
   {
     "path": "index.html",
@@ -153,7 +153,7 @@
   },
   {
     "path": "tests/hosted.test.mjs",
-    "sha256": "c8089a0053dfe914beef4c02a4fd97de0bc37bcd1799e2e012509e817a5ee0ca"
+    "sha256": "7cdbc09f0df22a3a0725f95291ea88ec64e7b484ef623ca08dc22878eec50b4a"
   },
   {
     "path": "tests/live.test.mjs",
@@ -182,5 +182,9 @@
   {
     "path": "vite.config.js",
     "sha256": "f298edbae970491dbb990512dbdb50bad55e09ce65c361eee94f449d4afabd87"
+  },
+  {
+    "path": "hosted/startup.mjs",
+    "sha256": "7a1f6d808e24bbdb1cf5afd1406a201271ded52ce93f513a32da54f92482558a"
   }
 ]
