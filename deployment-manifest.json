@@ -57,7 +57,7 @@
   },
   {
     "path": "scripts/sandbox-webhook.mjs",
-    "sha256": "d5bba367fc379ca7a485be6fee99b6bc381f37fe44a1f89721d0c807ba8eeff1"
+    "sha256": "eba2e05bcf76c66a6ac13b8ddc36d3ec0320eb186f8accefd854e3a134d86d4b"
   },
   {
     "path": "scripts/test-hosted-sandbox.mjs",

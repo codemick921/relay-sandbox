@@ -29,7 +29,7 @@ async function main(){
  if(command==='status'||command==='connect'){
   const list=await request('/webhooks');if(!Array.isArray(list.webhooks))throw Error('Unexpected webhook list response.');
   if(command==='status'){console.log(JSON.stringify({environment:merchant.environment,merchantId:merchant.id,webhooks:list.webhooks.map(safeHook)},null,2));return;}
-  const url=new URL(process.argv[3]);if(url.protocol!=='https:'||!/^[-a-z0-9]+\.trycloudflare\.com$/.test(url.hostname)||url.pathname!==sandboxPath||url.search||url.hash||url.username||url.password||url.port)throw Error('Exact public Cloudflare sandbox webhook URL required.');
+  const url=new URL(process.argv[3]);const cloudflare=/^[-a-z0-9]+\.trycloudflare\.com$/.test(url.hostname);const render=/^[-a-z0-9]+\.onrender\.com$/.test(url.hostname)&&url.origin===process.env.RELAY_HOSTED_ORIGIN;if(url.protocol!=='https:'||(!cloudflare&&!render)||url.pathname!==sandboxPath||url.search||url.hash||url.username||url.password||url.port)throw Error('Exact approved Cloudflare or Render sandbox webhook URL required.');
   if(state?.status==='creation_requested')throw Error('Prior creation outcome unresolved. Read status and recover its secret before creating anything else.');
   if(state?.webhookId){
    const existing=list.webhooks.find(w=>w.id===state.webhookId);
