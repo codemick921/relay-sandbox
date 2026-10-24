@@ -1,3 +1,4 @@
+import {healthOptions} from './payment-health.mjs';
 import {paymentRecords,renderRecord} from './payment-records.mjs';
 import {createAccountSecurity} from './account-security.mjs';
 import {createWalletBalances} from './wallet-balances.mjs';
@@ -40,6 +41,7 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
  const cookiePolicy=`${localPreview?'':'Secure; '}HttpOnly; SameSite=Strict; Path=/`;
  const getToken=req=>(req.headers.cookie??'').split(';').map(x=>x.trim()).find(x=>x.startsWith(cookie+'='))?.slice(cookie.length+1);
  const authenticate=async req=>(await accounts?.session(getToken(req)))?.owner??await store.session(getToken(req),config.testers);
+ const isHealthAdmin=owner=>typeof owner==='string'&&!owner.startsWith('customer:')&&Array.isArray(config.paymentHealthAdmins)&&config.paymentHealthAdmins.includes(owner)&&config.testers.some(t=>t.label===owner);
  const stateFor=async owner=>{
   const base=await store.state(owner);let state={...base,paymentsDisabled:paymentsDisabled&&!liveObservation?.funding,...fundingDrafts&&owner.startsWith('customer:')?{liveFunding:liveObservation?.funding?{...fundingDisabled,paymentsEnabled:true,rails:['revolut','wise']}:fundingDisabled,fundingDrafts:await fundingDrafts.list(owner)}:{}};
   if(tracking){const [tracked,worker]=await Promise.all([tracking.store.state(owner),tracking.store.health()]);state={...state,previewMode:!!tracking.simulated,trackingEnabled:true,worker,fundingJourneyEnabled:!!tracking.journey,orders:[...(await tracking.journey?.decorate(owner,tracked.orders)??tracked.orders).map(o=>presentTrackedOrder(o,tracking.simulated)),...state.orders]};}
@@ -61,6 +63,16 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
     if(req.method==='GET'){res.writeHead(308,{Location:config.origin+'/'});return res.end();}return send(res,400,{error:'HTTPS required.'});
    }
    const url=new URL(req.url,config.origin);
+   if(url.pathname==='/api/operator/payment-health'){
+    if(req.method!=='GET')throw new InputError('Method not allowed.',405);
+    if(req.headers['sec-fetch-site']==='cross-site'||req.headers.origin&&req.headers.origin!==config.origin)throw new InputError('Same-origin access required.',403);
+    const token=getToken(req),customer=await accounts?.session(token),operator=customer?null:await store.session(token,config.testers);
+    if(!isHealthAdmin(operator))throw new InputError('Payment-health admin access required.',403);
+    await store.rate('payment-health:'+operator,60,60);
+    const options=healthOptions(url.searchParams),selected=options.source==='live'?liveObservation:tracking;
+    if(!selected?.store?.paymentHealth||options.source==='simulated'&&selected.simulated!==true)return send(res,200,{available:false,savedOnly:true,simulated:options.source==='simulated',reason:'Saved tracking evidence is not connected for this source.'});
+    return send(res,200,await selected.store.paymentHealth({...options,simulated:options.source==='simulated'}));
+   }
    if(peerConnection&&url.pathname===liveWebhookPath){
     if(req.method!=='POST')throw new InputError('Method not allowed.',405);
     if(!String(req.headers['content-type']).startsWith('application/json'))throw new InputError('JSON required.',415);
@@ -121,15 +133,15 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
     if(!principal)throw new InputError('Access code not recognised.',401);
     await accounts?.logout(getToken(req));await store.logout(getToken(req));
     const token=randomBytes(32).toString('hex');await store.login(token,principal);
-    res.setHeader('Set-Cookie',`${cookie}=${token}; ${cookiePolicy}; Max-Age=43200`);return send(res,200,{authenticated:true,hostedSandbox:true,previewMode:!!tracking?.simulated,customerAccounts:!!accounts});
+    res.setHeader('Set-Cookie',`${cookie}=${token}; ${cookiePolicy}; Max-Age=43200`);return send(res,200,{authenticated:true,hostedSandbox:true,previewMode:!!tracking?.simulated,customerAccounts:!!accounts,adminPaymentHealth:isHealthAdmin(principal.label)});
    }
    const customer=await accounts?.session(getToken(req));
    const owner=customer?.owner??await store.session(getToken(req),config.testers);
-   if(url.pathname==='/api/access'&&req.method==='GET')return send(res,200,{hostedSandbox:true,authenticated:!!owner,previewMode:!!tracking?.simulated,customerAccounts:!!accounts,emailSendingEnabled:mail.enabled,localEmailPreview:!!mail.preview,account:customer?.account??null});
+   if(url.pathname==='/api/access'&&req.method==='GET')return send(res,200,{hostedSandbox:true,authenticated:!!owner,previewMode:!!tracking?.simulated,customerAccounts:!!accounts,emailSendingEnabled:mail.enabled,localEmailPreview:!!mail.preview,account:customer?.account??null,adminPaymentHealth:!customer&&isHealthAdmin(owner)});
    if(!owner)throw new InputError('Sign in to the private sandbox.',401);
    if(req.method==='GET'){
     await store.rate('read:'+owner,120,60);
-    if(url.pathname==='/api/state')return send(res,200,{...await stateFor(owner),account:customer?.account??null});
+    if(url.pathname==='/api/state')return send(res,200,{...await stateFor(owner),account:customer?.account??null,adminPaymentHealth:!customer&&isHealthAdmin(owner)});
     if(recordRoute){
      if(!customer)throw new InputError('Sign in to your customer account to view funding records.',403);
      const records=paymentRecords(await stateFor(owner));

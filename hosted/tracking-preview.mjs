@@ -51,16 +51,20 @@ const worker=createLiveWorker({store:journey.workerStore(),maxBatch:cases.length
 await worker.tick();
 // Leave examples stable until an authenticated user explicitly requests a refresh.
 await tracking.query("UPDATE relay_live_orders SET next_check_at=now()+interval '1 day'");
-const origin=`http://127.0.0.1:${port}`,config={origin,host:new URL(origin).host,testers:['alice','bob'].map(label=>({label,sha256hex:digest('relay-preview-'+label)}))};
+const origin=`http://127.0.0.1:${port}`,config={origin,host:new URL(origin).host,paymentHealthAdmins:['admin'],testers:['alice','bob','admin'].map(label=>({label,sha256hex:digest('relay-preview-'+label)}))};
 const mail=createAccountMail(store,{enabled:true,preview:true,origin,deliver:async message=>({id:'local-'+message.id})});
 const fundingDrafts=createFundingDrafts(store);await fundingDrafts.migrate();
+// Synthetic stopped order with saved settlement for the read-only admin view.
+const stopped=(await tracking.state('alice')).orders.find(o=>o.status==='checkout_received');
+await store.query("INSERT INTO relay_funding_drafts(id,owner,request_id,agent_id,agent_revision,agent,pence,status,merchant_id,attempt_token,attempted_at,provider_id,requested_usdc,stopped_at) VALUES($1,'alice',$2,$3,1,$4,2500,'bound','relay-fixture-only',$5,now(),$6,'12.5',now())",[stopped.id,randomUUID(),stopped.agent.id,stopped.agent,randomUUID(),stopped.providerOrderId]);
+await tracking.accept({environment:'LIVE',merchantId:'relay-fixture-only',eventId:'local-unmatched',digest:'a'.repeat(64),deliveryId:'local-delivery',orderId:'outside-preview',type:'order.updated'},{matchedOnly:true});
 const ramp=createRampSimulation(store);await ramp.migrate();
 const walletBalances=createWalletBalances(store,{simulated:true,rpc:{getChainId:async()=>8453,getBlock:async()=>({number:123n,timestamp:BigInt(Math.floor(Date.now()/1000))}),readContract:async()=>7250000n}});
 await walletBalances.migrate();await walletBalances.state(previewOwner);await walletBalances.tick();
 walletBalances.start();
 const server=createHostedServer({store,config,ramp,walletBalances,fundingDrafts,accountMail:mail,pay:{readiness:async()=>({ready:false})},tracking:{store:tracking,journey,simulated:true},paymentsDisabled:true,localPreview:true});
 const timer=setInterval(()=>Promise.all([worker.tick(),mail.tick()]).catch(()=>console.error('Local fixture tracking unavailable.')),1000);
-server.listen(port,'127.0.0.1',()=>console.log(`Local simulated preview: ${origin}\nTester codes: relay-preview-alice / relay-preview-bob\nReal payments and external connections are disabled.`));
+server.listen(port,'127.0.0.1',()=>console.log(`Local simulated preview: ${origin}\nTester codes: relay-preview-alice / relay-preview-bob / relay-preview-admin\nReal payments and external connections are disabled.`));
 let stopping=false;
 for(const signal of ['SIGINT','SIGTERM'])process.on(signal,async()=>{
  if(stopping)return;stopping=true;clearInterval(timer);await worker.stop();await mail.stop();await new Promise(r=>server.close(r));await pool.end();await admin.query(`DROP SCHEMA ${schema} CASCADE`);await admin.end();process.exit(0);

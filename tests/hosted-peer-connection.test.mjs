@@ -58,7 +58,10 @@ test('signed events persist once, reject conflicts and do not change orders or c
   assert.deepEqual((await f.store.query('SELECT count(*) AS n FROM relay_orders')).rows,before);
   assert.equal(Number((await f.store.query('SELECT count(*) AS n FROM relay_webhooks')).rows[0].n),0);
   const rows=(await f.store.query('SELECT * FROM relay_peer_connection_notifications')).rows;
-  assert.equal(rows.length,2);assert.ok(!JSON.stringify(rows).includes('peer-order'));assert.ok(!JSON.stringify(rows).includes('999'));
+  assert.equal(rows.length,2);assert.ok(!JSON.stringify(rows).includes('peer-order'));
+  // Digests and timestamps may legitimately contain the digits 999. Assert the
+  // metadata-only schema, rather than searching unrelated values for an amount.
+  for(const row of rows)assert.deepEqual(Object.keys(row).sort(),['digest','event_id','event_type','merchant_id','received_at','test']);
   const restarted=createPeerConnection({connection:settings().liveConnection,store:f.store,fetcher});await restarted.checkIdentity();assert.equal((await restarted.status()).notifications.total,2);assert.deepEqual(await restarted.accept(e.raw,e.headers),{duplicate:true});
  }finally{await f.close();}
 });

@@ -136,3 +136,9 @@ For this task, large test data, release output and logs use `/Volumes/WD Element
 ### Account-security deployment confirmed
 
 The account-security release was deployed on 24 October 2026 as `7af3e435de0d2b0ba30892e058b56ae129f8dafa` (Render `dep-dbej1mnavr4c73b365kg`). All live payment flags remained unchanged. GitHub passed 178 tests and build; existing-session, recovery-checklist and protected-wallet-editor screens were verified in production without changing customer details. Full evidence and the current deployment checkout are under `/Volumes/WD Elements 1TB/Relay/development/2026-10-24-account-security/render-deployment/`. Earlier local-only entries are historical.
+
+### Optional read-only payment-health access
+
+`RELAY_PAYMENT_HEALTH_ADMINS` defaults to `[]`. A future authorised activation can name specific existing `SANDBOX_TESTERS` labels, for example `["designated-operator"]`; do not enable all testers or reuse a publicly known preview code. The labels must exist in the configured tester list. This permission exposes saved cross-customer tracking records for the server-pinned merchant. Removing a label removes its access on the next request. Customer sessions cannot gain this permission. Changing this setting requires a service restart/redeploy and is independent of all payment switches.
+
+The 25 October dashboard build does not activate this variable on Render or change live payment settings. Browser activation should be reviewed as a separate access grant. Existing runtime guards, provider calls and background scheduling remain unchanged.
