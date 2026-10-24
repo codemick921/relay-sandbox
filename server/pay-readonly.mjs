@@ -1,6 +1,7 @@
 import {InputError} from './validation.mjs';
 import {validateCheckout,sameUsdc} from './pay-contract.mjs';
 import {verifyPayDelivery} from './pay-delivery.mjs';
+import {observePeerPayIn,payInSnapshotKey} from './pay-payin.mjs';
 
 const API='https://api.pay.peer.xyz/api/v1';
 const identifier=v=>typeof v==='string'&&/^[a-zA-Z0-9_-]{1,128}$/.test(v);
@@ -31,9 +32,11 @@ export function createLiveReadService({apiKey,merchantId,rpc,fetcher=fetch}){
     if(!Array.isArray(history.payments)||history.payments.length>=100||history.hasMore||history.nextCursor||history.nextPage||history.pagination?.hasMore||history.pagination?.nextCursor||
       (history.totalCount!==undefined&&history.totalCount!==history.payments.length))throw new TrackingReviewError('The payment history is incomplete or exceeds the supported limit.');
     if(aggregate.currentPayment&&!history.payments.some(p=>p.id===aggregate.currentPayment.id&&p.status===aggregate.currentPayment.status))throw Error('Payment reads have not converged.');
+    const latest=await read('/orders/'+encodeURIComponent(order.providerOrderId));
+    const payIn=observePeerPayIn(order,aggregate,history.payments,{consistent:payInSnapshotKey(aggregate)===payInSnapshotKey(latest)});
     const result=await verifyPayDelivery(order,aggregate.order,history.payments,{rpc});
     if(!['NONE','PARTIALLY_CHARGEBACKED','CHARGEBACKED'].includes(aggregate.order.chargebackStatus))throw new TrackingReviewError('Unknown dispute state.');
-    return {...result,checkedAt:result.verification.checkedAt,providerStatus:aggregate.order.status,chargebackStatus:aggregate.order.chargebackStatus};
+    return {...result,verification:{...result.verification,payIn},checkedAt:result.verification.checkedAt,providerStatus:aggregate.order.status,chargebackStatus:aggregate.order.chargebackStatus};
    }catch(e){
     if(e instanceof TrackingReviewError)throw e;
     if(e instanceof InputError)throw new TrackingReviewError('Payment or receipt evidence conflicts with the saved order.');

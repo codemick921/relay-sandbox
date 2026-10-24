@@ -1,7 +1,7 @@
 [
   {
     "path": "hosted/accounts.mjs",
-    "sha256": "86e437d501ffe0a97b1723bc3e2fc5bbb9afd01122ec001335d20a4ad3826edd"
+    "sha256": "5ef8d566bf96f81945996839cad6224a408f3b1b991b461885ea81926ca77da0"
   },
   {
     "path": "hosted/config.mjs",
@@ -9,11 +9,11 @@
   },
   {
     "path": "hosted/db.mjs",
-    "sha256": "25fcca76a0a5523f13f99bb722a0c4c564e94448746df35f83e1d7ce22514ca1"
+    "sha256": "f440061a19ae4fa8bbe07e4cbe3b91448f5589c34083d6454d461a4ca3fb6ced"
   },
   {
     "path": "hosted/live-http.mjs",
-    "sha256": "304820e73089cc55b8cbf8e8be782f6428ada1bbc4621a176be03dbf36d846a1"
+    "sha256": "6438e1556e6bb2ab4dd88e188ff511520b958f093f63cddd05a6e5341451761a"
   },
   {
     "path": "hosted/live-schema.sql",
@@ -21,7 +21,7 @@
   },
   {
     "path": "hosted/live-store.mjs",
-    "sha256": "92bce0fa04914c0e060bc5f63f693f04efdb1bad14a5784fe58bb520d72703c2"
+    "sha256": "80b02001e531686c7256a13b5b09b00c970ee60ca09d445a798b279aecccb5bb"
   },
   {
     "path": "hosted/live-worker.mjs",
@@ -29,7 +29,7 @@
   },
   {
     "path": "hosted/schema.sql",
-    "sha256": "42f695dd88c54ee97051f3d17511a61a2e66249dac8c6494774af5f55c238d5f"
+    "sha256": "430f95841fa0a001dfd4a0444c7e323bad4eb146df652c39b3be6cad8ecec525"
   },
   {
     "path": "hosted/server.mjs",
@@ -45,11 +45,11 @@
   },
   {
     "path": "hosted/tracking-sandbox.mjs",
-    "sha256": "f239ba2f6323d963ee1e3e5951ee6a6c18e1f92049255236cc7f58ebba166b9d"
+    "sha256": "50d29c51c06ebebbb8adbad2a9f9be049000586d94ed6c09bffef0f29c4367ba"
   },
   {
     "path": "hosted/worker.mjs",
-    "sha256": "a98271699e549ad70c65781c1918b74c82df88b812fe794427b4cf9008e6caa6"
+    "sha256": "d2b9824cc5c310604dbe5b1939b94c528f7e8745c820427c68a87c105ff4d8a7"
   },
   {
     "path": "server/index.mjs",
@@ -69,7 +69,7 @@
   },
   {
     "path": "server/pay-readonly.mjs",
-    "sha256": "7f33762510a246dd7fdb519e3a538cdabc0edb8e9d88578c9e03510c3d1ea14e"
+    "sha256": "f1db3197e6b4e4245bdc25a390c8c9ecbee1ff15c3d8760a4cf601d802a0192c"
   },
   {
     "path": "server/pay-sandbox.mjs",
@@ -105,7 +105,7 @@
   },
   {
     "path": "src/Access.jsx",
-    "sha256": "f9354f782b960a743015a5d6522107e492f7c821dc1bd27dca2406b7e7c8a9f4"
+    "sha256": "a40f2b3ef6718e3e610cccd4b7f68bf65685fca880aca61605dd88936b6f0515"
   },
   {
     "path": "src/App.jsx",
@@ -121,7 +121,7 @@
   },
   {
     "path": "src/SimpleFunding.jsx",
-    "sha256": "8710b04640f4cc0838666bd576c968aa5b6b64c3b2e9b2863784dd346eec2111"
+    "sha256": "49e70e6a1e40e571fd62e765aa3d76658c1b850a16d4e3953b52c0cee4aafaca"
   },
   {
     "path": "src/api.js",
@@ -137,7 +137,7 @@
   },
   {
     "path": "src/styles.css",
-    "sha256": "9379971b6763fa792e3c24d049b096c160abea14cabb43b37ea9ac44f75690f8"
+    "sha256": "3d7830802ec6ae1b07dc651f28fa7e30ec8996da2b496adf9630c101e04ddef2"
   },
   {
     "path": "src/ui.jsx",
@@ -149,7 +149,7 @@
   },
   {
     "path": "tests/fixtures/live-evidence.mjs",
-    "sha256": "5c600ef4a9fdd960d8e9cf48e132a03d7ae24df62d242a95130d9676f75fd84a"
+    "sha256": "0e65b2ab9a95af91d10f6dccbafa89c1858b471c6057c3cde7746edc8b70744b"
   },
   {
     "path": "tests/fixtures/offline-guard.mjs",
@@ -209,7 +209,7 @@
   },
   {
     "path": "scripts/test-postgres.mjs",
-    "sha256": "f9b8c32bea26ea313f4517a6b25b085b1eab3d8eeef738b65e9c64e2df36db90"
+    "sha256": "85b75e909b1707348bc7859b61cebadf0ae7f5ff05d1d0777e8c894e54a74218"
   },
   {
     "path": "scripts/test-sandbox-webhook-flow.mjs",
@@ -217,11 +217,11 @@
   },
   {
     "path": "package.json",
-    "sha256": "1ca2b7de6bbe84eb8360e7ee5916d32e2b8ac6ebb7ca5c929389a82c1183551b"
+    "sha256": "bec48e36a0459a64c57a45e391eedca97bcb2242eae4869a51b19ccfd722bf42"
   },
   {
     "path": "package-lock.json",
-    "sha256": "ee0617af84691c02f83984f41b598736d72d2193059f7811f66fcff82347fbc2"
+    "sha256": "96593e21a06ab2455516e54d2f0fe75e4a3ae0f0d2ba55db3c3ed1e283c80836"
   },
   {
     "path": "vite.config.js",
@@ -241,7 +241,7 @@
   },
   {
     "path": "DEPLOYMENT.md",
-    "sha256": "8fbda2101e1395e281e18043713011eeb797ce7d6acf34b90ceb229b645bf9f5"
+    "sha256": "6be05e1b0810c983bd9f7d0ba4c799e554c178cb7a1d213ff1879e8f583d318b"
   },
   {
     "path": ".github/workflows/verify.yml",
@@ -293,7 +293,7 @@
   },
   {
     "path": "hosted/restricted-funding.mjs",
-    "sha256": "f4ac7105e084a17b80ad50be3827240d52629ed4942147e016d06dae593e3eb0"
+    "sha256": "5552b7b41dadfebefcb9b927e7521d553fa4392161aec5e181f85e29dc17a628"
   },
   {
     "path": "hosted/live-observation.mjs",
@@ -301,6 +301,14 @@
   },
   {
     "path": "tests/restricted-test.test.mjs",
-    "sha256": "1de4a4c651037e3816c5afb292160971e005e6bad5a74dbf11c17447b2e41374"
+    "sha256": "7e0113430b96e465e6a58f473a653b21aa6d3b4241b4fc078fad688859c813a7"
+  },
+  {
+    "path": "server/pay-payin.mjs",
+    "sha256": "bc0879cbd53a77330c5855def7719591a77243818e039427794822285eb661c9"
+  },
+  {
+    "path": "tests/pay-payin.test.mjs",
+    "sha256": "0c0ed6cab8fba12eb893e32a840f9fb013168ce1a311963b1b9a58bfc727b1c8"
   }
 ]

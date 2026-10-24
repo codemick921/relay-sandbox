@@ -104,6 +104,8 @@ export function createLiveStore(pool,{merchantId}={}){
    // Review holds require an explicit operator resolution; successful polling alone
    // cannot erase a collision or conflicting finalised history.
    const status=row.review_required?'checkout_review':result.status;
+   const previousPayIn=row.result.verification?.payIn,nextPayIn=result.verification.payIn;
+   if(nextPayIn&&(previousPayIn?.quoteFingerprint!==nextPayIn.quoteFingerprint||previousPayIn?.status!==nextPayIn.status||JSON.stringify(previousPayIn?.settlement)!==JSON.stringify(nextPayIn.settlement)))await c.query("INSERT INTO relay_live_audit(order_id,event,data) VALUES($1,'payin_observed',$2)",[row.id,nextPayIn]);
    await c.query(`UPDATE relay_live_orders SET result=$2,status=$3,generation=generation+1,lease_token=NULL,lease_until=NULL,attempts=0,next_check_at=now()+$4*interval '1 second',updated_at=now() WHERE id=$1`,[row.id,result,status,pending?0:status==='checkout_received'||status==='checkout_cancelled'||row.review_required?3600:30]);
    if(row.status!==status||JSON.stringify(row.result.delivery)!==JSON.stringify(result.delivery)||row.result.chargebackStatus!==result.chargebackStatus)await c.query("INSERT INTO relay_live_audit(order_id,event,data) VALUES($1,'verified',$2)",[row.id,{from:row.status,to:status,receivedRaw:result.verification.receivedRaw,chargebackStatus:result.chargebackStatus}]);
    return true;

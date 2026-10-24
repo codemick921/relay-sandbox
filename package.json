@@ -26,7 +26,8 @@
     "pg": "8.23.1",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "viem": "2.57.11"
+    "viem": "2.57.11",
+    "@zkp2p/pay-shared": "8.0.0"
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.5.11",
