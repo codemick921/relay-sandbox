@@ -5,7 +5,7 @@
   },
   {
     "path": "hosted/config.mjs",
-    "sha256": "587564ae22327d62c5fc59e4b1e183f5e22deabf117995e968f0aaa416842220"
+    "sha256": "d964ce65b2601aacd59a2dad74147679a176115d1bd11fe43e7afbeecf030c00"
   },
   {
     "path": "hosted/db.mjs",
@@ -33,7 +33,7 @@
   },
   {
     "path": "hosted/server.mjs",
-    "sha256": "d0a32902cbc649d4a5d32a6d38407812ee8c6079c27a42d8bf2b75c7d5ff445f"
+    "sha256": "6b569eb15b95dbe22840c3b20fa570a03146f9277ba6e3f3c6a1547c2e9e4132"
   },
   {
     "path": "hosted/startup.mjs",
@@ -246,5 +246,17 @@
   {
     "path": ".github/workflows/verify.yml",
     "sha256": "7b06a4a5fd36757385bb20c4dad58214085b4daa2a767dd71528731862062f39"
+  },
+  {
+    "path": "hosted/peer-connection.mjs",
+    "sha256": "942803d1b2c2d1a600f1f8b17aeda8c59302f74fde8583dc291e94a8a3f78168"
+  },
+  {
+    "path": "hosted/peer-notifications.sql",
+    "sha256": "0767fb41d33e3d264217cb22e5402df66854a9601638577e3f143be088a969cc"
+  },
+  {
+    "path": "tests/hosted-peer-connection.test.mjs",
+    "sha256": "737e80cdc7facd81ab8d62381883a62e3da7fb2c1bc5f33f1f86c67420a6e5b8"
   }
 ]
