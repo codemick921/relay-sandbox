@@ -23,7 +23,7 @@ async function setup({amount='10'}={}){
  const {id}=await drafts.prepare(owner,{agentId:agent.id,requestId:randomUUID(),amount,rail:'revolut',confirm:true});
  const flags={available:true,loseResponse:false,settled:false,wrongRail:false},calls=[];
  const merchant={id:'merchant',environment:'LIVE',merchantConfig:{enabledRails:['wise'],quotePreference:'PREFER_SAR',feePayer:'MERCHANT',buyerFeeShareBps:0}};
- const order=()=>({...remote(),status:flags.settled?'FULFILLED':'CREATED',remainingUsdcAmount:flags.settled?'0':'12.5',requestedFiat:{amount,currency:'GBP'},enabledRails:[flags.wrongRail?'wise':'revolut'],dynamicOrdersEnabled:false,buyerFeeShareBps:0,notes:{relayOrderId:id},successUrl:'https://relay.example/?checkout='+id});
+ const order=()=>({...remote(),status:flags.settled?'FULFILLED':'CREATED',remainingUsdcAmount:flags.settled?'0':'12.5',requestedFiat:{amount,currency:'GBP'},enabledRails:[flags.wrongRail?'wise':'revolut'],buyerFeeShareBps:0,notes:{relayOrderId:id},successUrl:'https://relay.example/?checkout='+id});
  const p=()=>({...payment(),rail:'revolut',paymentAmount:'10',quote:{...payment().quote,signalIntent:{...payment().quote.signalIntent,processorName:'revolut'}}});
  const fetcher=async(url,opts)=>{calls.push([url,opts.method??'GET']);if(url.endsWith('/me'))return envelope(merchant);if(url.includes('availability'))return envelope({available:flags.available,quoteCount:flags.available?1:0,nearbySuggestions:null});if(opts.method==='POST'){const b=JSON.parse(opts.body);assert.equal(b.requestedFiatAmount,Number(amount).toFixed(2));assert.deepEqual(b.enabledRails,['revolut']);assert.equal(b.feePayer,'MERCHANT');assert.equal(b.dynamicOrdersEnabled,false);if(flags.loseResponse)throw Error('lost');return envelope({order:order(),orderToken:'private-fixture'});}if(url.endsWith('/payments'))return envelope({payments:flags.settled?[p()]:[]});return envelope({merchant,order:order(),currentPayment:flags.settled?p():null});};
  const operator=createRevolutOperator({base:f.store,drafts,policy,tracker,merchantId:'merchant',apiKey:'fixture',origin:'https://relay.example',fetcher});
@@ -61,6 +61,14 @@ test('Revolut settlement requires the pinned rail and exact finalised Base recei
  await f.approve();await f.operator.start(f.owner,f.id);f.flags.settled=true;
  const local=(await f.tracker.state(f.owner)).orders[0],r=await f.reader.refresh(local);assert.equal(r.status,'checkout_received');assert.equal(r.delivery.recipient,f.agent.address);assert.equal(r.delivery.amountRaw,'12000000');assert.equal(r.verification.payIn.rail,'revolut');assert.equal(r.verification.payIn.totalPence,1000);assert.equal(r.verification.payIn.allInLimitVerified,false);
  await assert.rejects(f.release(f.owner,{id:f.id,confirm:true}),/needs review/);
+ }finally{await f.close();}});
+test('GET-only recovery accepts the documented fixed-order response without creation-only settings',async()=>{const f=await setup({amount:'1.94'});try{
+ await f.approve();f.flags.loseResponse=true;await f.operator.start(f.owner,f.id);
+ const posts=f.calls.filter(([u,m])=>m==='POST').length;
+ await f.operator.reconcile(f.owner,f.id,remote().id);
+ assert.equal((await f.drafts.review(f.owner,f.id)).status,'bound');
+ assert.equal(f.calls.filter(([u,m])=>m==='POST').length,posts);
+ assert.equal((await f.drafts.review(f.owner,f.id)).checkout_url,null);
  }finally{await f.close();}});
 test('HTTP runtime and simulation worker never import operator creation',()=>{
  for(const name of ['hosted/server.mjs','hosted/live-observation.mjs','hosted/revolut-test.mjs','hosted/worker.mjs'])assert.ok(!readFileSync(new URL('../'+name,import.meta.url),'utf8').includes('revolut-operator'));
