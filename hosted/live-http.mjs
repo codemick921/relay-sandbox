@@ -7,7 +7,7 @@ const prefix='/api/live-tracking';
 const send=(res,status,data)=>{res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer'});res.end(JSON.stringify(data));return true;};
 async function body(req){let size=0;const chunks=[];for await(const chunk of req){size+=chunk.length;if(size>262144)throw new InputError('Request too large.',413);chunks.push(chunk);}return Buffer.concat(chunks);}
 
-export const presentTrackedOrder=(order,simulated=false)=>({...order,tracking:true,...simulated?{source:'fixture',fixture:true}: {}});
+export const presentTrackedOrder=(order,simulated=false)=>({...order,tracking:true,...simulated?{source:'fixture',fixture:true,verification:order.verification?{...order.verification,environment:'SIMULATED',simulated:true}:undefined}: {}});
 
 // Webhooks are optional and disabled unless explicitly supplied. Session auth
 // and durable rate limits are required even when only read routes are mounted.

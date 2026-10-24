@@ -1,3 +1,5 @@
+import {configuredAccountMail} from './mail-transport.mjs';
+import {createAccountMail} from './account-mail.mjs';
 import {createAccounts} from './accounts.mjs';
 import {createLiveTrackingHandler,presentTrackedOrder} from './live-http.mjs';
 import {prepareTrackingSandbox} from './tracking-sandbox.mjs';
@@ -16,15 +18,17 @@ const dist=fileURLToPath(new URL('../dist/',import.meta.url));
 const uuid=v=>typeof v==='string'&&/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(v);
 async function body(req,max=16384){let size=0;const chunks=[];for await(const chunk of req){size+=chunk.length;if(size>max)throw new InputError('Request too large.',413);chunks.push(chunk);}return Buffer.concat(chunks);}
 const send=(res,status,data)=>{res.writeHead(status,{'Content-Type':'application/json'});res.end(JSON.stringify(data));};
-export function createHostedServer({store,config,pay=createSandboxPayService(),staticRoot=dist,allowHttpForTests=false,tracking=null,paymentsDisabled=false,localPreview=false}){
- const origin=new URL(config.origin),accounts=paymentsDisabled?createAccounts(store):null;
+export function createHostedServer({store,config,pay=createSandboxPayService(),staticRoot=dist,allowHttpForTests=false,tracking=null,paymentsDisabled=false,localPreview=false,accountMail=null,customerAccountsEnabled=true}){
+ const origin=new URL(config.origin),mail=accountMail??createAccountMail(store),accounts=customerAccountsEnabled?createAccounts(store,{mail}):null;
+ if(tracking?.journey&&(!tracking.simulated||!tracking.journey.simulated||!paymentsDisabled))throw Error('Test funding requires simulated tracking and disabled payments.');
+ if(mail.preview&&!localPreview)throw Error('Email previews are local only.');
  if(localPreview&&(!tracking?.simulated||!paymentsDisabled||origin.protocol!=='http:'||origin.hostname!=='127.0.0.1'))throw Error('Local preview requires simulated tracking, disabled payments and loopback HTTP.');
  if(tracking&&!paymentsDisabled)throw Error('Tracking integration currently requires payments to remain disabled.');
  const cookie=localPreview?'relay_local_preview':'__Host-relay_sandbox';
  const cookiePolicy=`${localPreview?'':'Secure; '}HttpOnly; SameSite=Strict; Path=/`;
  const getToken=req=>(req.headers.cookie??'').split(';').map(x=>x.trim()).find(x=>x.startsWith(cookie+'='))?.slice(cookie.length+1);
  const authenticate=async req=>(await accounts?.session(getToken(req)))?.owner??await store.session(getToken(req),config.testers);
- const stateFor=async owner=>{const state=await store.state(owner);if(!tracking)return {...state,paymentsDisabled};const [tracked,worker]=await Promise.all([tracking.store.state(owner),tracking.store.health()]);return {...state,paymentsDisabled,previewMode:!!tracking.simulated,trackingEnabled:true,worker,orders:[...tracked.orders.map(o=>presentTrackedOrder(o,tracking.simulated)),...state.orders]};};
+ const stateFor=async owner=>{const state=await store.state(owner);if(!tracking)return {...state,paymentsDisabled};const [tracked,worker]=await Promise.all([tracking.store.state(owner),tracking.store.health()]);return {...state,paymentsDisabled,previewMode:!!tracking.simulated,trackingEnabled:true,worker,fundingJourneyEnabled:!!tracking.journey,orders:[...(await tracking.journey?.decorate(owner,tracked.orders)??tracked.orders).map(o=>presentTrackedOrder(o,tracking.simulated)),...state.orders]};};
  const handleTracking=tracking&&createLiveTrackingHandler({store:tracking.store,origin:config.origin,authenticate,rateLimit:(owner,kind)=>store.rate(kind==='read'?'read:'+owner:'mutation:'+owner,kind==='read'?120:30,60),simulated:!!tracking.simulated,localPreview,allowHttpForTests});
  const server=http.createServer(async(req,res)=>{
   res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','no-referrer');res.setHeader('X-Frame-Options','DENY');res.setHeader('Strict-Transport-Security','max-age=31536000');res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
@@ -50,7 +54,7 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
     const decoded=decodeURIComponent(url.pathname);if(decoded!=='/'&&!/^\/assets\/[a-zA-Z0-9_.-]+\.(js|css|svg)$/.test(decoded))throw new InputError('Not found.',404);
     const file=path.join(staticRoot,decoded==='/'?'index.html':decoded.slice(1));const data=await readFile(file);res.setHeader('Content-Type',({'.html':'text/html','.css':'text/css','.js':'text/javascript','.svg':'image/svg+xml'})[path.extname(file)]);return res.end(data);
    }
-   const allowed=new Set(['/api/account/signup','/api/account/login','/api/account/recover','/api/account/password','/api/access','/api/login','/api/logout','/api/state','/api/agents','/api/checkouts','/api/checkout-resume','/api/checkout-refresh','/api/checkout-setup']);
+   const allowed=new Set(['/api/test-funding/quote','/api/test-funding/create','/api/test-funding/action','/api/account/signup','/api/account/login','/api/account/recover','/api/account/password','/api/account/requestVerification','/api/account/requestReset','/api/account/verifyEmail','/api/account/resetPassword','/api/account/emailPreview','/api/access','/api/login','/api/logout','/api/state','/api/agents','/api/checkouts','/api/checkout-resume','/api/checkout-refresh','/api/checkout-setup']);
    if(!allowed.has(url.pathname))throw new InputError('Not found.',404);
    if(req.headers['sec-fetch-site']==='cross-site')throw new InputError('Cross-site access blocked.',403);
    if(req.method==='POST'&&(req.headers.origin!==config.origin||!String(req.headers['content-type']).startsWith('application/json')))throw new InputError('Same-origin JSON required.',403);
@@ -59,12 +63,19 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
    if(url.pathname.startsWith('/api/account/')){
     if(!accounts||req.method!=='POST')throw new InputError('Not found.',404);
     const action=url.pathname.split('/').at(-1);
+    if(action==='emailPreview'){
+     if(!localPreview||!mail.preview)throw new InputError('Not found.',404);
+     const session=await accounts.session(getToken(req));if(!session)throw new InputError('Sign in to view local test emails.',401);
+     await store.rate('mail:preview:'+session.account.id,30,60);
+     return send(res,200,{emails:mail.previewFor(session.account.id)});
+    }
     const result=await accounts[action](b,getToken(req));
+    if(['requestVerification','requestReset','verifyEmail'].includes(action))return send(res,200,result);
     // Never retain the previous signed-in principal when changing account.
     await accounts.logout(getToken(req));await store.logout(getToken(req));
     if(result.token)res.setHeader('Set-Cookie',`${cookie}=${result.token}; ${cookiePolicy}; Max-Age=43200`);
     else res.setHeader('Set-Cookie',`${cookie}=; ${cookiePolicy}; Max-Age=0`);
-    const {token,...safe}=result;return send(res,200,{...safe,authenticated:!!token,hostedSandbox:true,previewMode:!!tracking?.simulated,customerAccounts:true});
+    const {token,...safe}=result;return send(res,200,{...safe,authenticated:!!token,hostedSandbox:true,previewMode:!!tracking?.simulated,customerAccounts:true,emailSendingEnabled:mail.enabled,localEmailPreview:!!mail.preview});
    }
    if(url.pathname==='/api/login'&&req.method==='POST'){
     // The global DB-backed cap cannot be bypassed with forged forwarding headers or parallel instances.
@@ -78,7 +89,7 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
    }
    const customer=await accounts?.session(getToken(req));
    const owner=customer?.owner??await store.session(getToken(req),config.testers);
-   if(url.pathname==='/api/access'&&req.method==='GET')return send(res,200,{hostedSandbox:true,authenticated:!!owner,previewMode:!!tracking?.simulated,customerAccounts:!!accounts,account:customer?.account??null});
+   if(url.pathname==='/api/access'&&req.method==='GET')return send(res,200,{hostedSandbox:true,authenticated:!!owner,previewMode:!!tracking?.simulated,customerAccounts:!!accounts,emailSendingEnabled:mail.enabled,localEmailPreview:!!mail.preview,account:customer?.account??null});
    if(!owner)throw new InputError('Sign in to the private sandbox.',401);
    if(req.method==='GET'){
     await store.rate('read:'+owner,120,60);
@@ -87,6 +98,13 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
     throw new InputError('Not found.',404);
    }
    await store.rate('mutation:'+owner,30,60);
+   if(url.pathname.startsWith('/api/test-funding/')){
+    if(!tracking?.journey||!paymentsDisabled||!customer)throw new InputError('Sign in to a customer account to test funding.',403);
+    const action=url.pathname.split('/').at(-1);
+    if(action==='quote')return send(res,200,await tracking.journey.quote(owner,b));
+    const result=action==='create'?await tracking.journey.create(owner,b):await tracking.journey.action(owner,b.id,b);
+    return send(res,200,{...await stateFor(owner),account:customer.account,selectedOrderId:result.id});
+   }
    switch(url.pathname){
     case '/api/logout':await accounts?.logout(getToken(req));await store.logout(getToken(req));res.setHeader('Set-Cookie',`${cookie}=; ${cookiePolicy}; Max-Age=0`);return send(res,200,{authenticated:false});
     case '/api/agents':{
@@ -120,6 +138,6 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
 if(process.argv[1]===fileURLToPath(import.meta.url)){
  const config=readConfig(),store=createStore(createPool());await migrateWhenReady(store);
  const tracking=await prepareTrackingSandbox(store,config.testers);
- const server=createHostedServer({store,config,tracking,paymentsDisabled:true,pay:{readiness:async()=>({ready:false})}});server.listen(Number(process.env.PORT??10000),'0.0.0.0',()=>console.log('Relay hosted sandbox ready.'));
+ const server=createHostedServer({store,config,tracking,accountMail:configuredAccountMail(store),paymentsDisabled:true,pay:{readiness:async()=>({ready:false})}});server.listen(Number(process.env.PORT??10000),'0.0.0.0',()=>console.log('Relay hosted sandbox ready.'));
  let closing=false;for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>{if(closing)return;closing=true;server.close(async()=>{await tracking.close();await store.close();process.exit(0);});setTimeout(()=>process.exit(1),25000).unref();});
 }

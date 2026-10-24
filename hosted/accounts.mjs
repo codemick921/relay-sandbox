@@ -1,6 +1,7 @@
 import {randomUUID,randomBytes,scrypt as scryptCallback,timingSafeEqual} from 'node:crypto';
 import {promisify} from 'node:util';
 import {digest} from './db.mjs';
+import {createAccountMail} from './account-mail.mjs';
 import {InputError} from '../server/validation.mjs';
 
 const scrypt=promisify(scryptCallback), options={N:32768,r:8,p:3,maxmem:64*1024*1024};
@@ -28,16 +29,29 @@ async function verifyPassword(value,encoded){
  const parts=String(encoded).split('$');if(parts[0]!=='scrypt-v1'||!/^[a-f0-9]{32}$/.test(parts[1])||!/^[a-f0-9]{64}$/.test(parts[2]))throw Error('Unsupported password encoding.');
  return timingSafeEqual(await derive(value,parts[1]),Buffer.from(parts[2],'hex'));
 }
-const view=row=>({id:row.id,name:row.name,email:row.email,emailVerified:false});
+const view=row=>({id:row.id,name:row.name,email:row.email,emailVerified:!!row.email_verified_at});
 const owner=id=>'customer:'+id;
 const recovery=()=>randomBytes(32).toString('hex');
-export function createAccounts(store){
+export function createAccounts(store,{mail=createAccountMail(store)}={}){
  async function limits(email,kind){await store.rate('accounts:global',60,900);await store.rate('accounts:'+kind+':'+digest(email),kind==='signup'?3:10,900);}
  async function issue(row){
   const token=randomBytes(32).toString('hex');
   const saved=await store.query(`INSERT INTO relay_customer_sessions(token_hash,customer_id,version) SELECT $1,id,version FROM relay_customers WHERE id=$2 AND password_hash=$3 AND NOT disabled RETURNING token_hash`,[digest(token),row.id,row.password_hash]);
   if(!saved.rows.length)throw new InputError('Please sign in again.',401);
   return {token,account:view(row)};
+ }
+ async function consume(token,purpose,change){
+  const invalid=()=>new InputError('This link is invalid or has expired. Request a new one.',400);
+  if(typeof token!=='string'||!/^[a-f0-9]{64}$/.test(token))throw invalid();
+  return store.tx(async c=>{
+   const id=(await c.query('SELECT customer_id FROM relay_account_mail WHERE token_hash=$1 AND purpose=$2',[digest(token),purpose])).rows[0]?.customer_id;
+   if(!id)throw invalid();
+   const row=(await c.query('SELECT * FROM relay_customers WHERE id=$1 FOR UPDATE',[id])).rows[0];
+   if(!row||row.disabled||(purpose==='reset'&&!row.email_verified_at)||(purpose==='verify'&&row.email_verified_at))throw invalid();
+   const used=await c.query(`UPDATE relay_account_mail SET consumed_at=now() WHERE token_hash=$1 AND purpose=$2 AND customer_id=$3 AND version=$4 AND consumed_at IS NULL AND expires_at>now() AND state IN ('sending','accepted','unknown') RETURNING id`,[digest(token),purpose,id,row.version]);
+   if(!used.rows.length)throw invalid();
+   return change(c,row);
+  });
  }
  return {
   async signup(input){
@@ -50,6 +64,7 @@ export function createAccounts(store){
      const row=(await c.query('INSERT INTO relay_customers(id,email,name,password_hash,recovery_hash) VALUES($1,$2,$3,$4,$5) RETURNING *',[id,email,name,password,digest(code)])).rows[0];
      const token=randomBytes(32).toString('hex');
      await c.query('INSERT INTO relay_customer_sessions(token_hash,customer_id,version) VALUES($1,$2,1)',[digest(token),id]);
+     await mail.enqueue(c,row,'verify');
      return {token,account:view(row),recoveryCode:code};
     });
    }catch(e){if(e.code==='23505')throw new InputError('Unable to create this account. Try signing in or recovering access.',409);throw e;}
@@ -66,9 +81,9 @@ export function createAccounts(store){
    if(typeof input.recoveryCode!=='string'||!/^[a-f0-9]{64}$/i.test(input.recoveryCode))throw new InputError('Email or recovery code not recognised.',401);
    const password=await hashPassword(input.password),code=recovery();
    const result=await store.tx(async c=>{
-    const row=(await c.query(`UPDATE relay_customers SET password_hash=$3,recovery_hash=$4,version=version+1 WHERE email=$1 AND recovery_hash=$2 AND NOT disabled RETURNING id`,[email,digest(input.recoveryCode.toLowerCase()),password,digest(code)])).rows[0];
+    const row=(await c.query(`UPDATE relay_customers SET password_hash=$3,recovery_hash=$4,version=version+1 WHERE email=$1 AND recovery_hash=$2 AND NOT disabled RETURNING *`,[email,digest(input.recoveryCode.toLowerCase()),password,digest(code)])).rows[0];
     if(!row)throw new InputError('Email or recovery code not recognised.',401);
-    await c.query('UPDATE relay_customer_sessions SET revoked=true WHERE customer_id=$1',[row.id]);return row;
+    await c.query('UPDATE relay_customer_sessions SET revoked=true WHERE customer_id=$1',[row.id]);if(row.email_verified_at)await mail.enqueue(c,row,'changed');return row;
    });
    return {recovered:!!result,recoveryCode:code};
   },
@@ -83,12 +98,51 @@ export function createAccounts(store){
     if(!updated)throw new InputError('Please sign in again.',401);
     await c.query('UPDATE relay_customer_sessions SET revoked=true WHERE customer_id=$1',[row.id]);
     await c.query('INSERT INTO relay_customer_sessions(token_hash,customer_id,version) VALUES($1,$2,$3)',[digest(nextToken),row.id,updated.version]);
+    if(updated.email_verified_at)await mail.enqueue(c,updated,'changed');
     return {token:nextToken,account:view(updated),recoveryCode:code};
+   });
+  },
+  async requestVerification(input,token){
+   const session=await this.session(token);if(!session)throw new InputError('Sign in to verify your email.',401);
+   if(!mail.enabled)throw new InputError('Email sending is not connected yet. Keep your recovery code safe.',503);
+   await store.rate('mail:global',60,3600);await store.rate('mail:verify:'+session.account.id,3,900);
+   await store.tx(async c=>{
+    const row=(await c.query('SELECT * FROM relay_customers WHERE id=$1 AND NOT disabled FOR UPDATE',[session.account.id])).rows[0];
+    if(row&&!row.email_verified_at)await mail.enqueue(c,row,'verify');
+   });return {message:mail.preview?'Verification preview requested. Open Account security and select View local test emails. No email will be sent.':'Verification requested. Use the newest email link to confirm your address.'};
+  },
+  async requestReset(input){
+   const email=emailKey(input.email);
+   if(!mail.enabled)throw new InputError('Email sending is not connected yet. Use your saved recovery code instead.',503);
+   await store.rate('mail:global',60,3600);await store.rate('mail:reset:'+digest(email),3,900);
+   await store.tx(async c=>{
+    const row=(await c.query('SELECT * FROM relay_customers WHERE email=$1 AND NOT disabled AND email_verified_at IS NOT NULL FOR UPDATE',[email])).rows[0];
+    if(row)await mail.enqueue(c,row,'reset');
+   });return {message:mail.preview?'If this email belongs to a verified test account, a reset preview has been requested. View local test emails from that account’s security screen. No email will be sent.':'If this email belongs to a verified account, a password reset has been requested. Check your inbox and spam folder. You can also use your saved recovery code.'};
+  },
+  async verifyEmail(input,token){
+   const session=await this.session(token);if(!session)throw new InputError('Sign in to the account you are verifying, then open the link again.',401);
+   await store.rate('mail:consume:'+session.account.id,10,900);
+   return consume(input.linkToken,'verify',async(c,row)=>{
+    if(row.id!==session.account.id)throw new InputError('Sign in to the account this link was sent to.',403);
+    const updated=(await c.query('UPDATE relay_customers SET email_verified_at=now() WHERE id=$1 RETURNING *',[row.id])).rows[0];
+    return {account:view(updated),message:mail.preview?'Test verification complete. No inbox access was checked.':'Your email address is verified.'};
+   });
+  },
+  async resetPassword(input){
+   await store.rate('mail:reset-consume:global',30,900);
+   if(typeof input.linkToken!=='string'||!/^[a-f0-9]{64}$/.test(input.linkToken))throw new InputError('This link is invalid or has expired. Request a new one.',400);
+   const password=await hashPassword(input.password),code=recovery();
+   return consume(input.linkToken,'reset',async(c,row)=>{
+    const updated=(await c.query('UPDATE relay_customers SET password_hash=$2,recovery_hash=$3,version=version+1 WHERE id=$1 RETURNING *',[row.id,password,digest(code)])).rows[0];
+    await c.query('UPDATE relay_customer_sessions SET revoked=true WHERE customer_id=$1',[row.id]);
+    await mail.enqueue(c,updated,'changed');
+    return {recovered:true,recoveryCode:code};
    });
   },
   async session(token){
    if(!/^[a-f0-9]{64}$/.test(token??''))return null;
-   const r=await store.query(`UPDATE relay_customer_sessions s SET last_seen_at=now() FROM relay_customers c WHERE s.token_hash=$1 AND s.customer_id=c.id AND s.version=c.version AND NOT s.revoked AND NOT c.disabled AND s.expires_at>now() AND s.last_seen_at>now()-interval '2 hours' RETURNING c.id,c.email,c.name`,[digest(token)]);
+   const r=await store.query(`UPDATE relay_customer_sessions s SET last_seen_at=now() FROM relay_customers c WHERE s.token_hash=$1 AND s.customer_id=c.id AND s.version=c.version AND NOT s.revoked AND NOT c.disabled AND s.expires_at>now() AND s.last_seen_at>now()-interval '2 hours' RETURNING c.id,c.email,c.name,c.email_verified_at`,[digest(token)]);
    return r.rows[0]?{owner:owner(r.rows[0].id),account:view(r.rows[0])}:null;
   },
   async logout(token){await store.query('UPDATE relay_customer_sessions SET revoked=true WHERE token_hash=$1',[digest(token??'')]);}

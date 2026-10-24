@@ -1,4 +1,4 @@
-import {encodeEventTopics,encodeAbiParameters,erc20Abi} from 'viem';
+import {encodeEventTopics,encodeAbiParameters,erc20Abi,parseUnits} from 'viem';
 import {ORCHESTRATOR,ESCROW} from '../../server/receipts.mjs';
 import {TOKEN} from '../../server/validation.mjs';
 const recipient='0x1111111111111111111111111111111111111111',other='0x2222222222222222222222222222222222222222';
@@ -9,6 +9,7 @@ export const remote=()=>({id:'peer-order',merchantId:'merchant',status:'FULFILLE
 export const payment=()=>({id:'payment-1',orderId:'peer-order',status:'SETTLED',rail:'wise',currency:'GBP',chargebackStatus:'NONE',penalties:[],netSettledUsdcAmount:'12',totalUsdcFeeAmount:'0.5',railIdentifier:intent,fulfillTransaction:tx,quote:{intentHash:intent,signalIntent:{processorName:'wise',toAddress:recipient,orchestratorAddress:ORCHESTRATOR.address,escrowAddress:ESCROW,amount:'12500000'}}});
 function log(abi,eventName,args,address){const event=abi.find(x=>x.type==='event'&&x.name===eventName);return {address,topics:encodeEventTopics({abi:[event],eventName,args}),data:encodeAbiParameters(event.inputs.filter(i=>!i.indexed),event.inputs.filter(i=>!i.indexed).map(i=>args[i.name]))};}
 export function receipt(p=payment()){
- return {status:'success',transactionHash:p.fulfillTransaction,blockNumber:120n,blockHash,logs:[log(ORCHESTRATOR.abi,'IntentFulfilled',{intentHash:p.railIdentifier,fundsTransferredTo:recipient,amount:12000000n,isManualRelease:false},ORCHESTRATOR.address),log(erc20Abi,'Transfer',{from:ORCHESTRATOR.address,to:recipient,value:12000000n},TOKEN)]};
+ const destination=p.quote?.signalIntent?.toAddress??recipient,amount=parseUnits(p.netSettledUsdcAmount,6);
+ return {status:'success',transactionHash:p.fulfillTransaction,blockNumber:120n,blockHash,logs:[log(ORCHESTRATOR.abi,'IntentFulfilled',{intentHash:p.railIdentifier,fundsTransferredTo:destination,amount,isManualRelease:false},ORCHESTRATOR.address),log(erc20Abi,'Transfer',{from:ORCHESTRATOR.address,to:destination,value:amount},TOKEN)]};
 }
 export const rpc=(overrides={})=>({getChainId:async()=>8453,getTransactionReceipt:async()=>receipt(),getBlock:async({blockTag})=>({hash:blockHash,number:blockTag==='finalized'?120n:120n}),...overrides});

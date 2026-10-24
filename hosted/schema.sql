@@ -60,3 +60,16 @@ CREATE TABLE IF NOT EXISTS relay_customer_sessions (
 );
 CREATE INDEX IF NOT EXISTS relay_customer_sessions_customer ON relay_customer_sessions(customer_id);
 INSERT INTO relay_schema(version) VALUES(2) ON CONFLICT DO NOTHING;
+
+-- No plaintext email tokens or links are persisted, including queued mail.
+ALTER TABLE relay_customers ADD COLUMN IF NOT EXISTS email_verified_at timestamptz;
+CREATE TABLE IF NOT EXISTS relay_account_mail (
+ id uuid PRIMARY KEY, customer_id uuid NOT NULL REFERENCES relay_customers(id),
+ purpose text NOT NULL CHECK(purpose IN ('verify','reset','changed')),
+ version integer NOT NULL, state text NOT NULL DEFAULT 'queued'
+ CHECK(state IN ('queued','sending','accepted','unknown','suppressed')),
+ token_hash text UNIQUE, expires_at timestamptz, consumed_at timestamptz,
+ provider_id text, created_at timestamptz NOT NULL DEFAULT now(), attempted_at timestamptz
+);
+CREATE INDEX IF NOT EXISTS relay_account_mail_customer ON relay_account_mail(customer_id,created_at DESC);
+INSERT INTO relay_schema(version) VALUES(3) ON CONFLICT DO NOTHING;

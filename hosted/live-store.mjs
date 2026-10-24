@@ -10,7 +10,7 @@ const identifier=v=>typeof v==='string'&&/^[a-zA-Z0-9_-]{1,128}$/.test(v);
 const uint=v=>typeof v==='string'&&/^\d{1,16}$/.test(v);
 const states=new Set(['checkout_ready','checkout_partial','checkout_settled','checkout_confirming','checkout_received','checkout_cancelled','checkout_review']);
 const check=(ok,message)=>{if(!ok)throw new TrackingReviewError(message);};
-export const liveOrderView=row=>({...row.request,...row.result,id:row.id,status:row.status,reviewRequired:row.review_required,source:'live'});
+export const liveOrderView=row=>({...row.request,...row.result,id:row.id,createdAt:row.created_at,status:row.status,reviewRequired:row.review_required,source:'live'});
 
 function immutableIntent(input){
  if(input?.source!=='live'||input.kind!=='checkout'||!uuid(input.id)||!identifier(input.providerOrderId)||!identifier(input.merchantId)||
@@ -56,19 +56,19 @@ export function createLiveStore(pool,{merchantId}={}){
  async function owned(c,owner,id){const r=await c.query('SELECT * FROM relay_live_orders WHERE id=$1 AND owner=$2 AND merchant_id=$3',[id,owner,merchantId]);if(!r.rows[0])throw new InputError('Order not found.',404);return r.rows[0];}
  const current=async(c,claim)=>{const r=(await c.query('SELECT * FROM relay_live_orders WHERE id=$1 AND merchant_id=$2 FOR UPDATE',[claim.id,merchantId])).rows[0];return r&&String(r.generation)===String(claim.generation)&&r.lease_token===claim.lease_token?r:null;};
  return {
-  query,
+  query,tx,
   async migrate(){return tx(async c=>{await c.query('SELECT pg_advisory_xact_lock(431925)');await c.query(readFileSync(new URL('./live-schema.sql',import.meta.url),'utf8'));});},
   // SERVER-ONLY boundary for the future authorised checkout creation transaction.
   // Never expose this as arbitrary order import, webhook discovery or browser input.
-  async bindTrustedOrder(owner,input){
-   if(!identifier(owner))throw new InputError('A verified owner is required.');
+  async bindTrustedOrder(owner,input,{client}={}){
+   if(!identifier(owner)&&!/^customer:[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(owner))throw new InputError('A verified owner is required.');
    const request=immutableIntent(input);if(request.merchantId!==merchantId)throw new InputError('Wrong merchant.');
-   return tx(async c=>{
+   const bind=async c=>{
     const row=(await c.query(`INSERT INTO relay_live_orders(id,owner,merchant_id,provider_id,request) VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING RETURNING *`,[request.id,owner,merchantId,request.providerOrderId,request])).rows[0];
     if(row){await c.query("INSERT INTO relay_live_audit(order_id,event) VALUES($1,'bound')",[row.id]);return row;}
     const old=await owned(c,owner,request.id);
     check(JSON.stringify(immutableIntent(old.request))===JSON.stringify(request),'Existing live intent cannot change.');return old;
-   });
+   };return client?bind(client):tx(bind);
   },
   owned:(owner,id)=>owned(pool,owner,id),
   async state(owner){const orders=await query('SELECT * FROM relay_live_orders WHERE owner=$1 AND merchant_id=$2 ORDER BY created_at DESC LIMIT 100',[owner,merchantId]);return {orders:orders.rows.map(liveOrderView)};},

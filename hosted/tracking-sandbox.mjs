@@ -1,3 +1,4 @@
+import {createFundingJourney} from './funding-journey.mjs';
 // Persistent synthetic tracking only. This module has no provider or RPC client.
 import {createHash} from 'node:crypto';
 import {createPool} from './db.mjs';
@@ -28,10 +29,10 @@ export async function prepareTrackingSandbox(baseStore,testers,{connectionString
  if(!/^relay_tracking_sandbox_[a-z0-9_]+$/.test(schema))throw Error('Use an isolated tracking sandbox schema.');
  // Fixed namespace isolates all synthetic receipts from both existing sandbox
  // records and any future real tracking store. Never seed customer wallet data.
- await baseStore.query(`CREATE SCHEMA IF NOT EXISTS ${schema}`);
+ await baseStore.tx(async c=>{await c.query('SELECT pg_advisory_xact_lock(431928)');await c.query(`CREATE SCHEMA IF NOT EXISTS ${schema}`);});
  const pool=createPool(connectionString,{schema}),store=createLiveStore(pool,{merchantId});
  try{
-  await store.migrate();const scenarios=new Map();
+  await store.migrate();const journey=createFundingJourney({baseStore,store});await journey.migrate();const scenarios=new Map();
   for(const tester of testers)for(const stage of ['received','confirming','partial','review']){
    const order=sandboxIntent(tester.label,stage);scenarios.set(order.providerOrderId,stage);
    // Idempotent across processes/redeploys, initial results saved only once.
@@ -49,7 +50,7 @@ export async function prepareTrackingSandbox(baseStore,testers,{connectionString
    }
    await c.query('COMMIT');
   }catch(error){await c.query('ROLLBACK');throw error;}finally{c.release();}
-  const pay={refresh:async order=>{const stage=scenarios.get(order.providerOrderId);if(!stage)throw new TrackingReviewError('Unknown fixture.');return fixtureResult(order,stage);}};
-  return {store,simulated:true,close:()=>pool.end(),createWorker:()=>createLiveWorker({store,pay})};
+  const pay={refresh:async order=>{const dynamic=await journey.refresh(order);if(dynamic)return dynamic;const stage=scenarios.get(order.providerOrderId);if(!stage)throw new TrackingReviewError('Unknown fixture.');return fixtureResult(order,stage);}};
+  return {store,journey,simulated:true,close:()=>pool.end(),createWorker:()=>createLiveWorker({store:journey.workerStore(),pay})};
  }catch(error){await pool.end();throw error;}
 }

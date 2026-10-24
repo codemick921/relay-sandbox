@@ -68,7 +68,7 @@ export function createStore(pool){
    return {duplicate:false};
   });},
   async heartbeat(id){await query(`INSERT INTO relay_workers(id,version) VALUES($1,'sandbox-v1') ON CONFLICT(id) DO UPDATE SET beat_at=now()`,[id]);},
-  async maintenance(){await query("DELETE FROM relay_rate_limits WHERE reset_at<now()-interval '1 hour'");await query("DELETE FROM relay_sessions WHERE expires_at<now()-interval '7 days'");await query("DELETE FROM relay_customer_sessions WHERE expires_at<now()-interval '7 days'");await query("DELETE FROM relay_workers WHERE beat_at<now()-interval '7 days'");},
+  async maintenance(){await query("DELETE FROM relay_account_mail WHERE created_at<now()-interval '7 days'");await query("DELETE FROM relay_rate_limits WHERE reset_at<now()-interval '1 hour'");await query("DELETE FROM relay_sessions WHERE expires_at<now()-interval '7 days'");await query("DELETE FROM relay_customer_sessions WHERE expires_at<now()-interval '7 days'");await query("DELETE FROM relay_workers WHERE beat_at<now()-interval '7 days'");},
   async close(){await pool.end();}
  };
 }
