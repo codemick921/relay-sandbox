@@ -1,8 +1,10 @@
+import {resumeTarget} from './payment-resume.mjs';
 import React,{useState,useEffect} from 'react';
 import App from './App';
 import {api} from './api';
 import {Button,Field,Notice,Check} from './ui';
 export default function Access(){
+ const [hasResume,setHasResume]=useState(()=>!!resumeTarget(window.location));
  const [access,setAccess]=useState(null),[error,setError]=useState(''),[message,setMessage]=useState(''),[busy,setBusy]=useState(false),[mode,setMode]=useState('signin');
  const [email,setEmail]=useState(''),[name,setName]=useState(''),[password,setPassword]=useState(''),[currentPassword,setCurrentPassword]=useState(''),[code,setCode]=useState(''),[accepted,setAccepted]=useState(false),[recovery,setRecovery]=useState(''),[saved,setSaved]=useState(false),[link,setLink]=useState(null),[emails,setEmails]=useState([]);
  const clearSecrets=()=>{setPassword('');setCurrentPassword('');setCode('');setRecovery('');setSaved(false);setEmails([]);};
@@ -14,7 +16,7 @@ export default function Access(){
  }
  useEffect(()=>{
   let active=true;
-  const readLink=()=>{const hash=window.location.hash;if(hash.startsWith('#verify-email=')||hash.startsWith('#reset-password=')){window.history.replaceState(null,'',window.location.pathname+window.location.search);openLink(hash);}};
+  const readLink=()=>{setHasResume(!!resumeTarget(window.location));const hash=window.location.hash;if(hash.startsWith('#verify-email=')||hash.startsWith('#reset-password=')){window.history.replaceState(null,'',window.location.pathname+window.location.search);openLink(hash);}};
   readLink();window.addEventListener('hashchange',readLink);
   api('access').then(a=>active&&setAccess(a)).catch(e=>{if(!active)return;if(e.status===404)setAccess({hostedSandbox:false,authenticated:true});else setError('Relay is temporarily unavailable. Please try again.');});
   const expired=()=>{clearSecrets();setMode('signin');setAccess(previous=>({...previous,hostedSandbox:true,authenticated:false,account:null}));};window.addEventListener('relay-session-expired',expired);
@@ -44,6 +46,7 @@ export default function Access(){
  const emailEnabled=access?.emailSendingEnabled,localEmail=access?.localEmailPreview;
  const title={security:'Account security',signup:'Create your Relay account',recover:'Use your recovery code',forgot:'Reset your password',reset:'Choose a new password',confirmEmail:'Verify your email'}[mode]??'Welcome to Relay';
  return <main className="sandbox-login"><section className="panel"><span className="brand-mark">R</span><h1>{recovery?'Save your recovery code':title}</h1><p>Save your agent wallets and track your funding. Review the payment mode before creating a checkout.</p>
+ {hasResume&&!access?.authenticated&&<Notice>Sign in to the same Relay account to resume your saved request. Opening this link does not create an order or send money.</Notice>}
  {error&&<Notice error>{error}</Notice>}{message&&<Notice>{message}</Notice>}
  {localEmail&&<Notice>Local email preview: messages stay in this test app. Nothing is sent to an inbox.</Notice>}
  {!access?<><p>Opening your workspace…</p>{error&&<Button onClick={()=>location.reload()}>Retry</Button>}</>:recovery?<>

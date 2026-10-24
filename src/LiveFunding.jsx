@@ -1,3 +1,5 @@
+import PhoneResume from './PhoneResume';
+import {canContinueCheckout} from './payment-resume.mjs';
 import React,{useState,useEffect} from 'react';
 import {Button,Modal,Field,Check,Notice} from './ui';
 import {api,gbp} from './api';
@@ -26,10 +28,10 @@ export function LiveFunding({state,act,busy,error,onClose,open,selected,fundingP
 export function FundingDraft({state,draft,act,busy,error,onClose,open}){
  const live=state.liveFunding?.paymentsEnabled===true;
  const [consent,setConsent]=useState(false),[link,setLink]=useState(null),[localError,setError]=useState(''),[opening,setOpening]=useState(false),[cancelOpen,setCancelOpen]=useState(false),[noPayment,setNoPayment]=useState(false);
- useEffect(()=>{setLink(null);setConsent(false);setError('');setCancelOpen(false);setNoPayment(false);},[draft?.id,draft?.status,draft?.cancellationState,draft?.stoppedAt]);
+ useEffect(()=>{setLink(null);setConsent(false);setError('');setCancelOpen(false);setNoPayment(false);},[draft?.id,draft?.status,draft?.cancellationState,draft?.stoppedAt,state.orders.find(o=>o.id===draft?.id)?.status,state.orders.find(o=>o.id===draft?.id)?.trackingError,state.orders.find(o=>o.id===draft?.id)?.reviewRequired]);
  if(!draft)return <Modal title="Funding request" onClose={onClose}><Notice>This request is no longer available in your account.</Notice></Modal>;
  const draftOnly=draft.status==='draft',cancelled=draft.status==='cancelled',bound=draft.status==='bound',closed=draft.status==='closed';
- const tracked=state.orders.find(o=>o.id===draft.id),ready=bound&&!draft.stoppedAt&&draft.cancellationState!=='requested'&&tracked&&!tracked.reviewRequired&&!tracked.trackingError&&['checkout_ready','checkout_partial'].includes(tracked.status);
+ const tracked=state.orders.find(o=>o.id===draft.id),ready=canContinueCheckout(draft,tracked,live);
  async function resume(){setOpening(true);setError('');try{const r=await api('funding/resume',{id:draft.id,confirm:true});setLink(r.checkoutUrl);}catch(e){setError(e.message);}finally{setOpening(false);}}
  return <Modal title="Your GBP funding request" onClose={busy?()=>{}:onClose}>
   <Notice>{draft.stoppedAt?'Stopped in Relay. You can start a new funding request. The old Peer checkout may still be open; do not pay it.':cancelled?(draft.cancellationState==='confirmed'?'Peer has confirmed cancellation. You can create a new request with a different amount.':'Draft cancelled. No checkout was created.'):draftOnly?'Saved in Relay. No checkout has been created yet.':closed?'Wallet delivery has been verified. Open the receipt to see the transfer.':bound?(draft.cancellationState==='requested'?'Your cancellation request is saved. The order is not cancelled yet.':'Your Peer checkout is saved. Continue the same order rather than creating another payment.'):'Creation is unresolved. Keep this request while it is reconciled; do not pay a replacement order.'}</Notice>
@@ -39,7 +41,9 @@ export function FundingDraft({state,draft,act,busy,error,onClose,open}){
   <dl className="details"><div><dt>Requested funding</dt><dd>{gbp(draft.pence)}</dd></div><div><dt>Pay with</dt><dd>{draft.rail==='revolut'?'Revolut':'Wise'} · GBP</dd></div><div><dt>Agent</dt><dd>{draft.agent.name}</dd></div><div><dt>Receives</dt><dd>USDC on Base</dd></div></dl>
   <p>Receiving address</p><code className="checkout-address">{draft.agent.address}</code>
   {!draft.walletCurrent&&draftOnly&&<Notice error>The saved wallet has changed. Cancel this draft and review the updated address.</Notice>}
-  {(draftOnly||ready)&&!draft.supersededBy&&<FundingInstructions preview={!live||draftOnly}/>}
+  {!draft.supersededBy&&<FundingInstructions preview={!live||draftOnly} rail={draft.rail} requestedPence={draft.pence} stage={draft.stoppedAt?'stopped':closed||cancelled?'closed':draftOnly?'ready':tracked?.status==='checkout_partial'?'partial':ready?'ready':'tracking'}/>}
+  <PhoneResume key={draft.id} id={draft.id} trackingOnly={!!draft.stoppedAt||closed||cancelled||(!draftOnly&&!ready)}/>
+  {live&&ready&&<Notice>Already paid or scheduled it? Open the same checkout only to complete verification. Do not send another transfer.</Notice>}
   {draft.stoppedAt?null:draft.supersededBy?<Button onClick={()=>open('funding-draft',draft.supersededBy)}>Open replacement request</Button>:live&&draftOnly?<>
    <Check checked={consent} onChange={e=>setConsent(e.target.checked)}>Create a real Peer checkout and share this amount, receiving address and order reference with Peer. I will review the final payment details before paying.</Check>
    <Button className="full spaced" disabled={busy||!consent||!draft.walletCurrent} onClick={()=>act('funding/checkout',{id:draft.id,confirm:true,consent:true})}>{busy?'Creating checkout…':'Create real Peer checkout'}</Button>

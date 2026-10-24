@@ -108,3 +108,13 @@ The customer confirms they have not sent or scheduled payment and will not use t
 Old order IDs, amount, wallet snapshot and payment evidence remain unchanged. Relay no longer exposes their checkout links, but the read-only tracker keeps checking for late funds and attributes them to the original order. History labels them Stopped in Relay. New requests get new IDs and separately reviewed amounts; stopping never creates a new provider order itself. Legacy cancellation requests can use the new local stop flow when eligible, and genuine provider cancellations still reconcile normally.
 
 Regression checks must cover immediate replacement, concurrent stops/new requests, old-link rejection, restart persistence, ownership, stale observations, disputes, outage holds and late funds on the original order. Do not cancel or create real orders to test this feature.
+
+## 24 October 2026: wallet dashboard and phone resume
+
+Wallet balances, low-balance preferences and repeat funding are deployed at commit `1c97de98f97e35a1a655c46d8aa5cf6535549ca2`. Render deployment `dep-dbehfcss728c73c8ghd0` is Live. Existing live payment flags are unchanged.
+
+The next local release adds clearer per-stage payment instructions and a phone handoff for saved customer funding requests. The locally generated QR/copy link contains only a Relay request UUID in `/#funding=<uuid>`. It contains no session, private Peer checkout token, wallet address or payment amount. Sign-in is required, and the owner-scoped state must contain that request. Opening or scanning the link only displays the existing request; provider checkout creation/resume retains explicit existing controls and server checks. Stopped, cancelled, completed and held requests do not gain payment controls from a link.
+
+The current provider checkout remains authoritative for recipient, amount, currency, reference and deadline. The user must complete any payment/verification steps required there. Relay's phone handoff does not alter provider verification requirements or guarantee extension-free verification. No provider was contacted during implementation.
+
+Validation: 170/170 offline regression tests with actual local PostgreSQL, including five phone-resume tests; production build; signed-out link then customer sign-in restores the same request; local QR/copy verification and 390px mobile layout check. No real phone camera scan or provider payment was used. Phone changes are locally prepared, not yet deployed. Logs: `development/2026-10-24-payment-handoff/`.

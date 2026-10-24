@@ -1,14 +1,20 @@
 import React from 'react';
 
-export default function FundingInstructions({preview=false}){
+export default function FundingInstructions({preview=false,rail,requestedPence,stage='ready'}){
+ const method=rail==='wise'?'Wise':rail==='revolut'?'Revolut':'the payment app shown in Peer';
+ const tracking=['partial','tracking','stopped','closed','review'].includes(stage);
  return <section className="checkout-setup" aria-label="Payment instructions">
-  <h3>{preview?'How a live payment will work':'How to complete your payment'}</h3>
+  <h3>{preview?'Before you create a checkout':tracking?'What to do next':'How to complete your payment'}</h3>
   {preview&&<p>This is a guide to the live journey. Do not send money for a draft or simulated checkout.</p>}
+  {!preview&&Number.isSafeInteger(requestedPence)&&<p>You requested {new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP'}).format(requestedPence/100)} of funding. This is not a bank-transfer instruction. Check Peer’s current total, currency and recipient before paying.</p>}
+  {tracking?<p>{stage==='stopped'?'This request was stopped in Relay. Do not use its old checkout or payment instructions. Relay continues checking for late funds.':stage==='closed'?'This checkout has ended. Check the receipt or final status in Relay. Do not send another payment to its recipient.':'If you have sent or scheduled the payment, do not pay again. Complete any verification requested in the existing Peer checkout, then follow payment and wallet tracking here.'}</p>:<>
   <ol className="funding-instructions">
-   <li><strong>Review the checkout.</strong> Peer opens in a separate tab. Check the final GBP total, fees, USDC amount and your agent’s receiving address on Base.</li>
-   <li><strong>Follow the current payment instructions.</strong> Use the payment method specified by this checkout, from an account in your name. Copy the exact recipient, amount and any reference, and check the payment deadline. If the recipient cannot be found or the QR code fails, stop; do not guess a replacement.</li>
-   <li><strong>Complete verification.</strong> Follow Peer’s instructions after paying, including any phone or app checks it requests. Keep the payment confirmation. If you have paid and the status is still pending, do not pay again.</li>
-   <li><strong>Return to Relay.</strong> Open this order in Activity to check the payment and wallet delivery. Reopen the existing checkout if needed. “Funds arrived” means Relay has matched the USDC transfer to your saved wallet in a finalised Base block.</li>
+   <li><strong>Open your saved Peer checkout.</strong> It opens in a separate tab. Check the final payment amount and currency, fees, USDC amount and receiving address. Use a GBP offer for GBP funding; do not assume a different currency is equivalent.</li>
+   <li><strong>Pay using {method}.</strong> Follow the method shown in that checkout, using an account in your name. Check the exact recipient, amount, reference if provided, and payment deadline before confirming in your payment app.</li>
+   <li><strong>Return to the same Peer checkout.</strong> Follow its payment-verification steps, including any phone or app checks. Keep your payment confirmation. If you have already paid, do not pay again because the screen is still pending.</li>
+   <li><strong>Track the result in Relay.</strong> Open this request in Activity. Relay shows payment verification and wallet delivery separately. “Funds arrived” requires a matching USDC transfer in a finalised Base block.</li>
   </ol>
+  {!preview&&<details className="payment-help"><summary>QR code failed, recipient missing or amount changed?</summary><p>Stop before paying. Reopen the same checkout to check its current instructions. Do not search for a similar recipient, reuse an old reference or change the amount yourself.</p><p>If you have not sent or scheduled payment, use “Stop this request and start again” when Relay offers it. This does not cancel the old Peer checkout. If you have paid, keep tracking the original order and do not pay a replacement.</p></details>}
+  </>}
  </section>;
 }
