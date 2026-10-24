@@ -13,7 +13,7 @@
   },
   {
     "path": "hosted/customer-funding.mjs",
-    "sha256": "528b4d40d6a424d9b53166933437bb1ba3993f4099040e31a39f551c2409c66f"
+    "sha256": "4b65e1942735f49e52c1acd5cb5f055237ee676cff7bc124a523931153449ad9"
   },
   {
     "path": "hosted/db.mjs",
@@ -21,11 +21,11 @@
   },
   {
     "path": "hosted/funding-drafts.mjs",
-    "sha256": "015fb5097e08f59aa27f0ff4c0c4ecb7e3df729acf2c109baa1e6456fee5a250"
+    "sha256": "4dbaf12e3abf39b1aeaf98c4d324e149bfe36ea2c4b2c0aacbe4099215907335"
   },
   {
     "path": "hosted/funding-drafts.sql",
-    "sha256": "d22ce83b0c44bae2a42a97189766cd6768587180e5b61f5ebc1cb851c83c5015"
+    "sha256": "b9b37f4c77d047209524dbc3389a5864e0cde79de454b20df5d1b94d3827eb15"
   },
   {
     "path": "hosted/funding-journey.mjs",
@@ -49,7 +49,7 @@
   },
   {
     "path": "hosted/live-store.mjs",
-    "sha256": "77456a58f35beffdf9a33d4cb9c862b320e17fab3ff0b1a7db1e424d59e2e152"
+    "sha256": "51fb436ebe151808976ca1d222e25f0d43b67245cae745e420199845f175ac01"
   },
   {
     "path": "hosted/live-worker.mjs",
@@ -101,7 +101,7 @@
   },
   {
     "path": "hosted/server.mjs",
-    "sha256": "6dd9c720e7f2418594beee5969ef41775a7899f6da0ea86774adfbb655ca17bf"
+    "sha256": "25bbacc0a4638d699109e66939187781ca2eb6ef0bbcc7f4e975b2ac388f4f5e"
   },
   {
     "path": "hosted/startup.mjs",
@@ -137,7 +137,7 @@
   },
   {
     "path": "server/pay-delivery.mjs",
-    "sha256": "35cfd40f0be6f2c3c12784373daf5540ada6271b335da62a652f5c409950d92f"
+    "sha256": "ecc9e1082b53761c4990c6c087d281233852e1cf869eeb5479b173c1f36912af"
   },
   {
     "path": "server/pay-funding-preflight.mjs",
@@ -201,7 +201,7 @@
   },
   {
     "path": "src/App.jsx",
-    "sha256": "db6bce66aa162817bb3aeddc14abd525bf181558f65290f39fd67c2206d3105e"
+    "sha256": "25c1930ba42527aca0dae8e16697c59532b600b3b148db46e5591e98bc4f9257"
   },
   {
     "path": "src/Funding.jsx",
@@ -213,7 +213,7 @@
   },
   {
     "path": "src/LiveFunding.jsx",
-    "sha256": "26b7a22df6c204e0ee951c42faccb141c741033dcddac1524046f26a69918dea"
+    "sha256": "fbe36331da4f15681deaa221cb65978461ebbdf64fd5513ed87c96a9221fc199"
   },
   {
     "path": "src/LiveOrder.jsx",
@@ -229,7 +229,7 @@
   },
   {
     "path": "src/SimpleFunding.jsx",
-    "sha256": "b403ab502147428bd7e7990b54cbdf743dd78ac5d5915981801baaac4a7b1e7f"
+    "sha256": "f0e49f8c68f14ce73b4d31c9d6255cdb8e227a334454ed16380e8675f26f16c7"
   },
   {
     "path": "src/TestFunding.jsx",
@@ -285,7 +285,7 @@
   },
   {
     "path": "tests/hosted-live.test.mjs",
-    "sha256": "b1d3c56ab0ecf211c1419543b9b864c4f5bfdd936e0a4dfd398e6bbaf194f39b"
+    "sha256": "83b8f2abf8576a5c52de81ae7173f42055edeb8058cd3cdd9f49b97e7b78f38d"
   },
   {
     "path": "tests/hosted-peer-connection.test.mjs",
@@ -306,6 +306,10 @@
   {
     "path": "tests/live.test.mjs",
     "sha256": "0798bfcbba2b2ddd6fb2ac2bcb369209a8e9b28e0d7407e1734c353c65403395"
+  },
+  {
+    "path": "tests/order-cancellation.test.mjs",
+    "sha256": "d5a50e10975356987a4a016b4e6b0b3a9baa5093620a95fc3b13f32d57c240fa"
   },
   {
     "path": "tests/pay-funding-preflight.test.mjs",
@@ -358,6 +362,10 @@
   {
     "path": "scripts/export-deployment.mjs",
     "sha256": "e759a0c1f1752bdc19af9abff884132ea42338739cf1e043e46eb6e57a8474bd"
+  },
+  {
+    "path": "scripts/list-cancellation-requests.mjs",
+    "sha256": "246933051e9c5c5a9fdb4bc2ef9b26340bb350304910d6e07e92b13cc6a57215"
   },
   {
     "path": "scripts/reconcile-live-order.mjs",

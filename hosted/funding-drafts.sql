@@ -41,9 +41,12 @@ BEGIN
    (OLD.status='draft' AND NEW.status IN ('cancelled','creating')) OR
    (OLD.status='creating' AND NEW.status IN ('unresolved','bound')) OR
    (OLD.status='unresolved' AND NEW.status='bound') OR
-   (OLD.status='bound' AND NEW.status='closed')
+   (OLD.status='bound' AND NEW.status IN ('closed','cancelled'))
  ) THEN RAISE EXCEPTION 'Invalid funding transition'; END IF;
  RETURN NEW;
 END $$;
 DROP TRIGGER IF EXISTS relay_funding_guard ON relay_funding_drafts;
 CREATE TRIGGER relay_funding_guard BEFORE UPDATE ON relay_funding_drafts FOR EACH ROW EXECUTE FUNCTION relay_funding_immutable();
+
+ALTER TABLE relay_funding_drafts ADD COLUMN IF NOT EXISTS cancellation_requested_at timestamptz;
+ALTER TABLE relay_funding_drafts ADD COLUMN IF NOT EXISTS cancellation_state text CHECK(cancellation_state IN ('requested','blocked','confirmed'));

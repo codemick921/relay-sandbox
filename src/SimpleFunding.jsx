@@ -39,7 +39,7 @@ export default function SimpleFunding({state,act,busy,error,onClose,open,selecte
 }
 
 const usdc=raw=>{const n=BigInt(raw??'0');return `${n/1000000n}.${String(n%1000000n).padStart(6,'0').replace(/0+$/,'')||'00'}`;};
-export function CheckoutOrder({order,act,busy,error,onClose,paymentsDisabled=false,children}){
+export function CheckoutOrder({order,act,busy,error,onClose,paymentsDisabled=false,children,state={},open}){
  const [receiptView,setReceiptView]=useState(null),[receiptError,setReceiptError]=useState(''),[refreshMessage,setRefreshMessage]=useState('');
  useEffect(()=>{setReceiptView(null);setReceiptError('');},[order.id,order.status,order.trackingError]);
  async function showReceipt(){setReceiptError('');try{setReceiptView(await api(`${order.trackingPath??'live-tracking'}/orders/${order.id}/receipt`));}catch(e){setReceiptView(null);setReceiptError(e.message);}}
@@ -66,6 +66,7 @@ export function CheckoutOrder({order,act,busy,error,onClose,paymentsDisabled=fal
    {receipts.length>0&&<section className="delivery-receipts"><h3>{order.fixture?'Simulated wallet receipts':'Wallet receipts'}</h3>{receipts.map(p=><div key={p.id}><strong>{usdc(p.amountRaw)} USDC</strong><span>{order.fixture?'Simulated confirmation':p.receipt.finalized?'Finalised on Base':'Awaiting Base finality'}</span>{!order.fixture?<a href={`https://basescan.org/tx/${p.receipt.transactionHash}`} target="_blank" rel="noreferrer noopener">View transaction ↗</a>:<span>Illustrative receipt</span>}</div>)}</section>}
   </>}
   {!order.fixture&&!sandbox&&<PayInEvidence evidence={v?.payIn}/>}
+  {state.fundingDrafts?.some(d=>d.id===order.id)&&<Button secondary className="full spaced" onClick={()=>open('funding-draft',order.id)}>Manage funding request</Button>}
   {(order.fixture||sandbox)&&!['sandbox_complete','checkout_received','checkout_cancelled'].includes(order.status)&&<FundingInstructions preview/>}
   {!order.fixture&&!sandbox&&!paymentsDisabled&&!order.checkoutEnded&&order.status==='checkout_ready'&&order.checkoutUrl&&<FundingInstructions/>}
   <dl className="details"><div><dt>Destination</dt><dd>USDC · Base</dd></div><div><dt>Verification</dt><dd>{order.fixture?'Simulated evidence only':sandbox?'Simulation only':done?'Finalised wallet receipt':'Independent receipt checks'}</dd></div></dl><code className="checkout-address">{order.agent.address}</code>

@@ -102,7 +102,7 @@ test('signed inbox deduplication, mid-check hints, unknown orders and late settl
  const f=await fixture();try{
   const s=f.store,o=intent();await s.accept(event(o));assert.equal((await s.state('alice')).orders.length,0);
   await s.bindTrustedOrder('alice',o);const c=await s.claimNext();
-  await s.apply(c,await verified(o,{provider:remoteFor(o,{status:'CANCELLED'}),payments:[]}));
+  await s.apply(c,await verified(o,{provider:remoteFor(o,{status:'CANCELLED',remainingUsdcAmount:o.requestedUsdcAmount}),payments:[]}));
   assert.equal((await s.state('alice')).orders[0].status,'checkout_cancelled');
   await s.accept(event(o,'late'));const late=await s.claimNext();await s.accept(event(o,'during-check'));
   // Force equal timestamps: the new event must survive even within one clock tick.

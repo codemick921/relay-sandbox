@@ -26,6 +26,7 @@ function checkedResult(order,update){
  check(states.has(update?.status)&&v?.environment==='LIVE'&&v.simulated!==true&&Array.isArray(v.payments)&&v.payments.length<100,'Unsupported tracking result.');
  check(['CREATED','PARTIALLY_FULFILLED','FULFILLED','CANCELLED'].includes(update.providerStatus)&&['NONE','PARTIALLY_CHARGEBACKED','CHARGEBACKED'].includes(update.chargebackStatus),'Unsupported provider state.');
  check(v.providerFulfilled===(update.providerStatus==='FULFILLED')&&Number.isFinite(Date.parse(update.checkedAt)),'Invalid verification timestamp or fulfilment state.');
+ if(update.status==='checkout_cancelled'||update.providerStatus==='CANCELLED')check(update.status==='checkout_cancelled'&&update.providerStatus==='CANCELLED'&&v.payments.length===0&&v.providerRemainingRaw===String(microUsdc(order.requestedUsdcAmount))&&update.chargebackStatus==='NONE','Cancellation requires an unpaid, cancelled provider order.');
  const settled=v.payments.filter(p=>p.status==='SETTLED'),ids=new Set(),intents=new Set(),transactions=new Set();
  for(const p of v.payments){check(identifier(p.id)&&!ids.has(p.id),'Duplicate payment evidence.');ids.add(p.id);}
  let total=0n,arrived=0n;

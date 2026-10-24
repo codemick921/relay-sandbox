@@ -57,6 +57,7 @@ export async function verifyPayDelivery(local,remote,rows,{rpc=chain,now=Date.no
  // Sandbox hashes are synthetic. Never query them or promote them to receipts.
  if(local.source!=='live')throw new InputError('Real delivery verification requires a live order.',409);
  if(remote.bridgeInfo)issue('Bridged settlement is not supported by this Base-only verifier.');
+ if(remote.status==='CANCELLED'&&(rows.length||microUsdc(remote.remainingUsdcAmount)!==microUsdc(remote.requestedUsdcAmount)))issue('Cancelled order has payment evidence. Reconciliation is required.');
  const payments=paymentSnapshot(local,remote,rows),settled=payments.filter(p=>p.status==='SETTLED');
  if(settled.length&&await rpc.getChainId()!==8453)issue('The receipt service is not connected to Base.');
  const finalized=settled.length?await rpc.getBlock({blockTag:'finalized'}):null;
