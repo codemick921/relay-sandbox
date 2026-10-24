@@ -13,7 +13,7 @@
   },
   {
     "path": "hosted/customer-funding.mjs",
-    "sha256": "4b65e1942735f49e52c1acd5cb5f055237ee676cff7bc124a523931153449ad9"
+    "sha256": "fa018d4a9aa9a25f48c0d48e88d4462eacb2544e062818e18c6d9c6ddb7bf5bb"
   },
   {
     "path": "hosted/db.mjs",
@@ -21,11 +21,11 @@
   },
   {
     "path": "hosted/funding-drafts.mjs",
-    "sha256": "4dbaf12e3abf39b1aeaf98c4d324e149bfe36ea2c4b2c0aacbe4099215907335"
+    "sha256": "c1e04e7f56572f1bbe795ffb644f1642b924967e6ca5617d3266efe115645286"
   },
   {
     "path": "hosted/funding-drafts.sql",
-    "sha256": "b9b37f4c77d047209524dbc3389a5864e0cde79de454b20df5d1b94d3827eb15"
+    "sha256": "1123a2fb5e6667f3d66dde6a84d239f19817cff85321071b586b8e11a556c42f"
   },
   {
     "path": "hosted/funding-journey.mjs",
@@ -101,7 +101,7 @@
   },
   {
     "path": "hosted/server.mjs",
-    "sha256": "25bbacc0a4638d699109e66939187781ca2eb6ef0bbcc7f4e975b2ac388f4f5e"
+    "sha256": "177f8db01c49581df33f0faa1538c701c823fe14316e2ff7646a378790c76c43"
   },
   {
     "path": "hosted/startup.mjs",
@@ -201,7 +201,7 @@
   },
   {
     "path": "src/App.jsx",
-    "sha256": "25c1930ba42527aca0dae8e16697c59532b600b3b148db46e5591e98bc4f9257"
+    "sha256": "b8f2b45f484692d80844b5fb2852d227156e868394b3022321d48e6907b3804e"
   },
   {
     "path": "src/Funding.jsx",
@@ -213,7 +213,7 @@
   },
   {
     "path": "src/LiveFunding.jsx",
-    "sha256": "fbe36331da4f15681deaa221cb65978461ebbdf64fd5513ed87c96a9221fc199"
+    "sha256": "7ff49bb7b3eddfd350f281aa21d7e26219f17179ba259c17a60182374c219f49"
   },
   {
     "path": "src/LiveOrder.jsx",
@@ -229,7 +229,7 @@
   },
   {
     "path": "src/SimpleFunding.jsx",
-    "sha256": "f0e49f8c68f14ce73b4d31c9d6255cdb8e227a334454ed16380e8675f26f16c7"
+    "sha256": "50ed41156ab72240438f3eabad1910f4518c39bc7a2caf4db4a4351a702b1e5a"
   },
   {
     "path": "src/TestFunding.jsx",
@@ -309,7 +309,7 @@
   },
   {
     "path": "tests/order-cancellation.test.mjs",
-    "sha256": "d5a50e10975356987a4a016b4e6b0b3a9baa5093620a95fc3b13f32d57c240fa"
+    "sha256": "644f92fab4f3acc1c752759d52ab1a0c70d24ba14ba8bb982a60bdb6b684b1f4"
   },
   {
     "path": "tests/pay-funding-preflight.test.mjs",
@@ -417,7 +417,7 @@
   },
   {
     "path": "DEPLOYMENT.md",
-    "sha256": "45eba51326f870169716e783c01087d54ee43c5b0da408e40fe0485bd950a661"
+    "sha256": "8d66b8d4c5664bbd6852ce658e065cd2b3be9720943d38d74a2f1c0c1ef19e51"
   },
   {
     "path": ".github/workflows/verify.yml",

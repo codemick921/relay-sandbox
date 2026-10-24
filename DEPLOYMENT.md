@@ -97,3 +97,14 @@ Future successful Peer payments use the existing durable webhook inbox and perio
 Normal fulfilment/history lag, changing read snapshots and unavailable finalised-block data now use a typed pending-evidence retry after 15 seconds, without creating a review hold or counting towards the outage circuit breaker. Missing receipts and unfinalised blocks continue through the existing pending/confirming states. The last verified state is retained, and unknown or conflicting destination, amount, intent, merchant, token or settlement data still cannot establish arrival. Existing security review holds are never cleared by this retry path.
 
 Regression coverage exercises signed hint deduplication, repeated convergence delays, missing receipt, finality wait, restart, customer state and receipt reads, draft closure and zero operator-resolution events, using injected provider/RPC responses and actual PostgreSQL. This is an automatic tracking test, not a new real payment. The separate simulation worker and payment-creation permissions remain unchanged.
+
+
+## Stop an unpaid request and start again
+
+User correction, 24 October 2026: customers should be able to stop an unpaid request in Relay and choose another amount without waiting for Peer cancellation or merchant action. This supersedes the merchant-assisted cancellation UX. Stopping locally does not cancel a Peer order, bank transfer or refund funds; do not claim otherwise.
+
+The customer confirms they have not sent or scheduled payment and will not use the old checkout. A fresh read of the bound live order must show CREATED, no settlement or dispute, its full remaining amount and only unpaid attempts. A per-owner transaction checks the observation generation and durable settlement records before setting immutable `stopped_at`. This releases the active-request slot. Authentication, ownership, same-origin checks and explicit consent for each new checkout remain. Conflicting evidence, unknown creation and unavailable reads do not release the slot.
+
+Old order IDs, amount, wallet snapshot and payment evidence remain unchanged. Relay no longer exposes their checkout links, but the read-only tracker keeps checking for late funds and attributes them to the original order. History labels them Stopped in Relay. New requests get new IDs and separately reviewed amounts; stopping never creates a new provider order itself. Legacy cancellation requests can use the new local stop flow when eligible, and genuine provider cancellations still reconcile normally.
+
+Regression checks must cover immediate replacement, concurrent stops/new requests, old-link rejection, restart persistence, ownership, stale observations, disputes, outage holds and late funds on the original order. Do not cancel or create real orders to test this feature.

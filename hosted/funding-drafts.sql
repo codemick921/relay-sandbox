@@ -23,14 +23,17 @@ ALTER TABLE relay_funding_drafts ADD COLUMN IF NOT EXISTS rail text NOT NULL DEF
 ALTER TABLE relay_funding_drafts DROP CONSTRAINT IF EXISTS relay_funding_drafts_pence_check;
 ALTER TABLE relay_funding_drafts ADD CONSTRAINT relay_funding_drafts_pence_check CHECK((rail='wise' AND pence BETWEEN 200 AND 100000) OR (rail='revolut' AND pence BETWEEN 1 AND 100000));
 ALTER TABLE relay_funding_drafts ADD COLUMN IF NOT EXISTS superseded_by uuid REFERENCES relay_funding_drafts(id) DEFERRABLE INITIALLY DEFERRED;
+ALTER TABLE relay_funding_drafts ADD COLUMN IF NOT EXISTS stopped_at timestamptz;
 DROP INDEX IF EXISTS relay_funding_one_active;
-CREATE UNIQUE INDEX relay_funding_one_active ON relay_funding_drafts(owner) WHERE status NOT IN ('cancelled','closed') AND superseded_by IS NULL;
+CREATE UNIQUE INDEX relay_funding_one_active ON relay_funding_drafts(owner) WHERE status NOT IN ('cancelled','closed') AND superseded_by IS NULL AND stopped_at IS NULL;
 CREATE TABLE IF NOT EXISTS relay_funding_audit (
  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, draft_id uuid NOT NULL REFERENCES relay_funding_drafts(id),
  event text NOT NULL, at timestamptz NOT NULL DEFAULT now()
 );
 CREATE OR REPLACE FUNCTION relay_funding_immutable() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
+ IF OLD.stopped_at IS NOT NULL AND NEW.stopped_at IS DISTINCT FROM OLD.stopped_at THEN RAISE EXCEPTION 'Stopped request cannot be reopened'; END IF;
+ IF NEW.stopped_at IS DISTINCT FROM OLD.stopped_at AND OLD.status<>'bound' THEN RAISE EXCEPTION 'Only a bound request can be stopped'; END IF;
  IF NEW.superseded_by IS DISTINCT FROM OLD.superseded_by AND (OLD.superseded_by IS NOT NULL OR OLD.status<>'bound' OR NEW.status<>'bound' OR NEW.superseded_by=OLD.id) THEN RAISE EXCEPTION 'Immutable supersession'; END IF;
  IF NEW.id IS DISTINCT FROM OLD.id OR NEW.owner IS DISTINCT FROM OLD.owner OR NEW.request_id IS DISTINCT FROM OLD.request_id
  OR NEW.rail IS DISTINCT FROM OLD.rail OR NEW.agent_revision IS DISTINCT FROM OLD.agent_revision OR NEW.agent_id IS DISTINCT FROM OLD.agent_id OR NEW.agent IS DISTINCT FROM OLD.agent OR NEW.pence IS DISTINCT FROM OLD.pence
