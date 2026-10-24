@@ -1,3 +1,5 @@
+import {createWalletBalances} from './wallet-balances.mjs';
+import {createReceiptRpc} from '../server/receipts.mjs';
 import {createRampSimulation} from './ramp-simulation.mjs';
 import {prepareLiveObservation} from './live-observation.mjs';
 import {createFundingDrafts,fundingDisabled} from './funding-drafts.mjs';
@@ -22,7 +24,7 @@ const dist=fileURLToPath(new URL('../dist/',import.meta.url));
 const uuid=v=>typeof v==='string'&&/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(v);
 async function body(req,max=16384){let size=0;const chunks=[];for await(const chunk of req){size+=chunk.length;if(size>max)throw new InputError('Request too large.',413);chunks.push(chunk);}return Buffer.concat(chunks);}
 const send=(res,status,data)=>{res.writeHead(status,{'Content-Type':'application/json'});res.end(JSON.stringify(data));};
-export function createHostedServer({store,config,pay=createSandboxPayService(),staticRoot=dist,allowHttpForTests=false,tracking=null,paymentsDisabled=false,localPreview=false,accountMail=null,customerAccountsEnabled=true,peerConnection=null,fundingDrafts=null,liveObservation=null,ramp=null}){
+export function createHostedServer({store,config,pay=createSandboxPayService(),staticRoot=dist,allowHttpForTests=false,tracking=null,paymentsDisabled=false,localPreview=false,accountMail=null,customerAccountsEnabled=true,peerConnection=null,fundingDrafts=null,liveObservation=null,ramp=null,walletBalances=null}){
  const origin=new URL(config.origin),mail=accountMail??createAccountMail(store),accounts=customerAccountsEnabled?createAccounts(store,{mail}):null;
  if(fundingDrafts&&!paymentsDisabled)throw Error('Funding preparation requires payments to remain disabled.');
  if(tracking?.journey&&(!tracking.simulated||!tracking.journey.simulated||!paymentsDisabled))throw Error('Test funding requires simulated tracking and disabled payments.');
@@ -41,6 +43,7 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
   if(liveObservation){const [live,status,restrictedTest,revolutTest]=await Promise.all([liveObservation.store.state(owner),liveObservation.status(),liveObservation.policy.status(owner),liveObservation.revolutPolicy?.status(owner)]);state={...state,liveTracking:{...status,enabled:true},restrictedTest,revolutTest,orders:[...live.orders.map(o=>({...presentTrackedOrder(o,false),trackingPath:'wallet-tracking'})),...state.orders]};}
   if(ramp&&owner.startsWith('customer:'))state={...state,rampFunding:{mode:'simulation',paymentsEnabled:false,externalConnectionsEnabled:false},orders:[...await ramp.state(owner),...state.orders]};
   if(state.fundingDrafts)state.orders=state.orders.map(o=>({...o,stoppedInRelay:!!state.fundingDrafts.find(d=>d.id===o.id)?.stoppedAt}));
+  if(walletBalances&&owner.startsWith('customer:'))state.walletBalances=await walletBalances.state(owner);
   return state;
  };
  const handleTracking=tracking&&createLiveTrackingHandler({store:tracking.store,origin:config.origin,authenticate,rateLimit:(owner,kind)=>store.rate(kind==='read'?'read:'+owner:'mutation:'+owner,kind==='read'?120:30,60),simulated:!!tracking.simulated,localPreview,allowHttpForTests});
@@ -82,7 +85,7 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
     const decoded=decodeURIComponent(url.pathname);if(decoded!=='/'&&!/^\/assets\/[a-zA-Z0-9_.-]+\.(js|css|svg)$/.test(decoded))throw new InputError('Not found.',404);
     const file=path.join(staticRoot,decoded==='/'?'index.html':decoded.slice(1));const data=await readFile(file);res.setHeader('Content-Type',({'.html':'text/html','.css':'text/css','.js':'text/javascript','.svg':'image/svg+xml'})[path.extname(file)]);return res.end(data);
    }
-   const allowed=new Set(['/api/ramp-test/create','/api/ramp-test/advance','/api/revolut-test/checkout','/api/funding/drafts','/api/funding/cancel','/api/funding/stop','/api/funding/request-cancellation','/api/funding/checkout','/api/funding/resume','/api/funding/availability','/api/test-funding/quote','/api/test-funding/create','/api/test-funding/action','/api/account/signup','/api/account/login','/api/account/recover','/api/account/password','/api/account/requestVerification','/api/account/requestReset','/api/account/verifyEmail','/api/account/resetPassword','/api/account/emailPreview','/api/access','/api/login','/api/logout','/api/state','/api/agents','/api/checkouts','/api/checkout-resume','/api/checkout-refresh','/api/checkout-setup']);
+   const allowed=new Set(['/api/wallet-balances/preferences','/api/wallet-balances/refresh','/api/ramp-test/create','/api/ramp-test/advance','/api/revolut-test/checkout','/api/funding/drafts','/api/funding/cancel','/api/funding/stop','/api/funding/request-cancellation','/api/funding/checkout','/api/funding/resume','/api/funding/availability','/api/test-funding/quote','/api/test-funding/create','/api/test-funding/action','/api/account/signup','/api/account/login','/api/account/recover','/api/account/password','/api/account/requestVerification','/api/account/requestReset','/api/account/verifyEmail','/api/account/resetPassword','/api/account/emailPreview','/api/access','/api/login','/api/logout','/api/state','/api/agents','/api/checkouts','/api/checkout-resume','/api/checkout-refresh','/api/checkout-setup']);
    if(!allowed.has(url.pathname))throw new InputError('Not found.',404);
    if(req.headers['sec-fetch-site']==='cross-site')throw new InputError('Cross-site access blocked.',403);
    if(req.method==='POST'&&(req.headers.origin!==config.origin||!String(req.headers['content-type']).startsWith('application/json')))throw new InputError('Same-origin JSON required.',403);
@@ -126,6 +129,11 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
     throw new InputError('Not found.',404);
    }
    await store.rate('mutation:'+owner,30,60);
+   if(url.pathname.startsWith('/api/wallet-balances/')){
+    if(!customer||!walletBalances)throw new InputError('Customer wallet monitoring is unavailable.',403);
+    await walletBalances[url.pathname.endsWith('/preferences')?'preferences':'refresh'](owner,b);
+    return send(res,200,{...await stateFor(owner),account:customer.account});
+   }
    if(url.pathname.startsWith('/api/ramp-test/')){
     if(!customer||!ramp?.simulated)throw new InputError('Ramp simulation is unavailable.',403);
     const result=url.pathname.endsWith('/create')?await ramp.create(owner,b):await ramp.advance(owner,b);
@@ -202,9 +210,12 @@ if(process.argv[1]===fileURLToPath(import.meta.url)){
  const peerConnection=config.liveConnection?createPeerConnection({connection:config.liveConnection,store,tracker:liveObservation?.store}):null;
  if(peerConnection)await migrateWhenReady(peerConnection);
  const ramp=createRampSimulation(store);await ramp.migrate();
- const server=createHostedServer({store,config,tracking,ramp,peerConnection,fundingDrafts,liveObservation,accountMail:configuredAccountMail(store),paymentsDisabled:true,pay:{readiness:async()=>({ready:false})}});server.listen(Number(process.env.PORT??10000),'0.0.0.0',()=>console.log('Relay hosted sandbox ready.'));
+ const walletBalances=liveObservation?createWalletBalances(store,{rpc:createReceiptRpc(process.env.BASE_RPC_URL||'https://mainnet.base.org')}):null;
+ if(walletBalances)await walletBalances.migrate();
+ const server=createHostedServer({store,config,tracking,ramp,walletBalances,peerConnection,fundingDrafts,liveObservation,accountMail:configuredAccountMail(store),paymentsDisabled:true,pay:{readiness:async()=>({ready:false})}});server.listen(Number(process.env.PORT??10000),'0.0.0.0',()=>console.log('Relay hosted sandbox ready.'));
  // One read at startup, no polling. Until verified, the receiver returns 503.
  if(peerConnection)void peerConnection.checkIdentity();
  if(liveObservation)void liveObservation.start();
- let closing=false;for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>{if(closing)return;closing=true;server.close(async()=>{await liveObservation?.stop();await tracking.close();await store.close();process.exit(0);});setTimeout(()=>process.exit(1),25000).unref();});
+ walletBalances?.start();
+ let closing=false;for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>{if(closing)return;closing=true;server.close(async()=>{await walletBalances?.stop();await liveObservation?.stop();await tracking.close();await store.close();process.exit(0);});setTimeout(()=>process.exit(1),25000).unref();});
 }

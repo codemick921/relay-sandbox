@@ -3,12 +3,13 @@ import {Button,Modal,Field,Check,Notice} from './ui';
 import {api,gbp} from './api';
 import FundingInstructions from './FundingInstructions';
 
-export function LiveFunding({state,act,busy,error,onClose,open,selected}){
+export function LiveFunding({state,act,busy,error,onClose,open,selected,fundingPreset}){
  const live=state.liveFunding?.paymentsEnabled===true;
- const [agentId,setAgentId]=useState(selected??state.agents[0]?.id??''),[amount,setAmount]=useState('25'),[rail,setRail]=useState(live?'revolut':'wise'),[confirmed,setConfirmed]=useState(false),[requestId]=useState(()=>crypto.randomUUID());
+ const [agentId,setAgentId]=useState(selected??state.agents[0]?.id??''),[amount,setAmount]=useState(fundingPreset?.amount??'25'),[rail,setRail]=useState(fundingPreset?.rail??(live?'revolut':'wise')),[confirmed,setConfirmed]=useState(false),[requestId]=useState(()=>crypto.randomUUID());
  const agent=state.agents.find(a=>a.id===agentId),existing=state.fundingDrafts?.find(d=>!d.stoppedAt&&!d.supersededBy&&!['cancelled','closed'].includes(d.status));
  return <Modal title={live?'Fund your agent with GBP':'Prepare GBP funding'} onClose={busy?()=>{}:onClose}>
   <Notice>{live?'Choose your receiving wallet and payment app. You will review Peer’s current rate, fees and recipient before paying.':'Payments are disabled. Saving a draft sends nothing to Peer.'}</Notice>
+  {fundingPreset&&<Notice>Previous amount filled in for convenience. This is a new request: review the current rate, fees and payment instructions before paying.</Notice>}
   {error&&<Notice error>{error}</Notice>}
   {existing?<><p>You have an existing funding request. Open it to continue paying, cancel a draft or stop an unpaid request before choosing another amount.</p><Button className="full" onClick={()=>open('funding-draft',existing.id)}>Review existing request</Button></>:<form onSubmit={async e=>{e.preventDefault();const s=await act('funding/drafts',{requestId,agentId,amount,rail,confirm:confirmed});if(s)open('funding-draft',s.selectedFundingDraftId);}}>
    <Field label="Agent to fund"><select required disabled={busy} value={agentId} onChange={e=>{setAgentId(e.target.value);setConfirmed(false);}}><option value="" disabled>Choose an agent</option>{state.agents.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select></Field>

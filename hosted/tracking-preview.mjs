@@ -1,3 +1,4 @@
+import {createWalletBalances} from './wallet-balances.mjs';
 import {createAccounts} from './accounts.mjs';
 import {createRampSimulation} from './ramp-simulation.mjs';
 import {createFundingDrafts} from './funding-drafts.mjs';
@@ -55,7 +56,10 @@ const ramp=createRampSimulation(store);await ramp.migrate();
 const previewAccount=await createAccounts(store).signup({email:'ramp-preview@example.test',name:'Preview Customer',password:'preview lantern river meadow',acceptSandbox:true});
 const previewOwner=(await createAccounts(store).session(previewAccount.token)).owner;
 await store.addAgent(previewOwner,{id:randomUUID(),name:'Preview agent',address:'0x1111111111111111111111111111111111111111',network:'Base',token:'USDC'});
-const server=createHostedServer({store,config,ramp,fundingDrafts,accountMail:mail,pay:{readiness:async()=>({ready:false})},tracking:{store:tracking,journey,simulated:true},paymentsDisabled:true,localPreview:true});
+const walletBalances=createWalletBalances(store,{simulated:true,rpc:{getChainId:async()=>8453,getBlock:async()=>({number:123n,timestamp:BigInt(Math.floor(Date.now()/1000))}),readContract:async()=>7250000n}});
+await walletBalances.migrate();await walletBalances.state(previewOwner);await walletBalances.tick();
+walletBalances.start();
+const server=createHostedServer({store,config,ramp,walletBalances,fundingDrafts,accountMail:mail,pay:{readiness:async()=>({ready:false})},tracking:{store:tracking,journey,simulated:true},paymentsDisabled:true,localPreview:true});
 const timer=setInterval(()=>Promise.all([worker.tick(),mail.tick()]).catch(()=>console.error('Local fixture tracking unavailable.')),1000);
 server.listen(port,'127.0.0.1',()=>console.log(`Local simulated preview: ${origin}\nTester codes: relay-preview-alice / relay-preview-bob\nReal payments and external connections are disabled.`));
 let stopping=false;
