@@ -1,3 +1,4 @@
+import {prepareLiveObservation} from './live-observation.mjs';
 import {createFundingDrafts,fundingDisabled} from './funding-drafts.mjs';
 import {configuredAccountMail} from './mail-transport.mjs';
 import {createAccountMail} from './account-mail.mjs';
@@ -20,25 +21,32 @@ const dist=fileURLToPath(new URL('../dist/',import.meta.url));
 const uuid=v=>typeof v==='string'&&/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(v);
 async function body(req,max=16384){let size=0;const chunks=[];for await(const chunk of req){size+=chunk.length;if(size>max)throw new InputError('Request too large.',413);chunks.push(chunk);}return Buffer.concat(chunks);}
 const send=(res,status,data)=>{res.writeHead(status,{'Content-Type':'application/json'});res.end(JSON.stringify(data));};
-export function createHostedServer({store,config,pay=createSandboxPayService(),staticRoot=dist,allowHttpForTests=false,tracking=null,paymentsDisabled=false,localPreview=false,accountMail=null,customerAccountsEnabled=true,peerConnection=null,fundingDrafts=null}){
+export function createHostedServer({store,config,pay=createSandboxPayService(),staticRoot=dist,allowHttpForTests=false,tracking=null,paymentsDisabled=false,localPreview=false,accountMail=null,customerAccountsEnabled=true,peerConnection=null,fundingDrafts=null,liveObservation=null}){
  const origin=new URL(config.origin),mail=accountMail??createAccountMail(store),accounts=customerAccountsEnabled?createAccounts(store,{mail}):null;
  if(fundingDrafts&&!paymentsDisabled)throw Error('Funding preparation requires payments to remain disabled.');
  if(tracking?.journey&&(!tracking.simulated||!tracking.journey.simulated||!paymentsDisabled))throw Error('Test funding requires simulated tracking and disabled payments.');
  if(mail.preview&&!localPreview)throw Error('Email previews are local only.');
  if(localPreview&&(!tracking?.simulated||!paymentsDisabled||origin.protocol!=='http:'||origin.hostname!=='127.0.0.1'))throw Error('Local preview requires simulated tracking, disabled payments and loopback HTTP.');
  if(tracking&&!paymentsDisabled)throw Error('Tracking integration currently requires payments to remain disabled.');
- if(peerConnection&&(!paymentsDisabled||localPreview||peerConnection.mode!=='receive_only'))throw Error('Peer connection requires disabled payments and hosted receive-only mode.');
+ if(peerConnection&&(!paymentsDisabled||localPreview||!['receive_only','tracking_read_only'].includes(peerConnection.mode)))throw Error('Peer connection requires disabled payments and hosted receive-only mode.');
+ if(liveObservation&&(!paymentsDisabled||localPreview||liveObservation.simulated!==false))throw Error('Live observation requires disabled payments and hosted reads.');
  const cookie=localPreview?'relay_local_preview':'__Host-relay_sandbox';
  const cookiePolicy=`${localPreview?'':'Secure; '}HttpOnly; SameSite=Strict; Path=/`;
  const getToken=req=>(req.headers.cookie??'').split(';').map(x=>x.trim()).find(x=>x.startsWith(cookie+'='))?.slice(cookie.length+1);
  const authenticate=async req=>(await accounts?.session(getToken(req)))?.owner??await store.session(getToken(req),config.testers);
- const stateFor=async owner=>{const base=await store.state(owner);const state={...base,...fundingDrafts&&owner.startsWith('customer:')?{liveFunding:fundingDisabled,fundingDrafts:await fundingDrafts.list(owner)}:{}};if(!tracking)return {...state,paymentsDisabled};const [tracked,worker]=await Promise.all([tracking.store.state(owner),tracking.store.health()]);return {...state,paymentsDisabled,previewMode:!!tracking.simulated,trackingEnabled:true,worker,fundingJourneyEnabled:!!tracking.journey,orders:[...(await tracking.journey?.decorate(owner,tracked.orders)??tracked.orders).map(o=>presentTrackedOrder(o,tracking.simulated)),...state.orders]};};
+ const stateFor=async owner=>{
+  const base=await store.state(owner);let state={...base,paymentsDisabled,...fundingDrafts&&owner.startsWith('customer:')?{liveFunding:fundingDisabled,fundingDrafts:await fundingDrafts.list(owner)}:{}};
+  if(tracking){const [tracked,worker]=await Promise.all([tracking.store.state(owner),tracking.store.health()]);state={...state,previewMode:!!tracking.simulated,trackingEnabled:true,worker,fundingJourneyEnabled:!!tracking.journey,orders:[...(await tracking.journey?.decorate(owner,tracked.orders)??tracked.orders).map(o=>presentTrackedOrder(o,tracking.simulated)),...state.orders]};}
+  if(liveObservation){const [live,status,restrictedTest]=await Promise.all([liveObservation.store.state(owner),liveObservation.status(),liveObservation.policy.status(owner)]);state={...state,liveTracking:{...status,enabled:true},restrictedTest,orders:[...live.orders.map(o=>({...presentTrackedOrder(o,false),trackingPath:'wallet-tracking'})),...state.orders]};}
+  return state;
+ };
  const handleTracking=tracking&&createLiveTrackingHandler({store:tracking.store,origin:config.origin,authenticate,rateLimit:(owner,kind)=>store.rate(kind==='read'?'read:'+owner:'mutation:'+owner,kind==='read'?120:30,60),simulated:!!tracking.simulated,localPreview,allowHttpForTests});
+ const handleLive=liveObservation&&createLiveTrackingHandler({store:liveObservation.store,origin:config.origin,authenticate,rateLimit:(owner,kind)=>store.rate((kind==='read'?'read:':'mutation:')+owner,kind==='read'?120:30,60),simulated:false,allowHttpForTests,prefix:'/api/wallet-tracking'});
  const server=http.createServer(async(req,res)=>{
   res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','no-referrer');res.setHeader('X-Frame-Options','DENY');res.setHeader('Strict-Transport-Security','max-age=31536000');res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
   try{
    // Health probes disclose no customer/provider state and require no proxy headers.
-   if(req.url==='/healthz'&&req.method==='GET'){try{await store.query('SELECT 1');return send(res,200,{ok:true,mode:'sandbox',paymentsDisabled,realPaymentsEnabled:false,providerConnectionsEnabled:!paymentsDisabled,liveConnectionMode:peerConnection?'receive_only':'disabled',tracking:tracking?'simulated':null,release:process.env.RENDER_GIT_COMMIT??null});}catch{return send(res,503,{ok:false});}}
+   if(req.url==='/healthz'&&req.method==='GET'){try{await store.query('SELECT 1');return send(res,200,{ok:true,mode:'sandbox',paymentsDisabled,realPaymentsEnabled:false,providerConnectionsEnabled:!paymentsDisabled,liveConnectionMode:peerConnection?.mode??'disabled',tracking:tracking?'simulated':null,liveTracking:liveObservation?'read_only':'disabled',release:process.env.RENDER_GIT_COMMIT??null});}catch{return send(res,503,{ok:false});}}
    if(req.headers.host!==config.host)return send(res,421,{error:'Unexpected host.'});
    if(!allowHttpForTests&&!localPreview&&req.headers['x-forwarded-proto']!=='https'){
     if(req.method==='GET'){res.writeHead(308,{Location:config.origin+'/'});return res.end();}return send(res,400,{error:'HTTPS required.'});
@@ -54,8 +62,9 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
     if(req.method!=='GET')throw new InputError('Method not allowed.',405);
     // Only an existing private tester/operator session; customer sessions cannot inspect connections.
     if(!await store.session(getToken(req),config.testers))throw new InputError('Operator sign-in required.',403);
-    return send(res,200,peerConnection?await peerConnection.status():{mode:'disabled',realPaymentsEnabled:false});
+    return send(res,200,peerConnection?{...await peerConnection.status(),...liveObservation?{tracking:await liveObservation.status()}:{} }:{mode:'disabled',realPaymentsEnabled:false});
    }
+   if(handleLive&&url.pathname.startsWith('/api/wallet-tracking/')&&await handleLive(req,res))return;
    if(handleTracking&&await handleTracking(req,res))return;
    if(url.pathname==='/api/webhooks/peer/sandbox'){
     if(paymentsDisabled)throw new InputError('External payment connections are disabled.',403);
@@ -158,13 +167,15 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
  return server;
 }
 if(process.argv[1]===fileURLToPath(import.meta.url)){
- const config=readConfig(),store=createStore(createPool());await migrateWhenReady(store);
+ const config=readConfig(),pool=createPool(),store=createStore(pool);await migrateWhenReady(store);
  const tracking=await prepareTrackingSandbox(store,config.testers);
  const fundingDrafts=createFundingDrafts(store);await migrateWhenReady(fundingDrafts);
- const peerConnection=config.liveConnection?createPeerConnection({connection:config.liveConnection,store}):null;
+ const liveObservation=config.liveConnection?await prepareLiveObservation({pool,base:store,connection:config.liveConnection,drafts:fundingDrafts}):null;
+ const peerConnection=config.liveConnection?createPeerConnection({connection:config.liveConnection,store,tracker:liveObservation?.store}):null;
  if(peerConnection)await migrateWhenReady(peerConnection);
- const server=createHostedServer({store,config,tracking,peerConnection,fundingDrafts,accountMail:configuredAccountMail(store),paymentsDisabled:true,pay:{readiness:async()=>({ready:false})}});server.listen(Number(process.env.PORT??10000),'0.0.0.0',()=>console.log('Relay hosted sandbox ready.'));
+ const server=createHostedServer({store,config,tracking,peerConnection,fundingDrafts,liveObservation,accountMail:configuredAccountMail(store),paymentsDisabled:true,pay:{readiness:async()=>({ready:false})}});server.listen(Number(process.env.PORT??10000),'0.0.0.0',()=>console.log('Relay hosted sandbox ready.'));
  // One read at startup, no polling. Until verified, the receiver returns 503.
  if(peerConnection)void peerConnection.checkIdentity();
- let closing=false;for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>{if(closing)return;closing=true;server.close(async()=>{await tracking.close();await store.close();process.exit(0);});setTimeout(()=>process.exit(1),25000).unref();});
+ if(liveObservation)void liveObservation.start();
+ let closing=false;for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>{if(closing)return;closing=true;server.close(async()=>{await liveObservation?.stop();await tracking.close();await store.close();process.exit(0);});setTimeout(()=>process.exit(1),25000).unref();});
 }

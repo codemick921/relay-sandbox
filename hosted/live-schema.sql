@@ -49,3 +49,5 @@ CREATE TABLE IF NOT EXISTS relay_live_workers (
  merchant_id text NOT NULL, id text NOT NULL, beat_at timestamptz NOT NULL DEFAULT now(),
  PRIMARY KEY(merchant_id,id)
 );
+
+ALTER TABLE relay_live_webhooks ADD COLUMN IF NOT EXISTS unmatched boolean NOT NULL DEFAULT false;

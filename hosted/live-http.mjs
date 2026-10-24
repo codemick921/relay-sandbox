@@ -3,7 +3,6 @@ import {verifyWebhook} from '../server/pay-webhooks.mjs';
 import {TrackingReviewError} from '../server/pay-readonly.mjs';
 import {liveOrderView} from './live-store.mjs';
 
-const prefix='/api/live-tracking';
 const send=(res,status,data)=>{res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer'});res.end(JSON.stringify(data));return true;};
 async function body(req){let size=0;const chunks=[];for await(const chunk of req){size+=chunk.length;if(size>262144)throw new InputError('Request too large.',413);chunks.push(chunk);}return Buffer.concat(chunks);}
 
@@ -11,7 +10,8 @@ export const presentTrackedOrder=(order,simulated=false)=>({...order,tracking:tr
 
 // Webhooks are optional and disabled unless explicitly supplied. Session auth
 // and durable rate limits are required even when only read routes are mounted.
-export function createLiveTrackingHandler({store,origin,webhook,authenticate,rateLimit,allowHttpForTests=false,simulated=false,localPreview=false}){
+export function createLiveTrackingHandler({store,origin,webhook,authenticate,rateLimit,allowHttpForTests=false,simulated=false,localPreview=false,prefix='/api/live-tracking'}){
+ if(!['/api/live-tracking','/api/wallet-tracking'].includes(prefix))throw Error('Unsupported tracking prefix.');
  const parsed=new URL(origin);
  const loopback=localPreview&&simulated&&parsed.protocol==='http:'&&parsed.hostname==='127.0.0.1';
  if((parsed.protocol!=='https:'&&!loopback)||parsed.pathname!=='/'||parsed.search||parsed.hash||parsed.username||parsed.password||(webhook&&(webhook.environment!=='LIVE'||!webhook.secret||!webhook.merchantId))||typeof authenticate!=='function'||typeof rateLimit!=='function'||(simulated&&webhook))throw Error('Live tracking requires HTTPS, authentication, rate limits and an explicit valid webhook connection when enabled.');
@@ -35,7 +35,7 @@ export function createLiveTrackingHandler({store,origin,webhook,authenticate,rat
    const owner=await authenticate(req);if(typeof owner!=='string'||!owner)throw new InputError('Sign in to see your payments.',401);
    await rateLimit(owner,req.method==='GET'?'read':'refresh');
    if(pathname===prefix+'/orders'&&req.method==='GET')return send(res,200,{orders:(await store.state(owner)).orders.map(o=>presentTrackedOrder(o,simulated)),simulated,worker:await store.health()});
-   const match=pathname.match(/^\/api\/live-tracking\/orders\/([a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12})(?:\/(receipt|refresh))?$/);
+   const match=pathname.slice(prefix.length).match(/^\/orders\/([a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12})(?:\/(receipt|refresh))?$/);
    if(!match)throw new InputError('Not found.',404);
    const row=await store.owned(owner,match[1]);
    if(match[2]==='refresh'&&req.method==='POST'){await store.schedule(owner,row.id);return send(res,202,{scheduled:true,id:row.id});}

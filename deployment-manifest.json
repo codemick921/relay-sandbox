@@ -13,19 +13,19 @@
   },
   {
     "path": "hosted/live-http.mjs",
-    "sha256": "3f82cd7c783ddabaf4af4f8dfee02214193f935a6aca8376e4de21c17bc6ffe0"
+    "sha256": "304820e73089cc55b8cbf8e8be782f6428ada1bbc4621a176be03dbf36d846a1"
   },
   {
     "path": "hosted/live-schema.sql",
-    "sha256": "4b184853afe05aef6bc96e539f3dc42e6208642c03797053fa36a82fa35dc23c"
+    "sha256": "ec6ad589ea63bba02a482d8bad27314edc5968d536fb42513d9b69ad7b1fea7e"
   },
   {
     "path": "hosted/live-store.mjs",
-    "sha256": "1c0db0dced6b5ae7b10ec48e3735ff10b95c7f7e8899f308d6c961cdc8107544"
+    "sha256": "92bce0fa04914c0e060bc5f63f693f04efdb1bad14a5784fe58bb520d72703c2"
   },
   {
     "path": "hosted/live-worker.mjs",
-    "sha256": "2c1b6d37a2a0ccd11137e921938e545caf7d4708943b2c6e050c7752c2211c0d"
+    "sha256": "dc7588fab66242fdb8b7ce1fd288d96c74cb18c8e6ad80bcf89745c2dd1eab46"
   },
   {
     "path": "hosted/schema.sql",
@@ -33,7 +33,7 @@
   },
   {
     "path": "hosted/server.mjs",
-    "sha256": "57c6ee5e975bef0990ebf52997a8cef11adc70ba413e9df0e84be2815f48b0b6"
+    "sha256": "1f614f7e5ee56870d0bbdadbebf294aa52ca99b0892a26d71ecfc04c16a7afca"
   },
   {
     "path": "hosted/startup.mjs",
@@ -109,7 +109,7 @@
   },
   {
     "path": "src/App.jsx",
-    "sha256": "379b93181b0f0b6d01867c3296441a295662bf64cfe088bf569455b7ca24eca2"
+    "sha256": "e246a54e54f53ca70e74099e76b9c4a96f3a0e97be839e9c374e865481fea9b2"
   },
   {
     "path": "src/Funding.jsx",
@@ -121,7 +121,7 @@
   },
   {
     "path": "src/SimpleFunding.jsx",
-    "sha256": "3e8a7d223c70dd2654ed2a53c55f0365246a764fdd9965769350e680cb73168b"
+    "sha256": "8710b04640f4cc0838666bd576c968aa5b6b64c3b2e9b2863784dd346eec2111"
   },
   {
     "path": "src/api.js",
@@ -249,7 +249,7 @@
   },
   {
     "path": "hosted/peer-connection.mjs",
-    "sha256": "942803d1b2c2d1a600f1f8b17aeda8c59302f74fde8583dc291e94a8a3f78168"
+    "sha256": "30ddcc226a61953ccead2f0797ef41b0a2a116fb4395290ec5e673da9b638dfa"
   },
   {
     "path": "hosted/peer-notifications.sql",
@@ -265,7 +265,7 @@
   },
   {
     "path": "hosted/funding-drafts.mjs",
-    "sha256": "cb1e4e9ee53420c31f81dd13cb97b15e3a3d3aeb563117ef75805967abb6aa64"
+    "sha256": "06d3c1296fc341ea9ee2f71781eaf871b9ee84be70d56fa94e520b08cf25295d"
   },
   {
     "path": "hosted/live-funding.mjs",
@@ -282,5 +282,25 @@
   {
     "path": "tests/live-funding.test.mjs",
     "sha256": "426b60df417b3f6ef7f6b9e83c1289b7afee8ddc041081b3ea71ce3b6d29340f"
+  },
+  {
+    "path": "hosted/restricted-test.sql",
+    "sha256": "d33fb0cbc1302a14487e87447e91eab0a337cffd227887963da722d244bb4f8a"
+  },
+  {
+    "path": "hosted/restricted-test.mjs",
+    "sha256": "b2283d7b1785cf6f7ed807a90bff57ae7254c8fdabc0a8221a2a55eb4ec85a0f"
+  },
+  {
+    "path": "hosted/restricted-funding.mjs",
+    "sha256": "f4ac7105e084a17b80ad50be3827240d52629ed4942147e016d06dae593e3eb0"
+  },
+  {
+    "path": "hosted/live-observation.mjs",
+    "sha256": "1f8966e2d9541393a5feea6d1369fcc8cc2be722b18ce5981956a95d5747356a"
+  },
+  {
+    "path": "tests/restricted-test.test.mjs",
+    "sha256": "1de4a4c651037e3816c5afb292160971e005e6bad5a74dbf11c17447b2e41374"
   }
 ]

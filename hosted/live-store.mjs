@@ -114,14 +114,15 @@ export function createLiveStore(pool,{merchantId}={}){
    await c.query(`UPDATE relay_live_orders SET result=result||jsonb_build_object('trackingError',$2::text,'trackingAttemptedAt',now()),status=CASE WHEN $3 THEN 'checkout_review' ELSE status END,review_required=review_required OR $3,generation=generation+1,lease_token=NULL,lease_until=NULL,attempts=attempts+1,next_check_at=now()+least(3600,30*power(2,least(attempts,7)))*interval '1 second',updated_at=now() WHERE id=$1`,[row.id,message,review]);
    if(review&&!row.review_required)await c.query("INSERT INTO relay_live_audit(order_id,event) VALUES($1,'review_required')",[row.id]);return true;
   });},
-  async accept(event){
+  async accept(event,{client,matchedOnly=false}={}){
    if(event.environment!=='LIVE'||event.merchantId!==merchantId)throw new InputError('Wrong webhook environment or merchant.',403);
-   return tx(async c=>{
-    const r=await c.query(`INSERT INTO relay_live_webhooks(merchant_id,event_id,digest,delivery_id,provider_id,event_type,processed_at) VALUES($1,$2,$3,$4,$5,$6,CASE WHEN $7 THEN now() ELSE NULL END) ON CONFLICT DO NOTHING RETURNING event_id`,[merchantId,event.eventId,event.digest,event.deliveryId,event.orderId,event.type,event.test]);
+   const save=async c=>{
+    const known=!matchedOnly||!!(await c.query('SELECT 1 FROM relay_live_orders WHERE merchant_id=$1 AND provider_id=$2',[merchantId,event.orderId])).rows.length;
+    const r=await c.query(`INSERT INTO relay_live_webhooks(merchant_id,event_id,digest,delivery_id,provider_id,event_type,processed_at,unmatched) VALUES($1,$2,$3,$4,$5,$6,CASE WHEN $7 THEN now() ELSE NULL END,$8) ON CONFLICT DO NOTHING RETURNING event_id`,[merchantId,event.eventId,event.digest,event.deliveryId,event.orderId,event.type,event.test||!known,!known]);
     if(!r.rows.length){const old=(await c.query('SELECT digest FROM relay_live_webhooks WHERE merchant_id=$1 AND(event_id=$2 OR digest=$3)',[merchantId,event.eventId,event.digest])).rows;check(!old.some(x=>x.digest!==event.digest),'Signed event identifier was reused with different content.');return {duplicate:true};}
-    if(!event.test)await c.query('UPDATE relay_live_orders SET next_check_at=now() WHERE merchant_id=$1 AND provider_id=$2',[merchantId,event.orderId]);
+    if(!event.test&&known)await c.query('UPDATE relay_live_orders SET next_check_at=now() WHERE merchant_id=$1 AND provider_id=$2',[merchantId,event.orderId]);
     return {duplicate:false};
-   });
+   };return client?save(client):tx(save);
   },
   async heartbeat(id){await query('INSERT INTO relay_live_workers(merchant_id,id) VALUES($1,$2) ON CONFLICT(merchant_id,id) DO UPDATE SET beat_at=now()',[merchantId,id]);},
   async health(){const r=await query("SELECT extract(epoch FROM(now()-max(beat_at))) AS age FROM relay_live_workers WHERE merchant_id=$1",[merchantId]);return {healthy:r.rows[0].age!==null&&Number(r.rows[0].age)<90};}

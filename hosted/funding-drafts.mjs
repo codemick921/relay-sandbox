@@ -28,8 +28,9 @@ export function createFundingDrafts(base,{clock=Date.now}={}){
   async cancel(owner,input){fields(input,['id']);return base.tx(async c=>{await lock(c,owner);const row=await owned(c,owner,input.id);if(row.status==='cancelled')return {id:row.id};if(row.status!=='draft')throw new InputError('This request has been attempted. Keep it for reconciliation.',409);await c.query("UPDATE relay_funding_drafts SET status='cancelled',updated_at=now() WHERE id=$1",[row.id]);await audit(c,row.id,'draft_cancelled');return {id:row.id};});},
   review:(owner,id)=>base.tx(c=>owned(c,owner,id)),
   // These methods are server-only. The deployed HTTP server exposes prepare/cancel/list only.
-  async claim(owner,id,merchantId){if(!/^[-a-zA-Z0-9_]{1,128}$/.test(merchantId??''))throw Error('Pin the live merchant.');return base.tx(async c=>{await lock(c,owner);const row=await owned(c,owner,id);if(row.status!=='draft')return null;
+  async claim(owner,id,merchantId,{guard}={}){if(!/^[-a-zA-Z0-9_]{1,128}$/.test(merchantId??''))throw Error('Pin the live merchant.');return base.tx(async c=>{await lock(c,owner);const row=await owned(c,owner,id);if(row.status!=='draft')return null;
    const a=(await c.query('SELECT data,funding_revision FROM relay_agents WHERE owner=$1 AND id=$2 FOR SHARE',[owner,row.agent_id])).rows[0];if(!a||String(a.funding_revision)!==String(row.agent_revision)||!matches(row.agent,a.data))throw new InputError('The saved wallet has changed. Cancel this draft and review a new one.',409);
+   if(guard)await guard(c,row,merchantId);
    const claim=(await c.query("UPDATE relay_funding_drafts SET status='creating',merchant_id=$2,attempt_token=$3,attempted_at=now(),updated_at=now() WHERE id=$1 RETURNING *",[id,merchantId,randomUUID()])).rows[0];await audit(c,id,'creation_claimed');return claim;
   });},
   async unresolved(claim){await base.tx(async c=>{const r=await c.query("UPDATE relay_funding_drafts SET status='unresolved',updated_at=now() WHERE id=$1 AND attempt_token=$2 AND status='creating' RETURNING id",[claim.id,claim.attempt_token]);if(r.rows.length)await audit(c,claim.id,'creation_unresolved');});},
