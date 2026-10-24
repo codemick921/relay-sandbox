@@ -21,7 +21,7 @@ export function payInProjection(evidence,now=Date.now()){
 }
 export function observePeerPayIn(local,aggregate,history,{now=Date.now(),consistent=true}={}){
  const rail=local.quote.platform;
- const base={schema:rail==='revolut'?'peer-revolut-gbp-v1':SCHEMA,currency:'GBP',rail,limitPence:Math.min(1000,local.quote.pence),
+ const base={schema:rail==='revolut'?'peer-revolut-gbp-v1':SCHEMA,currency:'GBP',rail,limitPence:local.quote.pence,
   checkedAt:new Date(now).toISOString(),providerOrderId:local.providerOrderId,paymentAuthorised:false,allInLimitVerified:false,
   externalBankCharges:'not_observable',feeMode:'MERCHANT',feeTreatment:'deducted_from_usdc_settlement',
   totalPence:null,settlement:null};

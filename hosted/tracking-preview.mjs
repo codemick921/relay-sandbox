@@ -1,3 +1,5 @@
+import {createAccounts} from './accounts.mjs';
+import {createRampSimulation} from './ramp-simulation.mjs';
 import {createFundingDrafts} from './funding-drafts.mjs';
 import {createFundingJourney} from './funding-journey.mjs';
 import {createAccountMail} from './account-mail.mjs';
@@ -49,7 +51,11 @@ await tracking.query("UPDATE relay_live_orders SET next_check_at=now()+interval 
 const origin=`http://127.0.0.1:${port}`,config={origin,host:new URL(origin).host,testers:['alice','bob'].map(label=>({label,sha256hex:digest('relay-preview-'+label)}))};
 const mail=createAccountMail(store,{enabled:true,preview:true,origin,deliver:async message=>({id:'local-'+message.id})});
 const fundingDrafts=createFundingDrafts(store);await fundingDrafts.migrate();
-const server=createHostedServer({store,config,fundingDrafts,accountMail:mail,pay:{readiness:async()=>({ready:false})},tracking:{store:tracking,journey,simulated:true},paymentsDisabled:true,localPreview:true});
+const ramp=createRampSimulation(store);await ramp.migrate();
+const previewAccount=await createAccounts(store).signup({email:'ramp-preview@example.test',name:'Preview Customer',password:'preview lantern river meadow',acceptSandbox:true});
+const previewOwner=(await createAccounts(store).session(previewAccount.token)).owner;
+await store.addAgent(previewOwner,{id:randomUUID(),name:'Preview agent',address:'0x1111111111111111111111111111111111111111',network:'Base',token:'USDC'});
+const server=createHostedServer({store,config,ramp,fundingDrafts,accountMail:mail,pay:{readiness:async()=>({ready:false})},tracking:{store:tracking,journey,simulated:true},paymentsDisabled:true,localPreview:true});
 const timer=setInterval(()=>Promise.all([worker.tick(),mail.tick()]).catch(()=>console.error('Local fixture tracking unavailable.')),1000);
 server.listen(port,'127.0.0.1',()=>console.log(`Local simulated preview: ${origin}\nTester codes: relay-preview-alice / relay-preview-bob\nReal payments and external connections are disabled.`));
 let stopping=false;

@@ -89,7 +89,7 @@ test('private release HTTP route requires customer auth and same-origin review; 
 
 test('sub-£2 Revolut offers preserve exact pennies and do not lower the Wise minimum',async()=>{
  assert.equal(fundingPence('1.94','revolut'),194);
- for(const value of ['0','-1','1.943452','1e1','10.01',' 1.94'])assert.throws(()=>fundingPence(value,'revolut'));
+ for(const value of ['0','-1','1.943452','1e1','1000.01',' 1.94'])assert.throws(()=>fundingPence(value,'revolut'));
  assert.throws(()=>fundingPence('1.94','wise'));
  const f=await setup({amount:'1.94'});try{
   await f.approve();await f.operator.start(f.owner,f.id);

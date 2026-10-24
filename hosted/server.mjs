@@ -1,3 +1,4 @@
+import {createRampSimulation} from './ramp-simulation.mjs';
 import {prepareLiveObservation} from './live-observation.mjs';
 import {createFundingDrafts,fundingDisabled} from './funding-drafts.mjs';
 import {configuredAccountMail} from './mail-transport.mjs';
@@ -21,7 +22,7 @@ const dist=fileURLToPath(new URL('../dist/',import.meta.url));
 const uuid=v=>typeof v==='string'&&/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(v);
 async function body(req,max=16384){let size=0;const chunks=[];for await(const chunk of req){size+=chunk.length;if(size>max)throw new InputError('Request too large.',413);chunks.push(chunk);}return Buffer.concat(chunks);}
 const send=(res,status,data)=>{res.writeHead(status,{'Content-Type':'application/json'});res.end(JSON.stringify(data));};
-export function createHostedServer({store,config,pay=createSandboxPayService(),staticRoot=dist,allowHttpForTests=false,tracking=null,paymentsDisabled=false,localPreview=false,accountMail=null,customerAccountsEnabled=true,peerConnection=null,fundingDrafts=null,liveObservation=null}){
+export function createHostedServer({store,config,pay=createSandboxPayService(),staticRoot=dist,allowHttpForTests=false,tracking=null,paymentsDisabled=false,localPreview=false,accountMail=null,customerAccountsEnabled=true,peerConnection=null,fundingDrafts=null,liveObservation=null,ramp=null}){
  const origin=new URL(config.origin),mail=accountMail??createAccountMail(store),accounts=customerAccountsEnabled?createAccounts(store,{mail}):null;
  if(fundingDrafts&&!paymentsDisabled)throw Error('Funding preparation requires payments to remain disabled.');
  if(tracking?.journey&&(!tracking.simulated||!tracking.journey.simulated||!paymentsDisabled))throw Error('Test funding requires simulated tracking and disabled payments.');
@@ -35,9 +36,10 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
  const getToken=req=>(req.headers.cookie??'').split(';').map(x=>x.trim()).find(x=>x.startsWith(cookie+'='))?.slice(cookie.length+1);
  const authenticate=async req=>(await accounts?.session(getToken(req)))?.owner??await store.session(getToken(req),config.testers);
  const stateFor=async owner=>{
-  const base=await store.state(owner);let state={...base,paymentsDisabled,...fundingDrafts&&owner.startsWith('customer:')?{liveFunding:fundingDisabled,fundingDrafts:await fundingDrafts.list(owner)}:{}};
+  const base=await store.state(owner);let state={...base,paymentsDisabled:paymentsDisabled&&!liveObservation?.funding,...fundingDrafts&&owner.startsWith('customer:')?{liveFunding:liveObservation?.funding?{...fundingDisabled,paymentsEnabled:true,rails:['revolut','wise']}:fundingDisabled,fundingDrafts:await fundingDrafts.list(owner)}:{}};
   if(tracking){const [tracked,worker]=await Promise.all([tracking.store.state(owner),tracking.store.health()]);state={...state,previewMode:!!tracking.simulated,trackingEnabled:true,worker,fundingJourneyEnabled:!!tracking.journey,orders:[...(await tracking.journey?.decorate(owner,tracked.orders)??tracked.orders).map(o=>presentTrackedOrder(o,tracking.simulated)),...state.orders]};}
   if(liveObservation){const [live,status,restrictedTest,revolutTest]=await Promise.all([liveObservation.store.state(owner),liveObservation.status(),liveObservation.policy.status(owner),liveObservation.revolutPolicy?.status(owner)]);state={...state,liveTracking:{...status,enabled:true},restrictedTest,revolutTest,orders:[...live.orders.map(o=>({...presentTrackedOrder(o,false),trackingPath:'wallet-tracking'})),...state.orders]};}
+  if(ramp&&owner.startsWith('customer:'))state={...state,rampFunding:{mode:'simulation',paymentsEnabled:false,externalConnectionsEnabled:false},orders:[...await ramp.state(owner),...state.orders]};
   return state;
  };
  const handleTracking=tracking&&createLiveTrackingHandler({store:tracking.store,origin:config.origin,authenticate,rateLimit:(owner,kind)=>store.rate(kind==='read'?'read:'+owner:'mutation:'+owner,kind==='read'?120:30,60),simulated:!!tracking.simulated,localPreview,allowHttpForTests});
@@ -46,7 +48,7 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
   res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','no-referrer');res.setHeader('X-Frame-Options','DENY');res.setHeader('Strict-Transport-Security','max-age=31536000');res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
   try{
    // Health probes disclose no customer/provider state and require no proxy headers.
-   if(req.url==='/healthz'&&req.method==='GET'){try{await store.query('SELECT 1');return send(res,200,{ok:true,mode:'sandbox',paymentsDisabled,realPaymentsEnabled:false,restrictedCheckoutMode:liveObservation?'operator_only':'disabled',providerConnectionsEnabled:!paymentsDisabled,liveConnectionMode:peerConnection?.mode??'disabled',tracking:tracking?'simulated':null,liveTracking:liveObservation?'read_only':'disabled',release:process.env.RENDER_GIT_COMMIT??null});}catch{return send(res,503,{ok:false});}}
+   if(req.url==='/healthz'&&req.method==='GET'){try{await store.query('SELECT 1');return send(res,200,{ok:true,mode:liveObservation?.funding?'live':'sandbox',paymentsDisabled:paymentsDisabled&&!liveObservation?.funding,realPaymentsEnabled:!!liveObservation?.funding,restrictedCheckoutMode:liveObservation?.funding?'customer':liveObservation?'operator_only':'disabled',providerConnectionsEnabled:!!liveObservation?.funding||!paymentsDisabled,liveConnectionMode:peerConnection?.mode??'disabled',tracking:tracking?'simulated':null,liveTracking:liveObservation?'enabled':'disabled',release:process.env.RENDER_GIT_COMMIT??null});}catch{return send(res,503,{ok:false});}}
    if(req.headers.host!==config.host)return send(res,421,{error:'Unexpected host.'});
    if(!allowHttpForTests&&!localPreview&&req.headers['x-forwarded-proto']!=='https'){
     if(req.method==='GET'){res.writeHead(308,{Location:config.origin+'/'});return res.end();}return send(res,400,{error:'HTTPS required.'});
@@ -62,7 +64,7 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
     if(req.method!=='GET')throw new InputError('Method not allowed.',405);
     // Only an existing private tester/operator session; customer sessions cannot inspect connections.
     if(!await store.session(getToken(req),config.testers))throw new InputError('Operator sign-in required.',403);
-    return send(res,200,peerConnection?{...await peerConnection.status(),...liveObservation?{tracking:await liveObservation.status()}:{} }:{mode:'disabled',realPaymentsEnabled:false});
+    return send(res,200,peerConnection?{...await peerConnection.status(),...liveObservation?{tracking:await liveObservation.status(),liveOrdersEnabled:!!liveObservation.funding,realPaymentsEnabled:!!liveObservation.funding}:{} }:{mode:'disabled',realPaymentsEnabled:false});
    }
    if(handleLive&&url.pathname.startsWith('/api/wallet-tracking/')&&await handleLive(req,res))return;
    if(handleTracking&&await handleTracking(req,res))return;
@@ -79,7 +81,7 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
     const decoded=decodeURIComponent(url.pathname);if(decoded!=='/'&&!/^\/assets\/[a-zA-Z0-9_.-]+\.(js|css|svg)$/.test(decoded))throw new InputError('Not found.',404);
     const file=path.join(staticRoot,decoded==='/'?'index.html':decoded.slice(1));const data=await readFile(file);res.setHeader('Content-Type',({'.html':'text/html','.css':'text/css','.js':'text/javascript','.svg':'image/svg+xml'})[path.extname(file)]);return res.end(data);
    }
-   const allowed=new Set(['/api/revolut-test/checkout','/api/funding/drafts','/api/funding/cancel','/api/funding/checkout','/api/funding/resume','/api/funding/availability','/api/test-funding/quote','/api/test-funding/create','/api/test-funding/action','/api/account/signup','/api/account/login','/api/account/recover','/api/account/password','/api/account/requestVerification','/api/account/requestReset','/api/account/verifyEmail','/api/account/resetPassword','/api/account/emailPreview','/api/access','/api/login','/api/logout','/api/state','/api/agents','/api/checkouts','/api/checkout-resume','/api/checkout-refresh','/api/checkout-setup']);
+   const allowed=new Set(['/api/ramp-test/create','/api/ramp-test/advance','/api/revolut-test/checkout','/api/funding/drafts','/api/funding/cancel','/api/funding/checkout','/api/funding/resume','/api/funding/availability','/api/test-funding/quote','/api/test-funding/create','/api/test-funding/action','/api/account/signup','/api/account/login','/api/account/recover','/api/account/password','/api/account/requestVerification','/api/account/requestReset','/api/account/verifyEmail','/api/account/resetPassword','/api/account/emailPreview','/api/access','/api/login','/api/logout','/api/state','/api/agents','/api/checkouts','/api/checkout-resume','/api/checkout-refresh','/api/checkout-setup']);
    if(!allowed.has(url.pathname))throw new InputError('Not found.',404);
    if(req.headers['sec-fetch-site']==='cross-site')throw new InputError('Cross-site access blocked.',403);
    if(req.method==='POST'&&(req.headers.origin!==config.origin||!String(req.headers['content-type']).startsWith('application/json')))throw new InputError('Same-origin JSON required.',403);
@@ -123,12 +125,25 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
     throw new InputError('Not found.',404);
    }
    await store.rate('mutation:'+owner,30,60);
+   if(url.pathname.startsWith('/api/ramp-test/')){
+    if(!customer||!ramp?.simulated)throw new InputError('Ramp simulation is unavailable.',403);
+    const result=url.pathname.endsWith('/create')?await ramp.create(owner,b):await ramp.advance(owner,b);
+    return send(res,200,{...await stateFor(owner),account:customer.account,selectedOrderId:result.id});
+   }
    if(url.pathname==='/api/revolut-test/checkout'){
     if(!customer||!liveObservation?.revolutRelease)throw new InputError('Customer test access is unavailable.',403);
     return send(res,200,await liveObservation.revolutRelease(owner,b));
    }
    if(url.pathname.startsWith('/api/funding/')){
     if(!customer||!fundingDrafts)throw new InputError('Customer funding preparation is unavailable.',403);
+    if(url.pathname==='/api/funding/checkout'&&liveObservation?.funding){
+     const result=await liveObservation.funding.start(owner,b);
+     return send(res,200,{...await stateFor(owner),account:customer.account,selectedFundingDraftId:result.id});
+    }
+    if(url.pathname==='/api/funding/resume'&&liveObservation?.funding){
+     if(b.confirm!==true||Object.keys(b).some(k=>!['id','confirm'].includes(k)))throw new InputError('Confirm opening your existing checkout.');
+     return send(res,200,await liveObservation.funding.checkout(owner,b.id));
+    }
     if(!['/api/funding/drafts','/api/funding/cancel'].includes(url.pathname))throw new InputError('Real payments are disabled. No provider request was made.',403);
     const result=url.pathname.endsWith('/drafts')?await fundingDrafts.prepare(owner,b):await fundingDrafts.cancel(owner,b);
     return send(res,200,{...await stateFor(owner),account:customer.account,selectedFundingDraftId:result.id});
@@ -174,10 +189,11 @@ if(process.argv[1]===fileURLToPath(import.meta.url)){
  const config=readConfig(),pool=createPool(),store=createStore(pool);await migrateWhenReady(store);
  const tracking=await prepareTrackingSandbox(store,config.testers);
  const fundingDrafts=createFundingDrafts(store);await migrateWhenReady(fundingDrafts);
- const liveObservation=config.liveConnection?await prepareLiveObservation({pool,base:store,connection:config.liveConnection,drafts:fundingDrafts}):null;
+ const liveObservation=config.liveConnection?await prepareLiveObservation({pool,base:store,connection:config.liveConnection,drafts:fundingDrafts,livePayments:config.livePayments,origin:config.origin}):null;
  const peerConnection=config.liveConnection?createPeerConnection({connection:config.liveConnection,store,tracker:liveObservation?.store}):null;
  if(peerConnection)await migrateWhenReady(peerConnection);
- const server=createHostedServer({store,config,tracking,peerConnection,fundingDrafts,liveObservation,accountMail:configuredAccountMail(store),paymentsDisabled:true,pay:{readiness:async()=>({ready:false})}});server.listen(Number(process.env.PORT??10000),'0.0.0.0',()=>console.log('Relay hosted sandbox ready.'));
+ const ramp=createRampSimulation(store);await ramp.migrate();
+ const server=createHostedServer({store,config,tracking,ramp,peerConnection,fundingDrafts,liveObservation,accountMail:configuredAccountMail(store),paymentsDisabled:true,pay:{readiness:async()=>({ready:false})}});server.listen(Number(process.env.PORT??10000),'0.0.0.0',()=>console.log('Relay hosted sandbox ready.'));
  // One read at startup, no polling. Until verified, the receiver returns 503.
  if(peerConnection)void peerConnection.checkIdentity();
  if(liveObservation)void liveObservation.start();

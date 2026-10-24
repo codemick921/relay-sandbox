@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS relay_funding_drafts (
 );
 ALTER TABLE relay_funding_drafts ADD COLUMN IF NOT EXISTS rail text NOT NULL DEFAULT 'wise' CHECK(rail IN ('wise','revolut'));
 ALTER TABLE relay_funding_drafts DROP CONSTRAINT IF EXISTS relay_funding_drafts_pence_check;
-ALTER TABLE relay_funding_drafts ADD CONSTRAINT relay_funding_drafts_pence_check CHECK((rail='wise' AND pence BETWEEN 200 AND 100000) OR (rail='revolut' AND pence BETWEEN 1 AND 1000));
+ALTER TABLE relay_funding_drafts ADD CONSTRAINT relay_funding_drafts_pence_check CHECK((rail='wise' AND pence BETWEEN 200 AND 100000) OR (rail='revolut' AND pence BETWEEN 1 AND 100000));
 ALTER TABLE relay_funding_drafts ADD COLUMN IF NOT EXISTS superseded_by uuid REFERENCES relay_funding_drafts(id) DEFERRABLE INITIALLY DEFERRED;
 DROP INDEX IF EXISTS relay_funding_one_active;
 CREATE UNIQUE INDEX relay_funding_one_active ON relay_funding_drafts(owner) WHERE status NOT IN ('cancelled','closed') AND superseded_by IS NULL;

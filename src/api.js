@@ -2,4 +2,4 @@ export async function api(path,body){const r=await fetch('/api/'+path,body?{meth
 export const gbp=n=>new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP'}).format(n/100);
 export const short=a=>a.slice(0,8)+'…'+a.slice(-6);
 export const labels={offer_selected:'Example offer selected',payment_sent:'Example payment sent',payment_verified:'Example payment verified',delivered:'Example USDC delivered',handoff_prepared:'Peer handoff prepared · outcome unknown'};
-export const platformNames={revolut:'Revolut',wise:'Wise',monzo:'Monzo'};
+export const platformNames={ramp:'Ramp preview',revolut:'Revolut',wise:'Wise',monzo:'Monzo'};
