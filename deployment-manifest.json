@@ -1,11 +1,15 @@
 [
   {
+    "path": "hosted/accounts.mjs",
+    "sha256": "86e437d501ffe0a97b1723bc3e2fc5bbb9afd01122ec001335d20a4ad3826edd"
+  },
+  {
     "path": "hosted/config.mjs",
     "sha256": "587564ae22327d62c5fc59e4b1e183f5e22deabf117995e968f0aaa416842220"
   },
   {
     "path": "hosted/db.mjs",
-    "sha256": "38158b94bc635f095615bde4729b63a77d7145336fda80d1c2c2494b5e496748"
+    "sha256": "25fcca76a0a5523f13f99bb722a0c4c564e94448746df35f83e1d7ce22514ca1"
   },
   {
     "path": "hosted/live-http.mjs",
@@ -25,11 +29,11 @@
   },
   {
     "path": "hosted/schema.sql",
-    "sha256": "6b34554669488f6276f3936ac7f2bca6c7bcd3e60e4f24c28e276c7f1e2c5371"
+    "sha256": "42f695dd88c54ee97051f3d17511a61a2e66249dac8c6494774af5f55c238d5f"
   },
   {
     "path": "hosted/server.mjs",
-    "sha256": "755b2bc274a36edace24ddf82fd724b48e88185998ce81ec38343731178b0e2f"
+    "sha256": "d0a32902cbc649d4a5d32a6d38407812ee8c6079c27a42d8bf2b75c7d5ff445f"
   },
   {
     "path": "hosted/startup.mjs",
@@ -101,11 +105,11 @@
   },
   {
     "path": "src/Access.jsx",
-    "sha256": "c908a5a42a820f507bdb577e100eb80361e0725a71d0388b574bafb0e463fbf3"
+    "sha256": "f9354f782b960a743015a5d6522107e492f7c821dc1bd27dca2406b7e7c8a9f4"
   },
   {
     "path": "src/App.jsx",
-    "sha256": "0e76636746692b53622bdcf6c0adf388fc1b292fa8325306b809d34b3a91ee6b"
+    "sha256": "29c3045fcbfebe4151150cc2d5c92bc7115d45c231a3f1cb03ced410b44b00c2"
   },
   {
     "path": "src/Funding.jsx",
@@ -121,7 +125,7 @@
   },
   {
     "path": "src/api.js",
-    "sha256": "f3394550da779b96f16a7296269a22ca9d1337802c534d3b0a4736d5a0cb5cfe"
+    "sha256": "12f8e85699767658100afc9d09caf52af7ab3e38ebf2f1ec3cf1d114a88d455b"
   },
   {
     "path": "src/main.jsx",
@@ -133,11 +137,15 @@
   },
   {
     "path": "src/styles.css",
-    "sha256": "354d11ab360d484c80b63462fad5b41bc7993629df06df272ca67ed7b2a0ba8a"
+    "sha256": "9379971b6763fa792e3c24d049b096c160abea14cabb43b37ea9ac44f75690f8"
   },
   {
     "path": "src/ui.jsx",
     "sha256": "e93c7489348525f6f92855d1ff56c9d4e5061721ec2b818071bc14a7b1e898b7"
+  },
+  {
+    "path": "tests/accounts.test.mjs",
+    "sha256": "f5a67357050849f771bbd2551499b57d976d889a545ebe88187a1d4314de4f55"
   },
   {
     "path": "tests/fixtures/live-evidence.mjs",
@@ -201,7 +209,7 @@
   },
   {
     "path": "scripts/test-postgres.mjs",
-    "sha256": "facbb4c18ca3c8c76436415fca6ff4519f1370502ca4cb5ac6200821730572fb"
+    "sha256": "f9b8c32bea26ea313f4517a6b25b085b1eab3d8eeef738b65e9c64e2df36db90"
   },
   {
     "path": "scripts/test-sandbox-webhook-flow.mjs",
@@ -233,7 +241,7 @@
   },
   {
     "path": "DEPLOYMENT.md",
-    "sha256": "6965bf33aafd90452d076a8f54bd5735bb1cbe0bf827efa5c17ec395f98ede15"
+    "sha256": "8fbda2101e1395e281e18043713011eeb797ce7d6acf34b90ceb229b645bf9f5"
   },
   {
     "path": ".github/workflows/verify.yml",

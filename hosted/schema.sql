@@ -44,3 +44,19 @@ CREATE TABLE IF NOT EXISTS relay_workers (
  id text PRIMARY KEY, beat_at timestamptz NOT NULL DEFAULT now(), version text NOT NULL
 );
 INSERT INTO relay_schema(version) VALUES(1) ON CONFLICT DO NOTHING;
+
+-- Additive customer accounts. Tester labels and their saved data are not migrated.
+CREATE TABLE IF NOT EXISTS relay_customers (
+ id uuid PRIMARY KEY, email text UNIQUE NOT NULL, name text NOT NULL,
+ password_hash text NOT NULL, recovery_hash text NOT NULL,
+ version integer NOT NULL DEFAULT 1, disabled boolean NOT NULL DEFAULT false,
+ created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS relay_customer_sessions (
+ token_hash text PRIMARY KEY, customer_id uuid NOT NULL REFERENCES relay_customers(id),
+ version integer NOT NULL, revoked boolean NOT NULL DEFAULT false,
+ created_at timestamptz NOT NULL DEFAULT now(), last_seen_at timestamptz NOT NULL DEFAULT now(),
+ expires_at timestamptz NOT NULL DEFAULT (now()+interval '12 hours')
+);
+CREATE INDEX IF NOT EXISTS relay_customer_sessions_customer ON relay_customer_sessions(customer_id);
+INSERT INTO relay_schema(version) VALUES(2) ON CONFLICT DO NOTHING;

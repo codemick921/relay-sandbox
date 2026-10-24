@@ -23,3 +23,23 @@ Both processes use leased jobs and generation checks; stale workers cannot overw
 ## Recovery limits
 
 The Mac's historical JSON sessions are not imported. Hosted data is separate. Source rollback is by redeploying a verified commit compatible with schema version 1; do not drop the database. This initial schema migration is additive. Render database backup availability and retention must be checked in the deployed account before relying on it. The prototype is not approved for public live-money use.
+
+## Tracking sandbox release (24 October 2026)
+
+Hosted entrypoints now start the persistent simulated tracker and require the existing tester sign-in. Real payment creation and all outgoing Peer reads are hard-disabled in this release. No new API keys or permissions are needed. Existing Peer sandbox environment values may remain saved but are unused by the running web/worker path; the existing incoming sandbox webhook route returns a disabled response. Do not run operator payment or webhook scripts while the no-contact instruction applies.
+
+The additive `relay_tracking_sandbox_v1` PostgreSQL schema holds generated examples separately from saved sandbox agents, orders and authentication sessions. Four examples are created once per configured tester; startup and redeploy do not reset their status. HTTP responses and receipt panels label this evidence as simulated. No customer wallet data is used to generate the examples. Manual refresh queues an existing synthetic order and the background worker supplies its result. Existing sandbox history stays readable but cannot create or resume a provider checkout.
+
+Release via the existing private repository, verify the exact commit with PostgreSQL18 CI, deploy the worker first, then the web service. Keep auto-deploy off and retain the same resource plans. Check `/healthz` for the exact release SHA, disabled payments/provider connections and simulated tracking, then verify sign-in, owner isolation, preserved history and receipt access.
+
+Rollback must preserve the no-contact restriction: do not blindly redeploy the older provider-polling worker. Prefer a corrected release that keeps both payment/provider gates disabled. The new schema is additive and must not be dropped during an ordinary rollback; preserve saved records and tester sessions.
+
+## Customer accounts (24 October 2026)
+
+The disabled-payment runtime now offers email/password customer accounts in addition to the separate tester-code entry. Migration2 adds relay_customers and relay_customer_sessions without changing tester records. Owners use customer:<UUID>; no email or name can claim another workspace. New customers start empty and can save up to five Base wallet addresses. Wallet ownership remains self-declared.
+
+Passwords use salted scrypt-v1 (N32768/r8/p3, 32-byte output), with a maximum of two active hashing jobs. Sessions use random 256-bit tokens, hashed at rest, 12-hour absolute and 2-hour idle expiry, Secure/HttpOnly/SameSite cookies. Password change and single-use recovery rotate the recovery code and revoke other sessions. Recovery codes are shown once, never logged or persisted in browser storage. DB-backed global/per-account attempt limits remain deliberately restrictive for this small sandbox.
+
+Email addresses are unverified sign-in names. There is no email delivery, email recovery, identity verification, MFA or live-payment activation. Do not use email alone as an ownership or support-recovery proof. Before customer production launch, connect verified email/authentication, broaden breached-password screening and abuse controls, validate backups/recovery and review the authentication security. Keep all existing payment/provider gates disabled. Do not copy customer records, passwords or recovery codes into deployment exports or logs.
+
+Verify signup, saved-wallet persistence, logout/login, account isolation, recovery code single-use and old-session revocation. Existing tester records must remain readable. A source rollback must retain customer tables and records; the previous release will hide customer access until a compatible release is restored.

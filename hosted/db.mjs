@@ -25,7 +25,7 @@ export function createStore(pool){
   async login(token,principal){await query('INSERT INTO relay_sessions(token_hash,owner,credential_hash) VALUES($1,$2,$3)',[digest(token),principal.label,principal.sha256hex]);},
   async logout(token){await query('UPDATE relay_sessions SET revoked=true WHERE token_hash=$1',[digest(token??'')]);},
   async state(owner){const [a,o,w]=await Promise.all([query('SELECT data FROM relay_agents WHERE owner=$1 ORDER BY created_at',[owner]),query('SELECT * FROM relay_orders WHERE owner=$1 ORDER BY created_at DESC LIMIT 100',[owner]),query("SELECT max(beat_at) AS beat_at,extract(epoch FROM(now()-max(beat_at))) AS age FROM relay_workers")]);return {agents:a.rows.map(r=>r.data),orders:o.rows.map(orderView),lastQuote:null,hostedSandbox:true,worker:{lastSeen:w.rows[0].beat_at,healthy:w.rows[0].age!==null&&Number(w.rows[0].age)<90}};},
-  async addAgent(owner,data){return tx(async c=>{await c.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',[owner]);const n=await c.query('SELECT count(*) FROM relay_agents WHERE owner=$1',[owner]);if(Number(n.rows[0].count)>=5)throw new InputError('This sandbox supports five wallets per tester.');try{await c.query('INSERT INTO relay_agents(id,owner,data,address_key) VALUES($1,$2,$3,$4)',[data.id,owner,data,data.address.toLowerCase()]);}catch(e){if(e.code==='23505')throw new InputError('This wallet is already saved.',409);throw e;}});},
+  async addAgent(owner,data){return tx(async c=>{await c.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',[owner]);const n=await c.query('SELECT count(*) FROM relay_agents WHERE owner=$1',[owner]);if(Number(n.rows[0].count)>=5)throw new InputError('You can save up to five wallets in this sandbox.');try{await c.query('INSERT INTO relay_agents(id,owner,data,address_key) VALUES($1,$2,$3,$4)',[data.id,owner,data,data.address.toLowerCase()]);}catch(e){if(e.code==='23505')throw new InputError('This wallet is already saved.',409);throw e;}});},
   async createOrder(owner,{requestId,agentId,amount}){return tx(async c=>{
    await c.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',[owner]);
    const old=(await c.query('SELECT * FROM relay_orders WHERE owner=$1 AND request_id=$2',[owner,requestId])).rows[0];
@@ -68,7 +68,7 @@ export function createStore(pool){
    return {duplicate:false};
   });},
   async heartbeat(id){await query(`INSERT INTO relay_workers(id,version) VALUES($1,'sandbox-v1') ON CONFLICT(id) DO UPDATE SET beat_at=now()`,[id]);},
-  async maintenance(){await query("DELETE FROM relay_rate_limits WHERE reset_at<now()-interval '1 hour'");await query("DELETE FROM relay_sessions WHERE expires_at<now()-interval '7 days'");await query("DELETE FROM relay_workers WHERE beat_at<now()-interval '7 days'");},
+  async maintenance(){await query("DELETE FROM relay_rate_limits WHERE reset_at<now()-interval '1 hour'");await query("DELETE FROM relay_sessions WHERE expires_at<now()-interval '7 days'");await query("DELETE FROM relay_customer_sessions WHERE expires_at<now()-interval '7 days'");await query("DELETE FROM relay_workers WHERE beat_at<now()-interval '7 days'");},
   async close(){await pool.end();}
  };
 }
