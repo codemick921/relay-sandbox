@@ -18,7 +18,7 @@ async function setup(){
  const {id}=await drafts.prepare(owner,{agentId:agent.id,requestId:randomUUID(),amount:'1.94',rail:'revolut',confirm:true});
  const merchant={id:'merchant',environment:'LIVE',merchantConfig:{feePayer:'MERCHANT',buyerFeeShareBps:0,quotePreference:'PREFER_SAR'}};
  const orders=new Map(),flags={paid:false,lost:false,partialHistory:false,unknownRecipient:false},posts=[];
- const payment=o=>({id:'payment-'+o.id,orderId:o.id,status:flags.paid?'SETTLED':'CREATED',rail:'revolut',currency:'GBP',paymentAmount:flags.paid?'1.94':'0',netSettledUsdcAmount:flags.paid?'2':null,fulfillTransaction:null,chargebackStatus:'NONE',penalties:[],attestation:null,completedAt:null,payTo:flags.unknownRecipient?'':'firstrecipient'});
+ const payment=o=>({id:'payment-'+o.id,orderId:o.id,status:flags.paid?'SETTLED':'CREATED',rail:'revolut',currency:'GBP',paymentAmount:flags.paid?'1.94':'0',netSettledUsdcAmount:flags.paid?'2':null,fulfillTransaction:null,chargebackStatus:'NONE',penalties:[],attestation:{serviceUrl:'https://verification.example'},completedAt:null,payTo:flags.unknownRecipient?'':'firstrecipient'});
  const fetcher=async(url,opts={})=>{
   if(url.endsWith('/me'))return envelope(merchant);
   if(url.includes('availability'))return envelope({available:true,quoteCount:1,nearbySuggestions:null});

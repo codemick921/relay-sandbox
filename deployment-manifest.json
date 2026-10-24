@@ -169,7 +169,7 @@
   },
   {
     "path": "server/revolut-replacement-read.mjs",
-    "sha256": "e390c850e0a26e56a89e3f821ee3b97b9c370962cb30969f7b1b1e2ad34984ef"
+    "sha256": "4ee3cf242bd8176408dc67ec2300d13d0dce24da3954a17146305b8c62dba161"
   },
   {
     "path": "server/validation.mjs",
@@ -313,7 +313,7 @@
   },
   {
     "path": "tests/revolut-replacement.test.mjs",
-    "sha256": "afeb52fd1b49dc52b2dd5cfa096aa7a3473ed74fa2e3ced2883d3f670ea6a199"
+    "sha256": "a59e484add777a300f7529a35d1bac1f7c189a84049ee248a27ca5711bca35f6"
   },
   {
     "path": "tests/revolut-test.test.mjs",
