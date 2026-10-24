@@ -22,13 +22,16 @@ CREATE TABLE IF NOT EXISTS relay_funding_drafts (
 ALTER TABLE relay_funding_drafts ADD COLUMN IF NOT EXISTS rail text NOT NULL DEFAULT 'wise' CHECK(rail IN ('wise','revolut'));
 ALTER TABLE relay_funding_drafts DROP CONSTRAINT IF EXISTS relay_funding_drafts_pence_check;
 ALTER TABLE relay_funding_drafts ADD CONSTRAINT relay_funding_drafts_pence_check CHECK((rail='wise' AND pence BETWEEN 200 AND 100000) OR (rail='revolut' AND pence BETWEEN 1 AND 1000));
-CREATE UNIQUE INDEX IF NOT EXISTS relay_funding_one_active ON relay_funding_drafts(owner) WHERE status NOT IN ('cancelled','closed');
+ALTER TABLE relay_funding_drafts ADD COLUMN IF NOT EXISTS superseded_by uuid REFERENCES relay_funding_drafts(id) DEFERRABLE INITIALLY DEFERRED;
+DROP INDEX IF EXISTS relay_funding_one_active;
+CREATE UNIQUE INDEX relay_funding_one_active ON relay_funding_drafts(owner) WHERE status NOT IN ('cancelled','closed') AND superseded_by IS NULL;
 CREATE TABLE IF NOT EXISTS relay_funding_audit (
  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, draft_id uuid NOT NULL REFERENCES relay_funding_drafts(id),
  event text NOT NULL, at timestamptz NOT NULL DEFAULT now()
 );
 CREATE OR REPLACE FUNCTION relay_funding_immutable() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
+ IF NEW.superseded_by IS DISTINCT FROM OLD.superseded_by AND (OLD.superseded_by IS NOT NULL OR OLD.status<>'bound' OR NEW.status<>'bound' OR NEW.superseded_by=OLD.id) THEN RAISE EXCEPTION 'Immutable supersession'; END IF;
  IF NEW.id IS DISTINCT FROM OLD.id OR NEW.owner IS DISTINCT FROM OLD.owner OR NEW.request_id IS DISTINCT FROM OLD.request_id
  OR NEW.rail IS DISTINCT FROM OLD.rail OR NEW.agent_revision IS DISTINCT FROM OLD.agent_revision OR NEW.agent_id IS DISTINCT FROM OLD.agent_id OR NEW.agent IS DISTINCT FROM OLD.agent OR NEW.pence IS DISTINCT FROM OLD.pence
  OR (OLD.attempt_token IS NOT NULL AND (NEW.attempt_token IS DISTINCT FROM OLD.attempt_token OR NEW.merchant_id IS DISTINCT FROM OLD.merchant_id OR NEW.attempted_at IS DISTINCT FROM OLD.attempted_at))

@@ -21,7 +21,7 @@ export function createFundingDrafts(base,{clock=Date.now}={}){
     const old=(await c.query('SELECT * FROM relay_funding_drafts WHERE owner=$1 AND request_id=$2',[owner,input.requestId])).rows[0];
     if(old){if(old.agent_id!==input.agentId||old.pence!==amount||old.rail!==rail)throw new InputError('This request belongs to another funding draft.',409);return {id:old.id};}
     const a=(await c.query('SELECT data,funding_revision FROM relay_agents WHERE owner=$1 AND id=$2 FOR SHARE',[owner,input.agentId])).rows[0];if(!a)throw new InputError('Choose a saved Base USDC wallet.');
-    if((await c.query("SELECT 1 FROM relay_funding_drafts WHERE owner=$1 AND status NOT IN ('cancelled','closed')",[owner])).rows.length)throw new InputError('Review your existing funding draft before starting another.',409);
+    if((await c.query("SELECT 1 FROM relay_funding_drafts WHERE owner=$1 AND status NOT IN ('cancelled','closed') AND superseded_by IS NULL",[owner])).rows.length)throw new InputError('Review your existing funding draft before starting another.',409);
     if(Number((await c.query('SELECT count(*) FROM relay_funding_drafts WHERE owner=$1',[owner])).rows[0].count)>=100)throw new InputError('Funding draft limit reached.',409);
     const id=randomUUID();await c.query('INSERT INTO relay_funding_drafts(id,owner,request_id,agent_id,agent,pence,agent_revision,rail) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',[id,owner,input.requestId,input.agentId,snapshot(a.data),amount,a.funding_revision,rail]);await audit(c,id,'draft_saved');return {id};
    });

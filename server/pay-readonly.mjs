@@ -2,6 +2,7 @@ import {InputError} from './validation.mjs';
 import {validateCheckout,sameUsdc} from './pay-contract.mjs';
 import {verifyPayDelivery} from './pay-delivery.mjs';
 import {observePeerPayIn,payInSnapshotKey} from './pay-payin.mjs';
+import {recipientHash} from './revolut-replacement-read.mjs';
 
 const API='https://api.pay.peer.xyz/api/v1';
 const identifier=v=>typeof v==='string'&&/^[a-zA-Z0-9_-]{1,128}$/.test(v);
@@ -34,6 +35,7 @@ export function createLiveReadService({apiKey,merchantId,rpc,fetcher=fetch}){
     if(aggregate.currentPayment&&!history.payments.some(p=>p.id===aggregate.currentPayment.id&&p.status===aggregate.currentPayment.status))throw Error('Payment reads have not converged.');
     const latest=await read('/orders/'+encodeURIComponent(order.providerOrderId));
     const payIn=observePeerPayIn(order,aggregate,history.payments,{consistent:payInSnapshotKey(aggregate)===payInSnapshotKey(latest)});
+    if(payInSnapshotKey(aggregate)===payInSnapshotKey(latest)&&aggregate.currentPayment?.rail==='revolut'&&aggregate.currentPayment.status==='CREATED')payIn.recipientHash=recipientHash(aggregate.currentPayment.payTo);
     const result=await verifyPayDelivery(order,aggregate.order,history.payments,{rpc});
     if(!['NONE','PARTIALLY_CHARGEBACKED','CHARGEBACKED'].includes(aggregate.order.chargebackStatus))throw new TrackingReviewError('Unknown dispute state.');
     return {...result,verification:{...result.verification,payIn},checkedAt:result.verification.checkedAt,providerStatus:aggregate.order.status,chargebackStatus:aggregate.order.chargebackStatus};

@@ -17,11 +17,11 @@
   },
   {
     "path": "hosted/funding-drafts.mjs",
-    "sha256": "12a8efb4bdec9dc3082702c61cf918fcc742c6c611eabbd53d6e49180ced0578"
+    "sha256": "c1a82354d7408e8e618fca81177fc934fe8925f9dce4a65bb6a4c20e9047602d"
   },
   {
     "path": "hosted/funding-drafts.sql",
-    "sha256": "6e0f56d42d96a452adfdcb4bcc9a90149aeb5f30bd511ef6ae8e255bd9234017"
+    "sha256": "f65cfd0eac7ec1df7c2f1980fd04a294449afa2da1e4135449c22f9acf1222bb"
   },
   {
     "path": "hosted/funding-journey.mjs",
@@ -77,15 +77,15 @@
   },
   {
     "path": "hosted/revolut-operator.mjs",
-    "sha256": "859323c68f0277d5cc5b288c6ff555dacb40befbb787c8760fe3ea4d93c55c21"
+    "sha256": "0c8982efac3f0e3051a58a86b920fb2322a5d982ba8b4c8f9dc3734ac5e90c8c"
   },
   {
     "path": "hosted/revolut-test.mjs",
-    "sha256": "abb3ec7ea06c10d732db6240b394a1e468bcb9df9efa8faf68a2bed0a2e67ddd"
+    "sha256": "b7924d7512817482d4d4113a65e645a6ba8ee3c72a16c79fe8bf711f5db5f218"
   },
   {
     "path": "hosted/revolut-test.sql",
-    "sha256": "b40cb21581a3194f20df39b62f90eb2d520500b58ead417b071999fe04773191"
+    "sha256": "96313e663fe3ea936f17f4af33ded20d2eb538e449101a2fe8b13cb75522d664"
   },
   {
     "path": "hosted/schema.sql",
@@ -137,15 +137,15 @@
   },
   {
     "path": "server/pay-live-create.mjs",
-    "sha256": "0eb8dc621237dcddf20de22f2792af00754128a43cf3f1827ed007e7af72f73f"
+    "sha256": "385d6018e47e149a18fe40819c16382abfd6d3e4c9d6164c31cdd50c22fb9cc7"
   },
   {
     "path": "server/pay-payin.mjs",
-    "sha256": "34d7a9e2d594581ab431ea535dfa46111f195dee21fa7e967e4c6a80960920c2"
+    "sha256": "1d3ebe3de4a56ff9fb93a2f988a1850764158e28816f83533a36099df3f529a3"
   },
   {
     "path": "server/pay-readonly.mjs",
-    "sha256": "f1db3197e6b4e4245bdc25a390c8c9ecbee1ff15c3d8760a4cf601d802a0192c"
+    "sha256": "3ac389f7f8258a8cc0f9b60a588d66e12a0f9ba6fd4e19b6c8fbabba8f63800d"
   },
   {
     "path": "server/pay-sandbox.mjs",
@@ -166,6 +166,10 @@
   {
     "path": "server/receipts.mjs",
     "sha256": "bb724e0d3c699e13f50257c5a10bac507b0f6ec42d421d72fa605821d08cfdf4"
+  },
+  {
+    "path": "server/revolut-replacement-read.mjs",
+    "sha256": "e390c850e0a26e56a89e3f821ee3b97b9c370962cb30969f7b1b1e2ad34984ef"
   },
   {
     "path": "server/validation.mjs",
@@ -308,8 +312,12 @@
     "sha256": "7e0113430b96e465e6a58f473a653b21aa6d3b4241b4fc078fad688859c813a7"
   },
   {
+    "path": "tests/revolut-replacement.test.mjs",
+    "sha256": "afeb52fd1b49dc52b2dd5cfa096aa7a3473ed74fa2e3ced2883d3f670ea6a199"
+  },
+  {
     "path": "tests/revolut-test.test.mjs",
-    "sha256": "0ffa3748cd13b618ebeb368ac0591496bb0b7e23e9374de56158f3b588bd05cf"
+    "sha256": "2da76d7645cb10b7db2e9a9b67441fc175c5ffc6448ecf821df00ed645c70604"
   },
   {
     "path": "tests/webhook-ingress.test.mjs",
@@ -325,7 +333,7 @@
   },
   {
     "path": "scripts/revolut-test-operator.mjs",
-    "sha256": "32abf06a7b3e51731fc20cc0030487fcd48e669ed3a6d4aae3bbef03fb6e8a10"
+    "sha256": "50b08614d617bf776209443871ff9c25224a66fbac8492fbf2b477ff86abd9fc"
   },
   {
     "path": "scripts/sandbox-webhook.mjs",

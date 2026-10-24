@@ -26,6 +26,14 @@ Use the script with an action and a JSON argument. Keep private checkout URLs, c
 
 ## Recovery
 
+### Explicit 83p second-test authorisation
+
+The operator-only `replace` action supports one separately authorised 83p replacement for the original £1.94 Revolut test. It requires the original approval to be revoked, a matching unchanged saved wallet, a bound original order, complete fresh unpaid provider history and no local settlement or review hold. Pass `owner`, the original draft `id`, `amount: "0.83"`, `confirmUnpaid: true`, and the actual new `approvalRef` and `consentRef`. This action prepares a new draft and policy; `create` still performs at most one request.
+
+The original permanent attempt and its £10 reservation remain unchanged as historical evidence. The new approval records £1.94 of possible original exposure plus 83p of new principal against the same £10 human payment limit. Bank fees and repeat transfers remain outside Relay's control. Supersession is write-once and does not mean cancellation, expiry or receipt: the original stays bound and its independent delivery tracking continues. This explicit authorisation permits overlap with the unpaid original; it is not a general retry feature.
+
+The second policy and attempt are singletons. No third creation, resetting records or retrying an ambiguous request is supported. The replacement's customer link stays withheld until a fresh selected 83p quote has a known recipient different from the original. A matching recipient permanently revokes its approval. The operator may inspect the unpaid checkout to select and check the recipient; the human alone sends money. General creation endpoints remain disabled.
+
 An unknown creation stays unresolved and retains its attempt forever. A provider order may exist even when no link was returned. Do not delete policy or attempt rows, retry creation, change the wallet or seed another policy to work around a hold. Retain records for operator reconciliation.
 
 Rolling back source removes the private release route. Keep read-only receipt tracking available for any order already created. Additive database columns and tables retain audit history and are compatible with older source. Rollback does not reverse a payment, revoke a copied Peer link or refund a service charge.
