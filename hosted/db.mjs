@@ -6,9 +6,10 @@ export const digest=value=>createHash('sha256').update(value).digest('hex');
 export const terminal=s=>['sandbox_complete','checkout_cancelled'].includes(s);
 const ranks={checkout_unknown:0,checkout_recovery:1,checkout_ready:1,checkout_partial:2,sandbox_complete:3,checkout_cancelled:3};
 export const orderView=r=>({...r.request,...r.result,status:r.status,id:r.id,requestId:r.request_id});
-export function createPool(connectionString=process.env.DATABASE_URL){
+export function createPool(connectionString=process.env.DATABASE_URL,{schema}={}){
+ if(schema&&!/^[a-z_][a-z0-9_]*$/.test(schema))throw Error('Invalid database schema.');
  if(!connectionString)throw Error('DATABASE_URL is required.');
- const pool=new pg.Pool({connectionString,max:3,connectionTimeoutMillis:5000,idleTimeoutMillis:30000,statement_timeout:10000,application_name:'relay-sandbox'});
+ const pool=new pg.Pool({connectionString,max:3,connectionTimeoutMillis:5000,idleTimeoutMillis:30000,statement_timeout:10000,application_name:'relay-sandbox',...schema?{options:`-c search_path=${schema}`}:{ }});
  pool.on('error',()=>console.error('Database connection interrupted.'));
  return pool;
 }

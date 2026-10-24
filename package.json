@@ -14,7 +14,11 @@
     "start:hosted": "node hosted/server.mjs",
     "worker": "node hosted/worker.mjs",
     "test:hosted": "node --test tests/hosted*.test.mjs",
-    "deploy:export": "node scripts/export-deployment.mjs"
+    "test:offline": "node --import ./tests/fixtures/offline-guard.mjs --test tests/*.test.mjs",
+    "test:tracking": "node --import ./tests/fixtures/offline-guard.mjs --test tests/hosted-live.test.mjs",
+    "deploy:export": "node scripts/export-deployment.mjs",
+    "preview:tracking": "node hosted/tracking-preview.mjs",
+    "test:postgres": "node scripts/test-postgres.mjs"
   },
   "dependencies": {
     "@zkp2p/pay-sdk": "8.0.0",

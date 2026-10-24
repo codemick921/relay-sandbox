@@ -1,0 +1,45 @@
+import {InputError} from './validation.mjs';
+import {validateCheckout,sameUsdc} from './pay-contract.mjs';
+import {verifyPayDelivery} from './pay-delivery.mjs';
+
+const API='https://api.pay.peer.xyz/api/v1';
+const identifier=v=>typeof v==='string'&&/^[a-zA-Z0-9_-]{1,128}$/.test(v);
+export class TrackingReviewError extends Error {}
+
+// Deliberately no create, signing, refund, payout or credential-discovery methods.
+// The caller supplies an explicitly authorised connection; no environment fallback.
+export function createLiveReadService({apiKey,merchantId,rpc,fetcher=fetch}){
+ if(!apiKey||!identifier(merchantId)||!rpc)throw Error('Live tracking requires an explicit merchant, read connection and receipt service.');
+ async function read(path){
+  const r=await fetcher(API+path,{method:'GET',headers:{'X-API-Key':apiKey},redirect:'error',signal:AbortSignal.timeout(15000)});
+  if(!r.ok)throw Error('Provider read unavailable.');
+  const b=await r.json();if(b?.success!==true||!b.responseObject)throw Error('Provider read unavailable.');
+  return b.responseObject;
+ }
+ return Object.freeze({
+  async refresh(order){
+   if(order.source!=='live'||order.merchantId!==merchantId||!identifier(order.providerOrderId))throw new TrackingReviewError('Live order binding does not match this connection.');
+   try{
+    const merchant=await read('/merchants/me');
+    if(merchant.environment!=='LIVE'||merchant.id!==merchantId)throw new TrackingReviewError('The merchant connection is not the bound live workspace.');
+    const aggregate=await read('/orders/'+encodeURIComponent(order.providerOrderId));
+    if(aggregate.merchant?.id!==merchantId||aggregate.merchant.environment!=='LIVE')throw new TrackingReviewError('The order belongs to a different workspace.');
+    validateCheckout(aggregate.order,order,merchantId);
+    if(!sameUsdc(order.requestedUsdcAmount,aggregate.order.requestedUsdcAmount))throw new TrackingReviewError('The original order amount changed.');
+    const history=await read('/merchants/me/orders/'+encodeURIComponent(order.providerOrderId)+'/payments');
+    // Conservatively hold bounded or explicitly paginated histories for review.
+    if(!Array.isArray(history.payments)||history.payments.length>=100||history.hasMore||history.nextCursor||history.nextPage||history.pagination?.hasMore||history.pagination?.nextCursor||
+      (history.totalCount!==undefined&&history.totalCount!==history.payments.length))throw new TrackingReviewError('The payment history is incomplete or exceeds the supported limit.');
+    if(aggregate.currentPayment&&!history.payments.some(p=>p.id===aggregate.currentPayment.id&&p.status===aggregate.currentPayment.status))throw Error('Payment reads have not converged.');
+    const result=await verifyPayDelivery(order,aggregate.order,history.payments,{rpc});
+    if(!['NONE','PARTIALLY_CHARGEBACKED','CHARGEBACKED'].includes(aggregate.order.chargebackStatus))throw new TrackingReviewError('Unknown dispute state.');
+    return {...result,checkedAt:result.verification.checkedAt,providerStatus:aggregate.order.status,chargebackStatus:aggregate.order.chargebackStatus};
+   }catch(e){
+    if(e instanceof TrackingReviewError)throw e;
+    if(e instanceof InputError)throw new TrackingReviewError('Payment or receipt evidence conflicts with the saved order.');
+    // Do not persist provider bodies, URLs, credentials or transport error text.
+    throw Error('Payment verification is temporarily unavailable.');
+   }
+  }
+ });
+}

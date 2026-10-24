@@ -1,18 +1,16 @@
-import {Zkp2pClient,getContracts,getOrchestratorV3Contract,getPaymentMethodsCatalog,apiGetPayeeDetails} from '@zkp2p/sdk';
-import {createPublicClient,createWalletClient,http,custom,decodeEventLog,decodeFunctionData,erc20Abi,keccak256,toHex,zeroAddress} from 'viem';
+import {Zkp2pClient,getContracts,getPaymentMethodsCatalog,apiGetPayeeDetails} from '@zkp2p/sdk';
+import {createWalletClient,http,custom,decodeFunctionData,keccak256,toHex,zeroAddress} from 'viem';
 import {base} from 'viem/chains';
 import {InputError,TOKEN,address} from './peer.mjs';
 
+import {chain,ORCHESTRATOR,ESCROW,same,hash,events,validateDelivery} from './receipts.mjs';
+export {chain,ORCHESTRATOR,ESCROW,same,hash,validateDelivery};
+
 const deployment=getContracts(8453,'production');
-export const ORCHESTRATOR=getOrchestratorV3Contract(8453,'production');
-export const ESCROW=deployment.addresses.escrowV2;
 const RPC=process.env.BASE_RPC_URL||'https://mainnet.base.org';
-export const chain=createPublicClient({chain:base,transport:http(RPC,{timeout:12000,retryCount:0})});
 const deny=custom({request:async()=>{throw Error('Server signing is disabled.');}});
 export const makeClient=account=>new Zkp2pClient({walletClient:createWalletClient({account,chain:base,transport:deny}),rpcTransport:http(RPC,{timeout:12000,retryCount:0}),chainId:8453,runtimeEnv:'production',baseApiUrl:'https://api.zkp2p.xyz',timeouts:{api:15000}});
-export const same=(a,b)=>typeof a==='string'&&typeof b==='string'&&a.toLowerCase()===b.toLowerCase();
 const uint=v=>typeof v==='string'&&/^\d+$/.test(v);
-export function hash(v) {if(typeof v!=='string'||!/^0x[0-9a-f]{64}$/i.test(v))throw new InputError('Enter a valid transaction hash.');return v;}
 const currency=keccak256(toHex('GBP'));
 export function executionFor(raw,quote) {
   const i=raw?.intent, net=raw?.tokenAmount, amount=raw?.signalIntentAmount??i?.amount;
@@ -63,9 +61,6 @@ export async function prepareOrder(quote,raw) {
   if(period<=0n||period>604800n)throw new InputError('Peer returned an unsupported reservation lifetime.',502);
   return {execution,tx,expirationSeconds:Number(period)};
 }
-function events(receipt,eventName) {
-  return receipt.logs.flatMap(log=>{if(!same(log.address,ORCHESTRATOR.address))return [];try{const d=decodeEventLog({abi:ORCHESTRATOR.abi,data:log.data,topics:log.topics,strict:true});return d.eventName===eventName?[d.args]:[];}catch{return [];}});
-}
 export function validateReservation(order,receipt,transaction) {
   if(receipt.status!=='success')throw new InputError('The reservation transaction reverted. No payment should be made.',409);
   if(!same(transaction.from,order.quote.payer)||!same(transaction.to,order.tx.to)||transaction.input!==order.tx.data||BigInt(transaction.value)!==0n)throw new InputError('This transaction does not belong to the selected order.',409);
@@ -73,14 +68,6 @@ export function validateReservation(order,receipt,transaction) {
   const p=order.execution.params,a=matches[0];
   if(matches.length!==1||!same(a.owner,order.quote.payer)||!same(a.to,order.quote.recipient)||!same(a.escrow,p.escrowAddress)||String(a.depositId)!==p.depositId||String(a.amount)!==p.amount||String(a.conversionRate)!==p.conversionRate||!same(a.paymentMethod,order.execution.paymentMethod)||!same(a.fiatCurrency,currency))throw new InputError('The confirmed reservation does not match this order.',409);
   return {intentHash:a.intentHash,reservationBlock:String(receipt.blockNumber),reservationBlockHash:receipt.blockHash,expiresAt:new Date((Number(a.timestamp)+order.expirationSeconds)*1000).toISOString()};
-}
-export function validateDelivery(order,receipt) {
-  if(receipt.status!=='success')throw new InputError('The release transaction reverted. Delivery is not confirmed.',409);
-  const all=events(receipt,'IntentFulfilled'),a=all.find(x=>same(x.intentHash,order.intentHash));
-  if(!a||all.length!==1||!same(a.fundsTransferredTo,order.quote.recipient)||BigInt(a.amount)<BigInt(order.execution.net))throw new InputError('This receipt does not prove the expected delivery.',409);
-  const transfers=receipt.logs.flatMap(log=>{if(!same(log.address,TOKEN))return [];try{const d=decodeEventLog({abi:erc20Abi,data:log.data,topics:log.topics,strict:true});return d.eventName==='Transfer'&&same(d.args.to,order.quote.recipient)&&[ORCHESTRATOR.address,ESCROW].some(x=>same(x,d.args.from))?[d.args.value]:[];}catch{return [];}});
-  if(transfers.reduce((a,b)=>a+b,0n)!==a.amount)throw new InputError('No matching USDC transfer to the selected agent wallet was found.',409);
-  return {amountRaw:String(a.amount),tokenAddress:TOKEN,chainId:8453,recipient:order.quote.recipient,transactionHash:receipt.transactionHash,blockNumber:String(receipt.blockNumber),blockHash:receipt.blockHash};
 }
 export async function reconcile(order,{rpc=chain,now=Date.now()}={}) {
   if(!order.reservationTx)return {status:order.status};

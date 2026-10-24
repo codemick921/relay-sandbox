@@ -1,3 +1,5 @@
+import {createLiveTrackingHandler,presentTrackedOrder} from './live-http.mjs';
+import {prepareTrackingSandbox} from './tracking-sandbox.mjs';
 import {migrateWhenReady} from './startup.mjs';
 import http from 'node:http';
 import {readFile} from 'node:fs/promises';
@@ -11,22 +13,30 @@ import {createPool,createStore,digest,orderView} from './db.mjs';
 import {config as readConfig} from './config.mjs';
 const dist=fileURLToPath(new URL('../dist/',import.meta.url));
 const uuid=v=>typeof v==='string'&&/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(v);
-const cookie='__Host-relay_sandbox';
-const getToken=req=>(req.headers.cookie??'').split(';').map(x=>x.trim()).find(x=>x.startsWith(cookie+'='))?.slice(cookie.length+1);
 async function body(req,max=16384){let size=0;const chunks=[];for await(const chunk of req){size+=chunk.length;if(size>max)throw new InputError('Request too large.',413);chunks.push(chunk);}return Buffer.concat(chunks);}
 const send=(res,status,data)=>{res.writeHead(status,{'Content-Type':'application/json'});res.end(JSON.stringify(data));};
-export function createHostedServer({store,config,pay=createSandboxPayService(),staticRoot=dist,allowHttpForTests=false}){
+export function createHostedServer({store,config,pay=createSandboxPayService(),staticRoot=dist,allowHttpForTests=false,tracking=null,paymentsDisabled=false,localPreview=false}){
+ const origin=new URL(config.origin);
+ if(localPreview&&(!tracking?.simulated||!paymentsDisabled||origin.protocol!=='http:'||origin.hostname!=='127.0.0.1'))throw Error('Local preview requires simulated tracking, disabled payments and loopback HTTP.');
+ if(tracking&&!paymentsDisabled)throw Error('Tracking integration currently requires payments to remain disabled.');
+ const cookie=localPreview?'relay_local_preview':'__Host-relay_sandbox';
+ const cookiePolicy=`${localPreview?'':'Secure; '}HttpOnly; SameSite=Strict; Path=/`;
+ const getToken=req=>(req.headers.cookie??'').split(';').map(x=>x.trim()).find(x=>x.startsWith(cookie+'='))?.slice(cookie.length+1);
+ const stateFor=async owner=>{const state=await store.state(owner);if(!tracking)return {...state,paymentsDisabled};const [tracked,worker]=await Promise.all([tracking.store.state(owner),tracking.store.health()]);return {...state,paymentsDisabled,previewMode:!!tracking.simulated,trackingEnabled:true,worker,orders:[...tracked.orders.map(o=>presentTrackedOrder(o,tracking.simulated)),...state.orders]};};
+ const handleTracking=tracking&&createLiveTrackingHandler({store:tracking.store,origin:config.origin,authenticate:req=>store.session(getToken(req),config.testers),rateLimit:(owner,kind)=>store.rate(kind==='read'?'read:'+owner:'mutation:'+owner,kind==='read'?120:30,60),simulated:!!tracking.simulated,localPreview,allowHttpForTests});
  const server=http.createServer(async(req,res)=>{
   res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','no-referrer');res.setHeader('X-Frame-Options','DENY');res.setHeader('Strict-Transport-Security','max-age=31536000');res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
   try{
    // Health probes disclose no customer/provider state and require no proxy headers.
-   if(req.url==='/healthz'&&req.method==='GET'){try{await store.query('SELECT 1');return send(res,200,{ok:true,mode:'sandbox'});}catch{return send(res,503,{ok:false});}}
+   if(req.url==='/healthz'&&req.method==='GET'){try{await store.query('SELECT 1');return send(res,200,{ok:true,mode:'sandbox',paymentsDisabled,realPaymentsEnabled:false,providerConnectionsEnabled:!paymentsDisabled,tracking:tracking?'simulated':null,release:process.env.RENDER_GIT_COMMIT??null});}catch{return send(res,503,{ok:false});}}
    if(req.headers.host!==config.host)return send(res,421,{error:'Unexpected host.'});
-   if(!allowHttpForTests&&req.headers['x-forwarded-proto']!=='https'){
+   if(!allowHttpForTests&&!localPreview&&req.headers['x-forwarded-proto']!=='https'){
     if(req.method==='GET'){res.writeHead(308,{Location:config.origin+'/'});return res.end();}return send(res,400,{error:'HTTPS required.'});
    }
    const url=new URL(req.url,config.origin);
+   if(handleTracking&&await handleTracking(req,res))return;
    if(url.pathname==='/api/webhooks/peer/sandbox'){
+    if(paymentsDisabled)throw new InputError('External payment connections are disabled.',403);
     if(req.method!=='POST')throw new InputError('Method not allowed.',405);
     if(!String(req.headers['content-type']).startsWith('application/json'))throw new InputError('JSON required.',415);
     const event=verifyWebhook(await body(req,262144),req.headers,config.webhook);
@@ -51,25 +61,26 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
     for(const p of config.testers)if(timingSafeEqual(Buffer.from(p.sha256hex,'hex'),Buffer.from(presented,'hex')))principal=p;
     if(!principal)throw new InputError('Access code not recognised.',401);
     const token=randomBytes(32).toString('hex');await store.login(token,principal);
-    res.setHeader('Set-Cookie',`${cookie}=${token}; Secure; HttpOnly; SameSite=Strict; Path=/; Max-Age=43200`);return send(res,200,{authenticated:true,hostedSandbox:true});
+    res.setHeader('Set-Cookie',`${cookie}=${token}; ${cookiePolicy}; Max-Age=43200`);return send(res,200,{authenticated:true,hostedSandbox:true,previewMode:!!tracking?.simulated});
    }
    const owner=await store.session(getToken(req),config.testers);
-   if(url.pathname==='/api/access'&&req.method==='GET')return send(res,200,{hostedSandbox:true,authenticated:!!owner});
+   if(url.pathname==='/api/access'&&req.method==='GET')return send(res,200,{hostedSandbox:true,authenticated:!!owner,previewMode:!!tracking?.simulated});
    if(!owner)throw new InputError('Sign in to the private sandbox.',401);
    if(req.method==='GET'){
     await store.rate('read:'+owner,120,60);
-    if(url.pathname==='/api/state')return send(res,200,await store.state(owner));
-    if(url.pathname==='/api/checkout-setup')return send(res,200,await pay.readiness());
+    if(url.pathname==='/api/state')return send(res,200,await stateFor(owner));
+    if(url.pathname==='/api/checkout-setup')return send(res,200,paymentsDisabled?{ready:false,reason:'Payments and external provider connections are disabled.'}:await pay.readiness());
     throw new InputError('Not found.',404);
    }
    await store.rate('mutation:'+owner,30,60);
    switch(url.pathname){
-    case '/api/logout':await store.logout(getToken(req));res.setHeader('Set-Cookie',`${cookie}=; Secure; HttpOnly; SameSite=Strict; Path=/; Max-Age=0`);return send(res,200,{authenticated:false});
+    case '/api/logout':await store.logout(getToken(req));res.setHeader('Set-Cookie',`${cookie}=; ${cookiePolicy}; Max-Age=0`);return send(res,200,{authenticated:false});
     case '/api/agents':{
      const name=typeof b.name==='string'?b.name.trim():'';if(name.length<2||name.length>60||b.own!==true||b.network!=='base')throw new InputError('Enter a name and confirm your own Base wallet.');
      await store.addAgent(owner,{id:randomUUID(),name,address:address(b.address),network:'Base',token:'USDC',ownership:'self_declared_unverified'});break;
     }
     case '/api/checkouts':{
+     if(paymentsDisabled)throw new InputError('Payments are disabled. No checkout was created.',403);
      if(b.confirm!==true||b.consent!==true||!uuid(b.requestId)||!uuid(b.agentId))throw new InputError('Review the destination and confirm sharing it with Peer Pay.');
      const order=await store.createOrder(owner,{requestId:b.requestId,agentId:b.agentId,amount:pence(b.amount)});
      const claim=await store.claimCreate(owner,order.id);
@@ -77,6 +88,7 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
      break;
     }
     case '/api/checkout-resume':case '/api/checkout-refresh':{
+     if(paymentsDisabled)throw new InputError('External payment connections are disabled.',403);
      if(!uuid(b.id))throw new InputError('Order not found.',404);
      const order=await store.owned(owner,b.id);
      if(!order.provider_id)throw new InputError('Creation is unresolved. Keep this order for operator recovery; no new checkout has been created.',409);
@@ -85,7 +97,7 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
     }
     default:throw new InputError('Not found.',404);
    }
-   return send(res,200,await store.state(owner));
+   return send(res,200,await stateFor(owner));
   }catch(e){if(!res.headersSent)send(res,e instanceof InputError?e.status:e.code==='ENOENT'?404:503,{error:e instanceof InputError?e.message:'Service temporarily unavailable. Your saved records are retained.'});else res.end();}
  });
  server.requestTimeout=20000;server.headersTimeout=15000;
@@ -93,6 +105,7 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
 }
 if(process.argv[1]===fileURLToPath(import.meta.url)){
  const config=readConfig(),store=createStore(createPool());await migrateWhenReady(store);
- const server=createHostedServer({store,config});server.listen(Number(process.env.PORT??10000),'0.0.0.0',()=>console.log('Relay hosted sandbox ready.'));
- let closing=false;for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>{if(closing)return;closing=true;server.close(async()=>{await store.close();process.exit(0);});setTimeout(()=>process.exit(1),25000).unref();});
+ const tracking=await prepareTrackingSandbox(store,config.testers);
+ const server=createHostedServer({store,config,tracking,paymentsDisabled:true,pay:{readiness:async()=>({ready:false})}});server.listen(Number(process.env.PORT??10000),'0.0.0.0',()=>console.log('Relay hosted sandbox ready.'));
+ let closing=false;for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>{if(closing)return;closing=true;server.close(async()=>{await tracking.close();await store.close();process.exit(0);});setTimeout(()=>process.exit(1),25000).unref();});
 }
