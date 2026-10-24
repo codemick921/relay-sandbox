@@ -1,0 +1,74 @@
+services:
+  - type: web
+    name: relay-sandbox
+    runtime: node
+    region: frankfurt
+    plan: starter
+    numInstances: 1
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm run start:hosted
+    healthCheckPath: /healthz
+    autoDeployTrigger: off
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: RELAY_MODE
+        value: sandbox
+      - key: DATABASE_URL
+        fromDatabase:
+          name: relay-sandbox-db
+          property: connectionString
+      - key: SANDBOX_TESTERS
+        sync: false
+      - key: PEER_PAY_SANDBOX_API_KEY
+        sync: false
+      - key: PEER_PAY_SANDBOX_MERCHANT_ID
+        sync: false
+      - key: PEER_PAY_SANDBOX_WEBHOOK_SECRET
+        sync: false
+  - type: worker
+    name: relay-sandbox-worker
+    runtime: node
+    region: frankfurt
+    plan: starter
+    numInstances: 1
+    buildCommand: npm ci --omit=dev
+    startCommand: npm run worker
+    autoDeployTrigger: off
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: RELAY_MODE
+        value: sandbox
+      - key: DATABASE_URL
+        fromDatabase:
+          name: relay-sandbox-db
+          property: connectionString
+      - key: SANDBOX_TESTERS
+        fromService:
+          type: web
+          name: relay-sandbox
+          envVarKey: SANDBOX_TESTERS
+      - key: PEER_PAY_SANDBOX_API_KEY
+        fromService:
+          type: web
+          name: relay-sandbox
+          envVarKey: PEER_PAY_SANDBOX_API_KEY
+      - key: PEER_PAY_SANDBOX_MERCHANT_ID
+        fromService:
+          type: web
+          name: relay-sandbox
+          envVarKey: PEER_PAY_SANDBOX_MERCHANT_ID
+      - key: PEER_PAY_SANDBOX_WEBHOOK_SECRET
+        fromService:
+          type: web
+          name: relay-sandbox
+          envVarKey: PEER_PAY_SANDBOX_WEBHOOK_SECRET
+databases:
+  - name: relay-sandbox-db
+    region: frankfurt
+    plan: 0.1c-256mb
+    postgresMajorVersion: '18'
+    diskSizeGB: 1
+    storageAutoscalingEnabled: false
+    ipAllowList: []

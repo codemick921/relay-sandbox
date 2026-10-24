@@ -1,0 +1,166 @@
+[
+  {
+    "path": "hosted/config.mjs",
+    "sha256": "37a68d9595b70f3fcaf8d0dbda838dd499f66f06d4758fe1c43473c4d4295441"
+  },
+  {
+    "path": "hosted/db.mjs",
+    "sha256": "f41c2bc818a3dbd473df9c3e76a2013b3e04618fe55269de1c0231a058f31cb5"
+  },
+  {
+    "path": "hosted/schema.sql",
+    "sha256": "6b34554669488f6276f3936ac7f2bca6c7bcd3e60e4f24c28e276c7f1e2c5371"
+  },
+  {
+    "path": "hosted/server.mjs",
+    "sha256": "c7121eae0fc3a36c1c24e295031dd8b5c719bcc7ab97fb3a174df1407eaee596"
+  },
+  {
+    "path": "hosted/worker.mjs",
+    "sha256": "2450baa80d5baa2410419d95951c64018b65b3f06b6907b825190763928ff07a"
+  },
+  {
+    "path": "server/index.mjs",
+    "sha256": "dbf82a7b45fbc7e7e22ab75230cafe3f595cc0e4cde36d0d9149a5632de56de5"
+  },
+  {
+    "path": "server/live.mjs",
+    "sha256": "43ca858aeafb8cc5979ce4a42cb278d65597be657c54b8bc809e13009dcf567a"
+  },
+  {
+    "path": "server/pay-contract.mjs",
+    "sha256": "cd08352d3add1705679dee08024cda6d7f1d83b7fae6c2a5dd63cf2b23b07424"
+  },
+  {
+    "path": "server/pay-delivery.mjs",
+    "sha256": "29ed61d27e2da8e8911e1c75b49a3642d1d830754ba4a279d1dbb33989ab0125"
+  },
+  {
+    "path": "server/pay-sandbox.mjs",
+    "sha256": "d4e2d947da020270e8bbe79fa5f7770ae3842f8ebd67812259dcb7119b73f919"
+  },
+  {
+    "path": "server/pay-webhooks.mjs",
+    "sha256": "c6f23663b08c05601b6fbae6aaa0dd3080258045db9c87380c4165318b2e2df1"
+  },
+  {
+    "path": "server/pay.mjs",
+    "sha256": "5706a54b1a86183d29bd59799a12db8445dfc196d7b14d8c219395fcbed5d9a4"
+  },
+  {
+    "path": "server/peer.mjs",
+    "sha256": "35d2cbc3260fd075c66050743d7be81f717e7c74536c08736f9dd555c01486e7"
+  },
+  {
+    "path": "server/validation.mjs",
+    "sha256": "40d2285d7529f298fd12fd5e23a44417e61f64c1951f235229d95129083545d2"
+  },
+  {
+    "path": "server/webhook-ingress.mjs",
+    "sha256": "d465c1bb50f1b1bc68b163d307ca644763c1194eb23ab825f1dd5f9c91437499"
+  },
+  {
+    "path": "shared/payment.mjs",
+    "sha256": "2c60f3a4ecd7d0b87e86af7dcfbb3c29dbdca0932729e958c218f74d52de84be"
+  },
+  {
+    "path": "src/Access.jsx",
+    "sha256": "fbe53a257c8c49955fa7598b53e9b562c4651271bf412af0f2ed4f6dcc3add1f"
+  },
+  {
+    "path": "src/App.jsx",
+    "sha256": "0744f2faa191ce029ded6a81b813bfc565deb78ca74d748b6471522c85736fa6"
+  },
+  {
+    "path": "src/Funding.jsx",
+    "sha256": "a5cfdd3496211bcb6f22c85f89c52bccae37be031c4c76f9e4d337f9a6f10e23"
+  },
+  {
+    "path": "src/LiveOrder.jsx",
+    "sha256": "f95bd8e4f58d732b8b7741c519248e8389399e0c7935fac79aedcaad508dbc59"
+  },
+  {
+    "path": "src/SimpleFunding.jsx",
+    "sha256": "11e49a151ebe969b6c04f341a965f86cab9f6afdb4a1624402b3fff878f9b53b"
+  },
+  {
+    "path": "src/api.js",
+    "sha256": "f3394550da779b96f16a7296269a22ca9d1337802c534d3b0a4736d5a0cb5cfe"
+  },
+  {
+    "path": "src/main.jsx",
+    "sha256": "778309c02531bc16e76ce8d199601a5cb722e63431dff02501e8bb7c2a0d9602"
+  },
+  {
+    "path": "src/peer-wallet.mjs",
+    "sha256": "b0b6d8f80c0b7dc8f339644a542558cf502b25151ec85b9cc909f151edc19c98"
+  },
+  {
+    "path": "src/styles.css",
+    "sha256": "354d11ab360d484c80b63462fad5b41bc7993629df06df272ca67ed7b2a0ba8a"
+  },
+  {
+    "path": "src/ui.jsx",
+    "sha256": "e93c7489348525f6f92855d1ff56c9d4e5061721ec2b818071bc14a7b1e898b7"
+  },
+  {
+    "path": "tests/hosted.test.mjs",
+    "sha256": "c8089a0053dfe914beef4c02a4fd97de0bc37bcd1799e2e012509e817a5ee0ca"
+  },
+  {
+    "path": "tests/live.test.mjs",
+    "sha256": "0798bfcbba2b2ddd6fb2ac2bcb369209a8e9b28e0d7407e1734c353c65403395"
+  },
+  {
+    "path": "tests/pay-verification.test.mjs",
+    "sha256": "034bdfe068d82fcbafe7ac8677d06468d07a305333aef2055d9155e0fe4c7c7e"
+  },
+  {
+    "path": "tests/pay.test.mjs",
+    "sha256": "e3315c46b5cfe85589064391969d6bfd59f66f21f4aa0ba9b84b9828ff8b153a"
+  },
+  {
+    "path": "tests/peer.test.mjs",
+    "sha256": "b5c04ad91ec35392c006006de5ea760f052916cfd0ca5e6264bfa9ea69b809be"
+  },
+  {
+    "path": "tests/preview.mjs",
+    "sha256": "c0a787ac0f4624f1e5299dbf3b6f7fe8d3ed567675912a86db52ce41d8c27b97"
+  },
+  {
+    "path": "tests/webhook-ingress.test.mjs",
+    "sha256": "2e676e1b124a064947925c03862b65e05fd2a104045acb5380ef24d9547a9189"
+  },
+  {
+    "path": "package.json",
+    "sha256": "12aeb1159a04c55389a6bdf1b0c2158e69a9f66589c0bed3c41594ee71f81fe0"
+  },
+  {
+    "path": "package-lock.json",
+    "sha256": "ee0617af84691c02f83984f41b598736d72d2193059f7811f66fcff82347fbc2"
+  },
+  {
+    "path": "vite.config.js",
+    "sha256": "f298edbae970491dbb990512dbdb50bad55e09ce65c361eee94f449d4afabd87"
+  },
+  {
+    "path": "index.html",
+    "sha256": "23af4b86fabb8cfcd18448376994d262d4d35a6d5b6e2f39583bac20b65794d7"
+  },
+  {
+    "path": ".node-version",
+    "sha256": "75daa0bc10dae1f22b2d13386b55b232adf16930d4325902f37b5033b3a7ca93"
+  },
+  {
+    "path": "render.yaml",
+    "sha256": "57c3a02ca7551932484d5f6c250ff24141a9c58666038d1a8d053a4651c1babb"
+  },
+  {
+    "path": "DEPLOYMENT.md",
+    "sha256": "6965bf33aafd90452d076a8f54bd5735bb1cbe0bf827efa5c17ec395f98ede15"
+  },
+  {
+    "path": ".github/workflows/verify.yml",
+    "sha256": "c9398bd46cb0acc7c5ac803d45c0ca7f8a0d2fd36dd8e8e086e7bbfbb4a64840"
+  }
+]
