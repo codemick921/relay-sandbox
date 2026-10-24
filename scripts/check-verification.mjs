@@ -1,0 +1,20 @@
+// Read-only integration evidence. Never prints credentials, session IDs or checkout links.
+import {readFileSync,writeFileSync} from 'node:fs';
+import {getMerchant} from '@zkp2p/pay-sdk';
+import {createPayService} from '../server/pay.mjs';
+import {chain} from '../server/live.mjs';
+const key=process.env.PEER_PAY_SANDBOX_API_KEY;
+if(!key)throw Error('Sandbox connection missing.');
+const merchant=await getMerchant({apiKey:key,apiBaseUrl:'https://api.pay.peer.xyz',signal:AbortSignal.timeout(15000)});
+if(merchant.environment!=='SANDBOX')throw Error('Sandbox required.');
+const sessions=JSON.parse(readFileSync('.data/peer-sessions.json','utf8'));
+const order=Object.values(sessions).flatMap(s=>s.orders).find(o=>o.providerOrderId==='cmvmeo7s203wp1248xj4d8sqt');
+if(!order)throw Error('Known sandbox test order missing.');
+const update=await createPayService().refresh(order);
+const res=await fetch(`https://api.pay.peer.xyz/api/v1/merchants/me/orders/${order.providerOrderId}/payments`,{headers:{'X-API-Key':key},signal:AbortSignal.timeout(15000)});
+const body=await res.json();if(!res.ok||body.success!==true||!Array.isArray(body.responseObject?.payments))throw Error('Payment read failed.');
+const [chainId,finalized]=await Promise.all([chain.getChainId(),chain.getBlock({blockTag:'finalized'})]);
+if(chainId!==8453||typeof finalized.number!=='bigint')throw Error('Base read unavailable.');
+const evidence={checkedAt:new Date().toISOString(),merchantEnvironment:merchant.environment,merchantId:merchant.id,sandboxOrderId:order.providerOrderId,relayStatus:update.status,realReceipt:update.delivery??null,authenticatedPaymentRead:body.responseObject.payments.map(p=>({id:p.id,status:p.status,orderIdMatches:p.orderId===order.providerOrderId,rail:p.rail,currency:p.currency,netSettledUsdcAmount:p.netSettledUsdcAmount,hasIntentIdentifier:typeof p.railIdentifier==='string',hasSettlementHash:typeof p.fulfillTransaction==='string'})),baseRead:{chainId,finalizedBlock:String(finalized.number)},providerWebhookReceived:false,livePaymentVerified:false,realTransactionsSubmitted:0};
+writeFileSync('production-verification-evidence.json',JSON.stringify(evidence,null,2)+'\n');
+console.log(JSON.stringify(evidence,null,2));

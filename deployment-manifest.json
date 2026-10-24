@@ -1,5 +1,17 @@
 [
   {
+    "path": ".github/workflows/verify.yml",
+    "sha256": "c9398bd46cb0acc7c5ac803d45c0ca7f8a0d2fd36dd8e8e086e7bbfbb4a64840"
+  },
+  {
+    "path": ".node-version",
+    "sha256": "75daa0bc10dae1f22b2d13386b55b232adf16930d4325902f37b5033b3a7ca93"
+  },
+  {
+    "path": "DEPLOYMENT.md",
+    "sha256": "6965bf33aafd90452d076a8f54bd5735bb1cbe0bf827efa5c17ec395f98ede15"
+  },
+  {
     "path": "hosted/config.mjs",
     "sha256": "37a68d9595b70f3fcaf8d0dbda838dd499f66f06d4758fe1c43473c4d4295441"
   },
@@ -18,6 +30,42 @@
   {
     "path": "hosted/worker.mjs",
     "sha256": "2450baa80d5baa2410419d95951c64018b65b3f06b6907b825190763928ff07a"
+  },
+  {
+    "path": "index.html",
+    "sha256": "23af4b86fabb8cfcd18448376994d262d4d35a6d5b6e2f39583bac20b65794d7"
+  },
+  {
+    "path": "package-lock.json",
+    "sha256": "ee0617af84691c02f83984f41b598736d72d2193059f7811f66fcff82347fbc2"
+  },
+  {
+    "path": "package.json",
+    "sha256": "12aeb1159a04c55389a6bdf1b0c2158e69a9f66589c0bed3c41594ee71f81fe0"
+  },
+  {
+    "path": "render.yaml",
+    "sha256": "6144fa825ec3175c41831da7d82f92321da2ce90685f8dc56c9f9d3659b34213"
+  },
+  {
+    "path": "scripts/check-verification.mjs",
+    "sha256": "6749cc6992124cc1705cf3ef1d1dace1d617014136d586524602eab9af327826"
+  },
+  {
+    "path": "scripts/export-deployment.mjs",
+    "sha256": "e759a0c1f1752bdc19af9abff884132ea42338739cf1e043e46eb6e57a8474bd"
+  },
+  {
+    "path": "scripts/sandbox-webhook.mjs",
+    "sha256": "d5bba367fc379ca7a485be6fee99b6bc381f37fe44a1f89721d0c807ba8eeff1"
+  },
+  {
+    "path": "scripts/test-hosted-sandbox.mjs",
+    "sha256": "1c4d3e70643a0a6bdf72299e7501f33cc1a49dfd60e68919a7d40a9701e6d24d"
+  },
+  {
+    "path": "scripts/test-sandbox-webhook-flow.mjs",
+    "sha256": "6fca78e263601540ec3ff3de073a278ddadd6fb8c381ffd173e28b85407c7a83"
   },
   {
     "path": "server/index.mjs",
@@ -132,35 +180,7 @@
     "sha256": "2e676e1b124a064947925c03862b65e05fd2a104045acb5380ef24d9547a9189"
   },
   {
-    "path": "package.json",
-    "sha256": "12aeb1159a04c55389a6bdf1b0c2158e69a9f66589c0bed3c41594ee71f81fe0"
-  },
-  {
-    "path": "package-lock.json",
-    "sha256": "ee0617af84691c02f83984f41b598736d72d2193059f7811f66fcff82347fbc2"
-  },
-  {
     "path": "vite.config.js",
     "sha256": "f298edbae970491dbb990512dbdb50bad55e09ce65c361eee94f449d4afabd87"
-  },
-  {
-    "path": "index.html",
-    "sha256": "23af4b86fabb8cfcd18448376994d262d4d35a6d5b6e2f39583bac20b65794d7"
-  },
-  {
-    "path": ".node-version",
-    "sha256": "75daa0bc10dae1f22b2d13386b55b232adf16930d4325902f37b5033b3a7ca93"
-  },
-  {
-    "path": "render.yaml",
-    "sha256": "57c3a02ca7551932484d5f6c250ff24141a9c58666038d1a8d053a4651c1babb"
-  },
-  {
-    "path": "DEPLOYMENT.md",
-    "sha256": "6965bf33aafd90452d076a8f54bd5735bb1cbe0bf827efa5c17ec395f98ede15"
-  },
-  {
-    "path": ".github/workflows/verify.yml",
-    "sha256": "c9398bd46cb0acc7c5ac803d45c0ca7f8a0d2fd36dd8e8e086e7bbfbb4a64840"
   }
 ]

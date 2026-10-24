@@ -3,7 +3,7 @@ services:
     name: relay-sandbox
     runtime: node
     region: frankfurt
-    plan: starter
+    plan: 0.5c-512mb
     numInstances: 1
     buildCommand: npm ci --include=dev && npm run build
     startCommand: npm run start:hosted
@@ -30,7 +30,7 @@ services:
     name: relay-sandbox-worker
     runtime: node
     region: frankfurt
-    plan: starter
+    plan: 0.5c-512mb
     numInstances: 1
     buildCommand: npm ci --omit=dev
     startCommand: npm run worker
