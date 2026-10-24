@@ -1,3 +1,4 @@
+import {createCustomerNotifications} from './customer-notifications.mjs';
 import {historyOptions,renderStatement} from './funding-history.mjs';
 import {healthOptions} from './payment-health.mjs';
 import {paymentRecords,renderRecord} from './payment-records.mjs';
@@ -52,6 +53,7 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
   if(walletBalances&&owner.startsWith('customer:'))state.walletBalances=await walletBalances.state(owner);
   return state;
  };
+ const notifications=createCustomerNotifications(store,{scopes:[liveObservation?.store?.historyScope&&{...liveObservation.store.historyScope,simulated:false},tracking?.store?.historyScope&&{...tracking.store.historyScope,simulated:!!tracking.simulated}].filter(Boolean),simulatedBalances:!!walletBalances?.simulated});
  const handleTracking=tracking&&createLiveTrackingHandler({store:tracking.store,origin:config.origin,authenticate,rateLimit:(owner,kind)=>store.rate(kind==='read'?'read:'+owner:'mutation:'+owner,kind==='read'?120:30,60),simulated:!!tracking.simulated,localPreview,allowHttpForTests});
  const handleLive=liveObservation&&createLiveTrackingHandler({store:liveObservation.store,origin:config.origin,authenticate,rateLimit:(owner,kind)=>store.rate((kind==='read'?'read:':'mutation:')+owner,kind==='read'?120:30,60),simulated:false,allowHttpForTests,prefix:'/api/wallet-tracking'});
  const server=http.createServer(async(req,res)=>{
@@ -101,7 +103,7 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
     const decoded=decodeURIComponent(url.pathname);if(decoded!=='/'&&!/^\/assets\/[a-zA-Z0-9_.-]+\.(js|css|svg)$/.test(decoded))throw new InputError('Not found.',404);
     const file=path.join(staticRoot,decoded==='/'?'index.html':decoded.slice(1));const data=await readFile(file);res.setHeader('Content-Type',({'.html':'text/html','.css':'text/css','.js':'text/javascript','.svg':'image/svg+xml'})[path.extname(file)]);return res.end(data);
    }
-   const allowed=new Set(['/api/wallet-balances/preferences','/api/wallet-balances/refresh','/api/ramp-test/create','/api/ramp-test/advance','/api/revolut-test/checkout','/api/funding/drafts','/api/funding/cancel','/api/funding/stop','/api/funding/request-cancellation','/api/funding/checkout','/api/funding/resume','/api/funding/availability','/api/test-funding/quote','/api/test-funding/create','/api/test-funding/action','/api/agents/update','/api/account/security','/api/account/revokeSession','/api/account/rotateRecovery','/api/account/confirmRecovery','/api/account/signup','/api/account/login','/api/account/recover','/api/account/password','/api/account/requestVerification','/api/account/requestReset','/api/account/verifyEmail','/api/account/resetPassword','/api/account/emailPreview','/api/access','/api/login','/api/logout','/api/state','/api/agents','/api/checkouts','/api/checkout-resume','/api/checkout-refresh','/api/checkout-setup']);
+   const allowed=new Set(['/api/notifications','/api/notifications/sync','/api/notifications/read','/api/notifications/preferences','/api/notifications/reminder','/api/wallet-balances/preferences','/api/wallet-balances/refresh','/api/ramp-test/create','/api/ramp-test/advance','/api/revolut-test/checkout','/api/funding/drafts','/api/funding/cancel','/api/funding/stop','/api/funding/request-cancellation','/api/funding/checkout','/api/funding/resume','/api/funding/availability','/api/test-funding/quote','/api/test-funding/create','/api/test-funding/action','/api/agents/update','/api/account/security','/api/account/revokeSession','/api/account/rotateRecovery','/api/account/confirmRecovery','/api/account/signup','/api/account/login','/api/account/recover','/api/account/password','/api/account/requestVerification','/api/account/requestReset','/api/account/verifyEmail','/api/account/resetPassword','/api/account/emailPreview','/api/access','/api/login','/api/logout','/api/state','/api/agents','/api/checkouts','/api/checkout-resume','/api/checkout-refresh','/api/checkout-setup']);
    const historyRoute=url.pathname==='/api/funding-history'||url.pathname==='/api/funding-history/download'||/^\/api\/funding-history\/[a-f0-9-]{36}$/i.test(url.pathname);
    const recordRoute=url.pathname==='/api/payment-records'||/^\/api\/payment-records\/[a-f0-9-]{36}\/download$/i.test(url.pathname);
    if(!allowed.has(url.pathname)&&!recordRoute&&!historyRoute)throw new InputError('Not found.',404);
@@ -141,6 +143,16 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
    const owner=customer?.owner??await store.session(getToken(req),config.testers);
    if(url.pathname==='/api/access'&&req.method==='GET')return send(res,200,{hostedSandbox:true,authenticated:!!owner,previewMode:!!tracking?.simulated,customerAccounts:!!accounts,emailSendingEnabled:mail.enabled,localEmailPreview:!!mail.preview,account:customer?.account??null,adminPaymentHealth:!customer&&isHealthAdmin(owner)});
    if(!owner)throw new InputError('Sign in to the private sandbox.',401);
+   if(url.pathname.startsWith('/api/notifications')){
+    if(!customer)throw new InputError('Customer sign-in required.',403);
+    if(req.headers.origin&&req.headers.origin!==config.origin)throw new InputError('Same-origin access required.',403);
+    await store.rate('notices:'+owner,60,60);
+    if(url.pathname==='/api/notifications'&&req.method==='GET')return send(res,200,await notifications.list(owner,url.searchParams));
+    const action=url.pathname.split('/').at(-1);
+    if(req.method!=='POST'||!['sync','read','preferences','reminder'].includes(action))throw new InputError('Method not allowed.',405);
+    if(action==='sync'&&Object.keys(b).length)throw new InputError('Invalid notification request.');
+    await notifications[action](owner,b);return send(res,200,{ok:true});
+   }
    if(req.method==='GET'){
     await store.rate('read:'+owner,120,60);
     if(url.pathname==='/api/state')return send(res,200,{...await stateFor(owner),account:customer?.account??null,adminPaymentHealth:!customer&&isHealthAdmin(owner)});

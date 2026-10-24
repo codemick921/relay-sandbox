@@ -142,3 +142,13 @@ The account-security release was deployed on 24 October 2026 as `7af3e435de0d2b0
 `RELAY_PAYMENT_HEALTH_ADMINS` defaults to `[]`. A future authorised activation can name specific existing `SANDBOX_TESTERS` labels, for example `["designated-operator"]`; do not enable all testers or reuse a publicly known preview code. The labels must exist in the configured tester list. This permission exposes saved cross-customer tracking records for the server-pinned merchant. Removing a label removes its access on the next request. Customer sessions cannot gain this permission. Changing this setting requires a service restart/redeploy and is independent of all payment switches.
 
 The 25 October dashboard build does not activate this variable on Render or change live payment settings. Browser activation should be reviewed as a separate access grant. Existing runtime guards, provider calls and background scheduling remain unchanged.
+
+## Customer notifications and reminders
+
+The customer-only Notifications screen reads saved payment and wallet-balance evidence. It never calls payment providers or creates a checkout. Schema migration `customer-notifications.sql` runs with the existing base migration lock and transaction; retain its tables when rolling back code so inbox history and preferences survive.
+
+The authenticated app synchronises on opening, returning to a visible tab, and every minute while visible. Due reminders are delivered on the next visit; this release has no closed-app scheduler, email or push delivery. Weekly/monthly schedules use Europe/London calendar dates, keep the original monthly day through shorter months, and produce one catch-up notice after missed dates. Preferences and read status belong to the customer account. Operator/tester sessions cannot use this inbox.
+
+Arrival notices require the same verified delivery evidence as customer receipts. Disputes/review/unavailable checks receive attention notices. Simulation notices are off by default and explicitly labelled when enabled; the local preview opts in for synthetic testing. Low-balance notices require fresh, successful evidence for the currently saved wallet address and an enabled wallet alert. Unknown/stale checks do not reset a low-balance episode or treat an unknown amount as zero.
+
+No new environment variable, provider credential, webhook, live-payment flag or worker change is required. Do not alter live settings when deploying this feature. All new APIs use the existing authenticated same-origin protections; PostgreSQL tests are included in `test:postgres` and `test:offline`.

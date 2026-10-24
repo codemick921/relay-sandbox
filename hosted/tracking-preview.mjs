@@ -27,6 +27,8 @@ const store=createStore(pool),tracking=createLiveStore(pool,{merchantId:'relay-f
 await store.migrate();await tracking.migrate();const journey=createFundingJourney({baseStore:store,store:tracking});await journey.migrate();
 const previewAccount=await createAccounts(store).signup({email:'ramp-preview@example.test',name:'Preview Customer',password:'preview lantern river meadow',acceptSandbox:true});
 const previewOwner=(await createAccounts(store).session(previewAccount.token)).owner;
+// Local-only fixture notices are visible for browser QA; production defaults remain off.
+await store.query('INSERT INTO relay_notice_preferences(owner,simulations) VALUES($1,true)',[previewOwner]);
 const cases=[['alice','received','Research assistant'],['alice','confirming','Travel assistant'],['alice','partial','Shopping assistant'],['alice','review','Calendar assistant'],['bob','received','Bob’s private example'],[previewOwner,'received','Preview agent'],[previewOwner,'confirming','Preview agent'],[previewOwner,'partial','Preview agent'],[previewOwner,'review','Preview agent']];
 const fixtures=new Map(),agents=new Map();
 for(const [i,[owner,stage,name]] of cases.entries()){
