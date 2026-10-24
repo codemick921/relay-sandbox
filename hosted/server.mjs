@@ -1,3 +1,4 @@
+import {createAccountSecurity} from './account-security.mjs';
 import {createWalletBalances} from './wallet-balances.mjs';
 import {createReceiptRpc} from '../server/receipts.mjs';
 import {createRampSimulation} from './ramp-simulation.mjs';
@@ -33,6 +34,7 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
  if(tracking&&!paymentsDisabled)throw Error('Tracking integration currently requires payments to remain disabled.');
  if(peerConnection&&(!paymentsDisabled||localPreview||!['receive_only','tracking_read_only'].includes(peerConnection.mode)))throw Error('Peer connection requires disabled payments and hosted receive-only mode.');
  if(liveObservation&&(!paymentsDisabled||localPreview||liveObservation.simulated!==false))throw Error('Live observation requires disabled payments and hosted reads.');
+ const security=accounts&&createAccountSecurity(store,accounts,{mailEnabled:mail.enabled,mailPreview:!!mail.preview});
  const cookie=localPreview?'relay_local_preview':'__Host-relay_sandbox';
  const cookiePolicy=`${localPreview?'':'Secure; '}HttpOnly; SameSite=Strict; Path=/`;
  const getToken=req=>(req.headers.cookie??'').split(';').map(x=>x.trim()).find(x=>x.startsWith(cookie+'='))?.slice(cookie.length+1);
@@ -85,7 +87,7 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
     const decoded=decodeURIComponent(url.pathname);if(decoded!=='/'&&!/^\/assets\/[a-zA-Z0-9_.-]+\.(js|css|svg)$/.test(decoded))throw new InputError('Not found.',404);
     const file=path.join(staticRoot,decoded==='/'?'index.html':decoded.slice(1));const data=await readFile(file);res.setHeader('Content-Type',({'.html':'text/html','.css':'text/css','.js':'text/javascript','.svg':'image/svg+xml'})[path.extname(file)]);return res.end(data);
    }
-   const allowed=new Set(['/api/wallet-balances/preferences','/api/wallet-balances/refresh','/api/ramp-test/create','/api/ramp-test/advance','/api/revolut-test/checkout','/api/funding/drafts','/api/funding/cancel','/api/funding/stop','/api/funding/request-cancellation','/api/funding/checkout','/api/funding/resume','/api/funding/availability','/api/test-funding/quote','/api/test-funding/create','/api/test-funding/action','/api/account/signup','/api/account/login','/api/account/recover','/api/account/password','/api/account/requestVerification','/api/account/requestReset','/api/account/verifyEmail','/api/account/resetPassword','/api/account/emailPreview','/api/access','/api/login','/api/logout','/api/state','/api/agents','/api/checkouts','/api/checkout-resume','/api/checkout-refresh','/api/checkout-setup']);
+   const allowed=new Set(['/api/wallet-balances/preferences','/api/wallet-balances/refresh','/api/ramp-test/create','/api/ramp-test/advance','/api/revolut-test/checkout','/api/funding/drafts','/api/funding/cancel','/api/funding/stop','/api/funding/request-cancellation','/api/funding/checkout','/api/funding/resume','/api/funding/availability','/api/test-funding/quote','/api/test-funding/create','/api/test-funding/action','/api/agents/update','/api/account/security','/api/account/revokeSession','/api/account/rotateRecovery','/api/account/confirmRecovery','/api/account/signup','/api/account/login','/api/account/recover','/api/account/password','/api/account/requestVerification','/api/account/requestReset','/api/account/verifyEmail','/api/account/resetPassword','/api/account/emailPreview','/api/access','/api/login','/api/logout','/api/state','/api/agents','/api/checkouts','/api/checkout-resume','/api/checkout-refresh','/api/checkout-setup']);
    if(!allowed.has(url.pathname))throw new InputError('Not found.',404);
    if(req.headers['sec-fetch-site']==='cross-site')throw new InputError('Cross-site access blocked.',403);
    if(req.method==='POST'&&(req.headers.origin!==config.origin||!String(req.headers['content-type']).startsWith('application/json')))throw new InputError('Same-origin JSON required.',403);
@@ -100,7 +102,8 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
      await store.rate('mail:preview:'+session.account.id,30,60);
      return send(res,200,{emails:mail.previewFor(session.account.id)});
     }
-    const result=await accounts[action](b,getToken(req));
+    if(['security','revokeSession','rotateRecovery','confirmRecovery'].includes(action))return send(res,200,await security[action](b,getToken(req)));
+    const result=await accounts[action](b,getToken(req),{userAgent:req.headers['user-agent']});
     if(['requestVerification','requestReset','verifyEmail'].includes(action))return send(res,200,result);
     // Never retain the previous signed-in principal when changing account.
     await accounts.logout(getToken(req));await store.logout(getToken(req));
@@ -174,7 +177,9 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
    }
    switch(url.pathname){
     case '/api/logout':await accounts?.logout(getToken(req));await store.logout(getToken(req));res.setHeader('Set-Cookie',`${cookie}=; ${cookiePolicy}; Max-Age=0`);return send(res,200,{authenticated:false});
-    case '/api/agents':{
+    case '/api/agents':case '/api/agents/update':{
+     if(customer){await security.saveWallet(b,getToken(req),{update:url.pathname.endsWith('/update')});break;}
+     if(url.pathname.endsWith('/update'))throw new InputError('Customer sign-in required.',403);
      const name=typeof b.name==='string'?b.name.trim():'';if(name.length<2||name.length>60||b.own!==true||b.network!=='base')throw new InputError('Enter a name and confirm your own Base wallet.');
      await store.addAgent(owner,{id:randomUUID(),name,address:address(b.address),network:'Base',token:'USDC',ownership:'self_declared_unverified'});break;
     }

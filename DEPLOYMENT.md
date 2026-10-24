@@ -118,3 +118,16 @@ The next local release adds clearer per-stage payment instructions and a phone h
 The current provider checkout remains authoritative for recipient, amount, currency, reference and deadline. The user must complete any payment/verification steps required there. Relay's phone handoff does not alter provider verification requirements or guarantee extension-free verification. No provider was contacted during implementation.
 
 Validation: 170/170 offline regression tests with actual local PostgreSQL, including five phone-resume tests; production build; signed-out link then customer sign-in restores the same request; local QR/copy verification and 390px mobile layout check. No real phone camera scan or provider payment was used. Phone changes are locally prepared, not yet deployed. Logs: `development/2026-10-24-payment-handoff/`.
+
+Deployment update: the phone-resume release described above is now live at6fae62964d41ac60fa286d5a910adb8500392152 (Render dep-dbehkfq9lscs73b6dd2g). Hosted QR and saved-request screens verified; actual iPhone readback pending. Payment settings unchanged.
+
+
+## Account security release — built locally, 24 October 2026
+
+The local security release adds a recovery checklist, public session identifiers and approximate browser/device labels, password-confirmed revocation of other sessions, recovery-code confirmation/replacement, and password confirmation for customer wallet additions and edits. Existing requests retain their original destination snapshots; stale unsubmitted drafts must be replaced after a wallet edit. A saved address remains self-declared, not proof of wallet ownership. Password confirmation is not MFA. Email recovery is labelled unavailable unless sending is enabled and the address verified; local previews remain test-only.
+
+Schema version 4 is additive. It preserves existing accounts/sessions and adds session labels/IDs, recovery readiness timestamps and private security-event records. Password and recovery changes reset the readiness check. The current session cannot be revoked through the other-session controls. Existing two-hour idle and twelve-hour absolute limits remain. No payment configuration change or provider contact is part of this release. It has not been deployed to Render.
+
+Validation: 178 offline tests pass against disposable PostgreSQL on the portable drive, with no skips. Browser checks cover session revocation, password rejection/acceptance for a synthetic wallet edit, persisted destination after reload, and a mobile security layout without horizontal overflow. Recovery-code rotation and race conditions are covered by backend tests. No real customer account was modified. See `development/2026-10-24-account-security/action-log.md`.
+
+For this task, large test data, release output and logs use `/Volumes/WD Elements 1TB/Relay/`. The development evidence directory and old disposable database path are verified symlinks to that drive; it must remain connected for these local resources. Production hosting is unaffected. Browser screenshots briefly use private temporary files before being copied to the drive because the browser file API cannot write there directly. Existing app source stays at its established workspace path; the prepared release copy and its build output are on the portable drive.

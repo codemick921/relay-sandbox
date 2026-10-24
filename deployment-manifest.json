@@ -4,8 +4,12 @@
     "sha256": "559a87cb666b36016876e5d2e43d86e2059b54cf9d342ab03a10f4d12dd2bc2b"
   },
   {
+    "path": "hosted/account-security.mjs",
+    "sha256": "7a42c25d382dd93795a3892420cc6f31408c8adc3f49f8c00460f0d9ce001218"
+  },
+  {
     "path": "hosted/accounts.mjs",
-    "sha256": "5ef8d566bf96f81945996839cad6224a408f3b1b991b461885ea81926ca77da0"
+    "sha256": "3bd30ee5ae580b40c0ea7987514c80b9164bc48cbc01f65e1c7c668d7419c66d"
   },
   {
     "path": "hosted/config.mjs",
@@ -97,11 +101,11 @@
   },
   {
     "path": "hosted/schema.sql",
-    "sha256": "430f95841fa0a001dfd4a0444c7e323bad4eb146df652c39b3be6cad8ecec525"
+    "sha256": "11035e588182b3d151253a5a7ff21e6867dced99bead117909a4e10f70ac3e33"
   },
   {
     "path": "hosted/server.mjs",
-    "sha256": "177f8db01c49581df33f0faa1538c701c823fe14316e2ff7646a378790c76c43"
+    "sha256": "bbf8b4cfc01c9a6b0d512c604abb4fca9e87bc270245976f581a124b386c7ce4"
   },
   {
     "path": "hosted/startup.mjs",
@@ -109,11 +113,19 @@
   },
   {
     "path": "hosted/tracking-preview.mjs",
-    "sha256": "68ec121defd8015774e50fbe25dbbd49d0060c2d1588dc69b69ccd316f773f8c"
+    "sha256": "457ee3e0369074725b1213cc41f83d55d585a56d8435895f75000bd629c65568"
   },
   {
     "path": "hosted/tracking-sandbox.mjs",
     "sha256": "50d29c51c06ebebbb8adbad2a9f9be049000586d94ed6c09bffef0f29c4367ba"
+  },
+  {
+    "path": "hosted/wallet-balances.mjs",
+    "sha256": "53d13d5c3d89d841bb4c8b2224e2837497d8190b8cfd819fb44d72bac08942b0"
+  },
+  {
+    "path": "hosted/wallet-balances.sql",
+    "sha256": "442bc28db9c03ea656147d02fdfaf7758879177466748729c7f2428d60b19f33"
   },
   {
     "path": "hosted/worker.mjs",
@@ -197,11 +209,15 @@
   },
   {
     "path": "src/Access.jsx",
-    "sha256": "c75bdbcc0e62a88f5967b96cb7d5de86d7aa83e16eb18e55ea7b3d2d9137a9c0"
+    "sha256": "0eb2fafe6333b194f0322fbb7e0fc818e0d580f21fabee4c726749c935e78704"
+  },
+  {
+    "path": "src/AccountSecurity.jsx",
+    "sha256": "239adb8962ae32f17e5dc8d4fb6d90d0ffcff4ef650735c054a4e8a7ef36054a"
   },
   {
     "path": "src/App.jsx",
-    "sha256": "b8f2b45f484692d80844b5fb2852d227156e868394b3022321d48e6907b3804e"
+    "sha256": "a86d9e10894c3e588bcf723f59007d1c9653c41575cf32ec1a28b299032b6140"
   },
   {
     "path": "src/Funding.jsx",
@@ -209,15 +225,19 @@
   },
   {
     "path": "src/FundingInstructions.jsx",
-    "sha256": "6ea49de2db155707f5591b2bbc47f7081506d022f6b43e90da691936748b020a"
+    "sha256": "2c561ff09b1bdc2080649d9afea1e402ad889514fa5bb15ac93f1714da1ce3eb"
   },
   {
     "path": "src/LiveFunding.jsx",
-    "sha256": "7ff49bb7b3eddfd350f281aa21d7e26219f17179ba259c17a60182374c219f49"
+    "sha256": "1b9c920b7cce87d7a58faef0e396bf50f31d99d2a82ec804ca1ddcb4682e6620"
   },
   {
     "path": "src/LiveOrder.jsx",
     "sha256": "f95bd8e4f58d732b8b7741c519248e8389399e0c7935fac79aedcaad508dbc59"
+  },
+  {
+    "path": "src/PhoneResume.jsx",
+    "sha256": "dec0418f06d4b3b81284eb88287f4af640ac18d621d9f9cb22cf5a5e0e684d68"
   },
   {
     "path": "src/RampFunding.jsx",
@@ -229,11 +249,19 @@
   },
   {
     "path": "src/SimpleFunding.jsx",
-    "sha256": "50ed41156ab72240438f3eabad1910f4518c39bc7a2caf4db4a4351a702b1e5a"
+    "sha256": "ef336f2a50b1bfc6fb67c3bdc79765c24ede9f3ea6bff6dc78a786da9c664386"
   },
   {
     "path": "src/TestFunding.jsx",
     "sha256": "877d9ea9027d064822832f8aad3c0d703a92427051f6ecd84609ae83c1773272"
+  },
+  {
+    "path": "src/WalletDashboard.jsx",
+    "sha256": "e4d8b8f79643d203aa5f133803dce096e6e1db2531a688382afe1c033e41de23"
+  },
+  {
+    "path": "src/WalletEditor.jsx",
+    "sha256": "ce472767e278873a0b6f9493f3d6d98e3e7c9fc85f64ec844368c443ec0530e8"
   },
   {
     "path": "src/api.js",
@@ -244,24 +272,36 @@
     "sha256": "778309c02531bc16e76ce8d199601a5cb722e63431dff02501e8bb7c2a0d9602"
   },
   {
+    "path": "src/payment-resume.mjs",
+    "sha256": "6db6e6af740516b0432b3b62b282029083aff79ed220e0c1ef310153b0ac826c"
+  },
+  {
     "path": "src/peer-wallet.mjs",
     "sha256": "b0b6d8f80c0b7dc8f339644a542558cf502b25151ec85b9cc909f151edc19c98"
   },
   {
     "path": "src/styles.css",
-    "sha256": "15b063e8de96ac065bdda6a13b160c26911a162d90306148fe8f0e90a473425d"
+    "sha256": "5e4dd41f74ce610ffc82b8b6102e83e1bcb914d7c9dd5602b99ffe2d460f27ae"
   },
   {
     "path": "src/ui.jsx",
     "sha256": "e93c7489348525f6f92855d1ff56c9d4e5061721ec2b818071bc14a7b1e898b7"
   },
   {
+    "path": "src/wallet-values.mjs",
+    "sha256": "30663aeac25194705ad6dcc44f8b50922343b25039c91948e73bc7918ae7f88b"
+  },
+  {
     "path": "tests/account-mail.test.mjs",
     "sha256": "1da7da4b18aeb737258a108388d6196326e31806a2ea9b7fd59c103aa450a8c6"
   },
   {
+    "path": "tests/account-security.test.mjs",
+    "sha256": "717cb1b675701eb237696969f10daf76e88d5e4aabd74ca932766fa98192a0fb"
+  },
+  {
     "path": "tests/accounts.test.mjs",
-    "sha256": "f5a67357050849f771bbd2551499b57d976d889a545ebe88187a1d4314de4f55"
+    "sha256": "4642236f3e2c9f38bb737d3d6b1660c0e53804680e6e02debd52adc78f0dc950"
   },
   {
     "path": "tests/customer-funding.test.mjs",
@@ -328,6 +368,10 @@
     "sha256": "e3315c46b5cfe85589064391969d6bfd59f66f21f4aa0ba9b84b9828ff8b153a"
   },
   {
+    "path": "tests/payment-resume.test.mjs",
+    "sha256": "9e26475647ecf111c8fdc6736523f11e2db241dbcb08e2403d18164560decdeb"
+  },
+  {
     "path": "tests/peer.test.mjs",
     "sha256": "b5c04ad91ec35392c006006de5ea760f052916cfd0ca5e6264bfa9ea69b809be"
   },
@@ -350,6 +394,10 @@
   {
     "path": "tests/revolut-test.test.mjs",
     "sha256": "b22fa8ac490f28eff97340884c5190007d0b56031c49004e20384f9f62c1e3e5"
+  },
+  {
+    "path": "tests/wallet-balances.test.mjs",
+    "sha256": "e19d61cae1cce566c538d6fc819600448428a08497dd62633580d3cd90c58b81"
   },
   {
     "path": "tests/webhook-ingress.test.mjs",
@@ -385,7 +433,7 @@
   },
   {
     "path": "scripts/test-postgres.mjs",
-    "sha256": "85b75e909b1707348bc7859b61cebadf0ae7f5ff05d1d0777e8c894e54a74218"
+    "sha256": "7135ceaa994e180f23986d87a0e1e52517a4d4649d682de5752b33d06be37b88"
   },
   {
     "path": "scripts/test-sandbox-webhook-flow.mjs",
@@ -393,11 +441,11 @@
   },
   {
     "path": "package.json",
-    "sha256": "bec48e36a0459a64c57a45e391eedca97bcb2242eae4869a51b19ccfd722bf42"
+    "sha256": "3722e848306f8114ea3cd1b3ce7753d9184d8a6567b2976e6b2232124fa5e3c2"
   },
   {
     "path": "package-lock.json",
-    "sha256": "96593e21a06ab2455516e54d2f0fe75e4a3ae0f0d2ba55db3c3ed1e283c80836"
+    "sha256": "94f43fddccf69d3167d528d4d48011b1d3b04dde1ca1f23c37ec8fc0eaa527c2"
   },
   {
     "path": "vite.config.js",
@@ -417,7 +465,7 @@
   },
   {
     "path": "DEPLOYMENT.md",
-    "sha256": "8d66b8d4c5664bbd6852ce658e065cd2b3be9720943d38d74a2f1c0c1ef19e51"
+    "sha256": "7380dd12160ed341be318bfeb8a29cec0526d6b47be6c7ead698c539030aba28"
   },
   {
     "path": ".github/workflows/verify.yml",

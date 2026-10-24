@@ -1,3 +1,4 @@
+import AccountSecurity from './AccountSecurity';
 import {resumeTarget} from './payment-resume.mjs';
 import React,{useState,useEffect} from 'react';
 import App from './App';
@@ -54,7 +55,7 @@ export default function Access(){
   <Field label="Recovery code"><textarea className="mono recovery-code" readOnly value={recovery} rows={3} onFocus={e=>e.target.select()}/></Field>
   <p className="fine-print">Keep this code even after verifying your email. It gives you another way to recover access.</p>
   <Check checked={saved} onChange={e=>setSaved(e.target.checked)}>I have saved my recovery code.</Check>
-  <Button className="full" disabled={!saved} onClick={()=>{setRecovery('');setSaved(false);setMode(access.authenticated?'security':'signin');}}>{access.authenticated?'Continue to account security':'Return to sign in'}</Button>
+  <Button className="full" disabled={!saved||busy} onClick={async()=>{if(access.authenticated&&!await action('confirmRecovery',{recoveryCode:recovery}))return;setRecovery('');setSaved(false);setMode(access.authenticated?'security':'signin');}}>{access.authenticated?'Continue to account security':'Return to sign in'}</Button>
  </>:mode==='confirmEmail'?<>
   <p>{access.account?`Confirm the email address for ${access.account.email}.`:'Sign in to the account this link was sent to. Then confirm your email address.'}</p>
   {access.account?<><Button disabled={busy||!link} onClick={async()=>{const result=await action('verifyEmail',{linkToken:link?.token});if(result){setLink(null);setMode('security');}}}>Confirm email address</Button><button className="text-button" disabled={busy} onClick={signout}>Sign in to a different account</button></>:<Button onClick={()=>setMode('signin')}>Sign in to confirm</Button>}
@@ -67,7 +68,7 @@ export default function Access(){
   {!access.account?.emailVerified&&<Button disabled={busy||!emailEnabled} onClick={()=>action('requestVerification')}>{localEmail?'Create verification preview':'Send verification email'}</Button>}
   {localEmail&&<><Button disabled={busy||!access.account?.emailVerified} onClick={()=>action('requestReset',{email:access.account.email})}>Create password reset preview</Button><Button disabled={busy} onClick={async()=>{const result=await action('emailPreview');if(result)setEmails(result.emails);}}>View local test emails</Button>
   {emails.length>0?<div aria-label="Local test mailbox">{emails.map(m=><article key={m.id}><h3>{m.subject}</h3><p className="fine-print">Test message only. No email was sent.</p>{m.purpose!=='changed'&&<a href={m.link} onClick={e=>{e.preventDefault();openLink(new URL(m.link).hash);}}>Open this test link</a>}</article>)}</div>:<p className="fine-print">New previews may take a few seconds. Use “View local test emails” to check.</p>}</>}
-  <h2>Change password</h2>
+  <AccountSecurity onRecovery={value=>{setRecovery(value);setSaved(false);setError('');}}/><h2>Change password</h2>
  </section>}
  <form onSubmit={submit}>
  {effectiveMode==='tester'?<Field label="Tester access code" hint="Existing tester workspaces stay separate from customer accounts."><input type="password" autoComplete="current-password" required value={code} onChange={e=>setCode(e.target.value)}/></Field>:<>

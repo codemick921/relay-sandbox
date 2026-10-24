@@ -24,7 +24,7 @@ async function derive(value,salt){
  hashing++;try{return await scrypt(value,salt,32,options);}finally{hashing--;}
 }
 async function hashPassword(value){const salt=randomBytes(16).toString('hex');return `scrypt-v1$${salt}$${(await derive(passwordInput(value),salt)).toString('hex')}`;}
-async function verifyPassword(value,encoded){
+export async function verifyPassword(value,encoded){
  if(typeof value!=='string'||Buffer.byteLength(value)>512)return false;
  const parts=String(encoded).split('$');if(parts[0]!=='scrypt-v1'||!/^[a-f0-9]{32}$/.test(parts[1])||!/^[a-f0-9]{64}$/.test(parts[2]))throw Error('Unsupported password encoding.');
  return timingSafeEqual(await derive(value,parts[1]),Buffer.from(parts[2],'hex'));
@@ -34,9 +34,9 @@ const owner=id=>'customer:'+id;
 const recovery=()=>randomBytes(32).toString('hex');
 export function createAccounts(store,{mail=createAccountMail(store)}={}){
  async function limits(email,kind){await store.rate('accounts:global',60,900);await store.rate('accounts:'+kind+':'+digest(email),kind==='signup'?3:10,900);}
- async function issue(row){
+ async function issue(row,context){
   const token=randomBytes(32).toString('hex');
-  const saved=await store.query(`INSERT INTO relay_customer_sessions(token_hash,customer_id,version) SELECT $1,id,version FROM relay_customers WHERE id=$2 AND password_hash=$3 AND NOT disabled RETURNING token_hash`,[digest(token),row.id,row.password_hash]);
+  const saved=await store.query(`INSERT INTO relay_customer_sessions(token_hash,customer_id,version,client_label) SELECT $1,id,version,$4 FROM relay_customers WHERE id=$2 AND password_hash=$3 AND NOT disabled RETURNING token_hash`,[digest(token),row.id,row.password_hash,sessionLabel(context?.userAgent)]);
   if(!saved.rows.length)throw new InputError('Please sign in again.',401);
   return {token,account:view(row)};
  }
@@ -54,7 +54,7 @@ export function createAccounts(store,{mail=createAccountMail(store)}={}){
   });
  }
  return {
-  async signup(input){
+  async signup(input,_token,context){
    const email=emailKey(input.email);await limits(email,'signup');
    const name=typeof input.name==='string'?input.name.trim():'';
    if(name.length<2||name.length>60||input.acceptSandbox!==true)throw new InputError('Enter your name and confirm that payments are disabled.');
@@ -63,41 +63,41 @@ export function createAccounts(store,{mail=createAccountMail(store)}={}){
     return await store.tx(async c=>{
      const row=(await c.query('INSERT INTO relay_customers(id,email,name,password_hash,recovery_hash) VALUES($1,$2,$3,$4,$5) RETURNING *',[id,email,name,password,digest(code)])).rows[0];
      const token=randomBytes(32).toString('hex');
-     await c.query('INSERT INTO relay_customer_sessions(token_hash,customer_id,version) VALUES($1,$2,1)',[digest(token),id]);
+     await c.query('INSERT INTO relay_customer_sessions(token_hash,customer_id,version,client_label) VALUES($1,$2,1,$3)',[digest(token),id,sessionLabel(context?.userAgent)]);
      await mail.enqueue(c,row,'verify');
      return {token,account:view(row),recoveryCode:code};
     });
    }catch(e){if(e.code==='23505')throw new InputError('Unable to create this account. Try signing in or recovering access.',409);throw e;}
   },
-  async login(input){
+  async login(input,_token,context){
    const email=emailKey(input.email);await limits(email,'login');
    const row=(await store.query('SELECT * FROM relay_customers WHERE email=$1',[email])).rows[0];
    const valid=await verifyPassword(input.password,row?.password_hash??dummy);
    if(!valid||!row||row.disabled)throw new InputError('Email or password not recognised.',401);
-   return issue(row);
+   return issue(row,context);
   },
   async recover(input){
    const email=emailKey(input.email);await limits(email,'recover');
    if(typeof input.recoveryCode!=='string'||!/^[a-f0-9]{64}$/i.test(input.recoveryCode))throw new InputError('Email or recovery code not recognised.',401);
    const password=await hashPassword(input.password),code=recovery();
    const result=await store.tx(async c=>{
-    const row=(await c.query(`UPDATE relay_customers SET password_hash=$3,recovery_hash=$4,version=version+1 WHERE email=$1 AND recovery_hash=$2 AND NOT disabled RETURNING *`,[email,digest(input.recoveryCode.toLowerCase()),password,digest(code)])).rows[0];
+    const row=(await c.query(`UPDATE relay_customers SET password_hash=$3,recovery_hash=$4,recovery_saved_at=NULL,recovery_rotated_at=now(),version=version+1 WHERE email=$1 AND recovery_hash=$2 AND NOT disabled RETURNING *`,[email,digest(input.recoveryCode.toLowerCase()),password,digest(code)])).rows[0];
     if(!row)throw new InputError('Email or recovery code not recognised.',401);
     await c.query('UPDATE relay_customer_sessions SET revoked=true WHERE customer_id=$1',[row.id]);if(row.email_verified_at)await mail.enqueue(c,row,'changed');return row;
    });
    return {recovered:!!result,recoveryCode:code};
   },
-  async password(input,token){
+  async password(input,token,context){
    const session=await this.session(token);if(!session)throw new InputError('Sign in to change your password.',401);
    await limits(session.account.email,'password');
    const row=(await store.query('SELECT * FROM relay_customers WHERE id=$1',[session.account.id])).rows[0];
    if(!await verifyPassword(input.currentPassword,row.password_hash))throw new InputError('Current password not recognised.',401);
    const password=await hashPassword(input.password),code=recovery(),nextToken=randomBytes(32).toString('hex');
    return store.tx(async c=>{
-    const updated=(await c.query('UPDATE relay_customers SET password_hash=$3,recovery_hash=$4,version=version+1 WHERE id=$1 AND password_hash=$2 AND version=$5 AND NOT disabled RETURNING *',[row.id,row.password_hash,password,digest(code),row.version])).rows[0];
+    const updated=(await c.query('UPDATE relay_customers SET password_hash=$3,recovery_hash=$4,recovery_saved_at=NULL,recovery_rotated_at=now(),version=version+1 WHERE id=$1 AND password_hash=$2 AND version=$5 AND NOT disabled RETURNING *',[row.id,row.password_hash,password,digest(code),row.version])).rows[0];
     if(!updated)throw new InputError('Please sign in again.',401);
     await c.query('UPDATE relay_customer_sessions SET revoked=true WHERE customer_id=$1',[row.id]);
-    await c.query('INSERT INTO relay_customer_sessions(token_hash,customer_id,version) VALUES($1,$2,$3)',[digest(nextToken),row.id,updated.version]);
+    await c.query('INSERT INTO relay_customer_sessions(token_hash,customer_id,version,client_label) VALUES($1,$2,$3,$4)',[digest(nextToken),row.id,updated.version,sessionLabel(context?.userAgent)]);
     if(updated.email_verified_at)await mail.enqueue(c,updated,'changed');
     return {token:nextToken,account:view(updated),recoveryCode:code};
    });
@@ -134,7 +134,7 @@ export function createAccounts(store,{mail=createAccountMail(store)}={}){
    if(typeof input.linkToken!=='string'||!/^[a-f0-9]{64}$/.test(input.linkToken))throw new InputError('This link is invalid or has expired. Request a new one.',400);
    const password=await hashPassword(input.password),code=recovery();
    return consume(input.linkToken,'reset',async(c,row)=>{
-    const updated=(await c.query('UPDATE relay_customers SET password_hash=$2,recovery_hash=$3,version=version+1 WHERE id=$1 RETURNING *',[row.id,password,digest(code)])).rows[0];
+    const updated=(await c.query('UPDATE relay_customers SET password_hash=$2,recovery_hash=$3,recovery_saved_at=NULL,recovery_rotated_at=now(),version=version+1 WHERE id=$1 RETURNING *',[row.id,password,digest(code)])).rows[0];
     await c.query('UPDATE relay_customer_sessions SET revoked=true WHERE customer_id=$1',[row.id]);
     await mail.enqueue(c,updated,'changed');
     return {recovered:true,recoveryCode:code};
@@ -147,4 +147,11 @@ export function createAccounts(store,{mail=createAccountMail(store)}={}){
   },
   async logout(token){await store.query('UPDATE relay_customer_sessions SET revoked=true WHERE token_hash=$1',[digest(token??'')]);}
  };
+}
+
+export function sessionLabel(value=''){
+ const ua=String(value).slice(0,512);
+ const device=/iPhone|iPad/.test(ua)?'iPhone/iPad':/Android/.test(ua)?'Android':/Macintosh/.test(ua)?'Mac':/Windows/.test(ua)?'Windows':/Linux/.test(ua)?'Linux':'Device';
+ const browser=/Edg/.test(ua)?'Edge':/Firefox|FxiOS/.test(ua)?'Firefox':/Chrome|CriOS/.test(ua)?'Chrome':/Safari/.test(ua)?'Safari':'Browser';
+ return `${browser} · ${device}`;
 }

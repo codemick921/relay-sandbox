@@ -73,3 +73,16 @@ CREATE TABLE IF NOT EXISTS relay_account_mail (
 );
 CREATE INDEX IF NOT EXISTS relay_account_mail_customer ON relay_account_mail(customer_id,created_at DESC);
 INSERT INTO relay_schema(version) VALUES(3) ON CONFLICT DO NOTHING;
+
+-- Public session references are separate from authentication-token hashes.
+ALTER TABLE relay_customer_sessions ADD COLUMN IF NOT EXISTS session_id uuid NOT NULL DEFAULT gen_random_uuid();
+CREATE UNIQUE INDEX IF NOT EXISTS relay_customer_sessions_public_id ON relay_customer_sessions(session_id);
+ALTER TABLE relay_customer_sessions ADD COLUMN IF NOT EXISTS client_label text NOT NULL DEFAULT 'Browser session';
+ALTER TABLE relay_customers ADD COLUMN IF NOT EXISTS recovery_saved_at timestamptz;
+ALTER TABLE relay_customers ADD COLUMN IF NOT EXISTS recovery_rotated_at timestamptz NOT NULL DEFAULT now();
+CREATE TABLE IF NOT EXISTS relay_security_events (
+ id uuid PRIMARY KEY DEFAULT gen_random_uuid(), customer_id uuid NOT NULL REFERENCES relay_customers(id),
+ event text NOT NULL, details jsonb NOT NULL DEFAULT '{}', created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS relay_security_events_customer ON relay_security_events(customer_id,created_at DESC);
+INSERT INTO relay_schema(version) VALUES(4) ON CONFLICT DO NOTHING;

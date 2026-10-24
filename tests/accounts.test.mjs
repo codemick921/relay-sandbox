@@ -67,7 +67,7 @@ test('HTTP account flow keeps provider routes disabled, rotates cookies and scop
   assert.equal((await request('/api/access')).data.customerAccounts,true);
   assert.equal((await request('/api/account/signup',signup('http@example.test'),null,{origin:'https://evil.example'})).status,403);
   const one=await request('/api/account/signup',signup('http@example.test'));assert.equal(one.status,200);assert.match(one.cookieHeader,/Secure; HttpOnly; SameSite=Strict/);assert.equal(one.data.token,undefined);
-  const wallet={name:'My agent',address:'0x1111111111111111111111111111111111111111',network:'base',own:true,owner:'oldtester'};
+  const wallet={name:'My agent',address:'0x1111111111111111111111111111111111111111',network:'base',own:true,owner:'oldtester',currentPassword:password};
   const saved=await request('/api/agents',wallet,one.cookie);assert.equal(saved.status,200);assert.equal(saved.data.account.id,one.data.account.id);assert.equal((await request('/api/agents',wallet,one.cookie)).status,409);
   const two=await request('/api/account/signup',signup('other@example.test'),one.cookie);assert.equal((await request('/api/state',null,one.cookie)).status,401);assert.equal((await request('/api/state',null,two.cookie)).data.agents.length,0);
   assert.equal((await request('/api/checkouts',{},two.cookie)).status,403);assert.equal((await request('/api/webhooks/peer/sandbox',{})).status,403);assert.equal((await request('/api/checkout-setup',null,two.cookie)).data.ready,false);assert.equal(providerCalls,0);
