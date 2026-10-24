@@ -14,12 +14,12 @@ export const liveOrderView=row=>({...row.request,...row.result,id:row.id,created
 
 function immutableIntent(input){
  if(input?.source!=='live'||input.kind!=='checkout'||!uuid(input.id)||!identifier(input.providerOrderId)||!identifier(input.merchantId)||
-  !Number.isInteger(input.quote?.pence)||input.quote.pence<200||input.quote.pence>100000||input.quote.platform!=='wise'||
+  !Number.isInteger(input.quote?.pence)||input.quote.pence<200||input.quote.pence>100000||!['wise','revolut'].includes(input.quote.platform)||
   input.agent?.network!=='Base'||input.agent?.token!=='USDC'||!uuid(input.agent.id)||typeof input.agent.name!=='string'||input.agent.name.length>60||!input.agent.name.trim()||microUsdc(input.requestedUsdcAmount)<=0n)throw new InputError('Invalid trusted live intent.');
  // Keep only immutable inputs; never accept prefilled success/receipt/checkout URLs.
  return {id:input.id,kind:'checkout',source:'live',merchantId:input.merchantId,providerOrderId:input.providerOrderId,
   requestedUsdcAmount:input.requestedUsdcAmount,agent:{id:input.agent.id,name:input.agent.name,address:address(input.agent.address).toLowerCase(),network:'Base',token:'USDC'},
-  quote:{pence:input.quote.pence,platform:'wise',network:'Base',token:'USDC'}};
+  quote:{pence:input.quote.pence,platform:input.quote.platform,network:'Base',token:'USDC'}};
 }
 function checkedResult(order,update){
  const v=update?.verification;

@@ -12,14 +12,14 @@ export function paymentSnapshot(local,remote,rows){
  if(!Array.isArray(rows)||rows.length>100)issue('Peer payment history is incomplete or too large to verify.');
  const ids=new Set(),intents=new Set();
  const payments=rows.map(p=>{
-  if(!id(p.id)||ids.has(p.id)||p.orderId!==local.providerOrderId||p.rail!=='wise'||p.currency!=='GBP'||!['CREATED','SETTLED','FAILED','EXPIRED','CANCELLED'].includes(p.status))issue('Peer payment history does not match this order.');
+  if(!id(p.id)||ids.has(p.id)||p.orderId!==local.providerOrderId||!['wise','revolut'].includes(local.quote.platform)||p.rail!==local.quote.platform||p.currency!=='GBP'||!['CREATED','SETTLED','FAILED','EXPIRED','CANCELLED'].includes(p.status))issue('Peer payment history does not match this order.');
   ids.add(p.id);
   if(!['NONE','CHARGEBACKED'].includes(p.chargebackStatus))issue('Peer returned an unknown chargeback state.');
   const item={id:p.id,status:p.status,chargebackStatus:p.chargebackStatus};
   if(p.status!=='SETTLED')return item;
   const net=microUsdc(p.netSettledUsdcAmount),fee=microUsdc(p.totalUsdcFeeAmount),signal=p.quote?.signalIntent;
   const intentHash=hash(p.railIdentifier),transactionHash=hash(p.fulfillTransaction);
-  if(net<=0n||!signal||!same(signal.toAddress,local.agent.address)||signal.processorName!=='wise'||
+  if(net<=0n||!signal||!same(signal.toAddress,local.agent.address)||signal.processorName!==local.quote.platform||
     (signal.orchestratorAddress&&!same(signal.orchestratorAddress,ORCHESTRATOR.address))||
     (signal.escrowAddress&&!same(signal.escrowAddress,ESCROW))||
     (p.quote.intentHash&&!same(p.quote.intentHash,intentHash))||!/^\d{1,16}$/.test(signal.amount)||BigInt(signal.amount)<net+fee||

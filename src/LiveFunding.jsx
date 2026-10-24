@@ -23,10 +23,11 @@ export function LiveFunding({state,act,busy,error,onClose,open,selected}){
 export function FundingDraft({draft,act,busy,error,onClose,open}){
  if(!draft)return <Modal title="Funding draft" onClose={onClose}><Notice>This draft is no longer available in your account.</Notice></Modal>;
  const draftOnly=draft.status==='draft',cancelled=draft.status==='cancelled';
+ if(draft.rail==='revolut')return <Modal title="Your Revolut test draft" onClose={onClose}><p>Review the private Revolut test on your overview for the amount, receiving wallet and checkout status.</p><p>Reference: {draft.id}</p></Modal>;
  return <Modal title="Your GBP funding draft" onClose={busy?()=>{}:onClose}>
   <Notice>{cancelled?'Draft cancelled. No payment was created.':draftOnly?'Saved in Relay. No payment has been created or sent to Peer.':'This request needs reconciliation. Do not start a replacement payment.'}</Notice>
   {error&&<Notice error>{error}</Notice>}
-  <dl className="details"><div><dt>Funding amount</dt><dd>{gbp(draft.pence)}</dd></div><div><dt>Pay with</dt><dd>Wise · GBP</dd></div><div><dt>Agent</dt><dd>{draft.agent.name}</dd></div><div><dt>Receives</dt><dd>USDC on Base</dd></div><div><dt>Rate, fees and USDC amount</dt><dd>Not quoted</dd></div></dl>
+  <dl className="details"><div><dt>Funding amount</dt><dd>{gbp(draft.pence)}</dd></div><div><dt>Pay with</dt><dd>{draft.rail==='revolut'?'Revolut':'Wise'} · GBP</dd></div><div><dt>Agent</dt><dd>{draft.agent.name}</dd></div><div><dt>Receives</dt><dd>USDC on Base</dd></div><div><dt>Rate, fees and USDC amount</dt><dd>Not quoted</dd></div></dl>
   <p>Saved receiving address</p><code className="checkout-address">{draft.agent.address}</code>
   {!draft.walletCurrent&&!cancelled&&<Notice error>The saved wallet has changed. Cancel this draft and review the updated address before continuing.</Notice>}
   <h3>When live funding is enabled</h3>

@@ -1,5 +1,9 @@
 [
   {
+    "path": "hosted/account-mail.mjs",
+    "sha256": "559a87cb666b36016876e5d2e43d86e2059b54cf9d342ab03a10f4d12dd2bc2b"
+  },
+  {
     "path": "hosted/accounts.mjs",
     "sha256": "5ef8d566bf96f81945996839cad6224a408f3b1b991b461885ea81926ca77da0"
   },
@@ -12,8 +16,28 @@
     "sha256": "f440061a19ae4fa8bbe07e4cbe3b91448f5589c34083d6454d461a4ca3fb6ced"
   },
   {
+    "path": "hosted/funding-drafts.mjs",
+    "sha256": "6faa496e232406685af0a1ab0bb962257f1b236e2ccce66f2db5fb2feeac5c6e"
+  },
+  {
+    "path": "hosted/funding-drafts.sql",
+    "sha256": "ff8058487e82c5083d0aa7daec133d9cc7d5327aee17da91c0d1f9716cbedec4"
+  },
+  {
+    "path": "hosted/funding-journey.mjs",
+    "sha256": "15fa5dc8cc8084dfa61f96d6ab2bf1b3b8e550bb2fa345da4398fbb1ee5194c5"
+  },
+  {
+    "path": "hosted/live-funding.mjs",
+    "sha256": "0ca529307460da872c1ee4f4492aba3f9e5053c485fbc09db00787600860ab60"
+  },
+  {
     "path": "hosted/live-http.mjs",
     "sha256": "6438e1556e6bb2ab4dd88e188ff511520b958f093f63cddd05a6e5341451761a"
+  },
+  {
+    "path": "hosted/live-observation.mjs",
+    "sha256": "e8cf823e1b34cc770c9a2ec355e85d0d570bd5a4c4cf91ad6e332b4b88f80445"
   },
   {
     "path": "hosted/live-schema.sql",
@@ -21,11 +45,47 @@
   },
   {
     "path": "hosted/live-store.mjs",
-    "sha256": "80b02001e531686c7256a13b5b09b00c970ee60ca09d445a798b279aecccb5bb"
+    "sha256": "7ddb419fe6718f7078ba3ef46b75bccea1f88d16073455449b940c465a487d22"
   },
   {
     "path": "hosted/live-worker.mjs",
     "sha256": "dc7588fab66242fdb8b7ce1fd288d96c74cb18c8e6ad80bcf89745c2dd1eab46"
+  },
+  {
+    "path": "hosted/mail-transport.mjs",
+    "sha256": "28f161487134de4c3fae40bb8d652804a68cefe144c34f5f7d3bc5d3e24220a3"
+  },
+  {
+    "path": "hosted/peer-connection.mjs",
+    "sha256": "30ddcc226a61953ccead2f0797ef41b0a2a116fb4395290ec5e673da9b638dfa"
+  },
+  {
+    "path": "hosted/peer-notifications.sql",
+    "sha256": "0767fb41d33e3d264217cb22e5402df66854a9601638577e3f143be088a969cc"
+  },
+  {
+    "path": "hosted/restricted-funding.mjs",
+    "sha256": "5552b7b41dadfebefcb9b927e7521d553fa4392161aec5e181f85e29dc17a628"
+  },
+  {
+    "path": "hosted/restricted-test.mjs",
+    "sha256": "b2283d7b1785cf6f7ed807a90bff57ae7254c8fdabc0a8221a2a55eb4ec85a0f"
+  },
+  {
+    "path": "hosted/restricted-test.sql",
+    "sha256": "d33fb0cbc1302a14487e87447e91eab0a337cffd227887963da722d244bb4f8a"
+  },
+  {
+    "path": "hosted/revolut-operator.mjs",
+    "sha256": "859323c68f0277d5cc5b288c6ff555dacb40befbb787c8760fe3ea4d93c55c21"
+  },
+  {
+    "path": "hosted/revolut-test.mjs",
+    "sha256": "fb7a4fa54555ecae2c2d13efefe9ba84babf476e474ce2e36eb35b358982670b"
+  },
+  {
+    "path": "hosted/revolut-test.sql",
+    "sha256": "b40cb21581a3194f20df39b62f90eb2d520500b58ead417b071999fe04773191"
   },
   {
     "path": "hosted/schema.sql",
@@ -33,7 +93,7 @@
   },
   {
     "path": "hosted/server.mjs",
-    "sha256": "1f614f7e5ee56870d0bbdadbebf294aa52ca99b0892a26d71ecfc04c16a7afca"
+    "sha256": "518b8916661545d9fdccb69bdb42075e01e99f754a12c6101f732f69047d0b7d"
   },
   {
     "path": "hosted/startup.mjs",
@@ -61,11 +121,23 @@
   },
   {
     "path": "server/pay-contract.mjs",
-    "sha256": "cd08352d3add1705679dee08024cda6d7f1d83b7fae6c2a5dd63cf2b23b07424"
+    "sha256": "6b89ea2f27b604b30fa6bd0d5a4ed85ffeac730606ce0ebaf5f9c9c176750fea"
   },
   {
     "path": "server/pay-delivery.mjs",
-    "sha256": "1b3c8fd7fd9811c6cdfb44e831d7ea15a488807a0867978e62a581d292153338"
+    "sha256": "15d39fcf80fff10bdaa906fa80901bb78445a555cbf3f271d760a7157c0294fb"
+  },
+  {
+    "path": "server/pay-funding-preflight.mjs",
+    "sha256": "f226814364ed765527d02684bb66ba4695a531a425aae204613713e825de4157"
+  },
+  {
+    "path": "server/pay-live-create.mjs",
+    "sha256": "afeb916ebfc3cdbfaa8173b42b59fc3e0926b7a1c01e221e22d4a12bfb4d04b3"
+  },
+  {
+    "path": "server/pay-payin.mjs",
+    "sha256": "34d7a9e2d594581ab431ea535dfa46111f195dee21fa7e967e4c6a80960920c2"
   },
   {
     "path": "server/pay-readonly.mjs",
@@ -105,23 +177,35 @@
   },
   {
     "path": "src/Access.jsx",
-    "sha256": "a40f2b3ef6718e3e610cccd4b7f68bf65685fca880aca61605dd88936b6f0515"
+    "sha256": "fa7dd258949f2d576afa821e2a6bbdc61fe2008fb4b111ab7b50d15dddb1f1f2"
   },
   {
     "path": "src/App.jsx",
-    "sha256": "e246a54e54f53ca70e74099e76b9c4a96f3a0e97be839e9c374e865481fea9b2"
+    "sha256": "c51da1683158e567e5a413602ee4b19d0f7c29ff795bbc770ad8662d2be18549"
   },
   {
     "path": "src/Funding.jsx",
     "sha256": "a5cfdd3496211bcb6f22c85f89c52bccae37be031c4c76f9e4d337f9a6f10e23"
   },
   {
+    "path": "src/LiveFunding.jsx",
+    "sha256": "4ec5917aa8a8f2c338a9284fa77c23e87f2f4f43a39ed79de3f99365061b5bfe"
+  },
+  {
     "path": "src/LiveOrder.jsx",
     "sha256": "f95bd8e4f58d732b8b7741c519248e8389399e0c7935fac79aedcaad508dbc59"
   },
   {
+    "path": "src/RevolutTest.jsx",
+    "sha256": "77fd17ecafeb13ae8589511f9756d8174f8eb2b135e5f9b92e9b10a49d9b77bb"
+  },
+  {
     "path": "src/SimpleFunding.jsx",
-    "sha256": "49e70e6a1e40e571fd62e765aa3d76658c1b850a16d4e3953b52c0cee4aafaca"
+    "sha256": "b680f2f346ba82b0dc27f0433ff25dfa430d2d3772de7e169c6ea3b4beb4b8f7"
+  },
+  {
+    "path": "src/TestFunding.jsx",
+    "sha256": "877d9ea9027d064822832f8aad3c0d703a92427051f6ecd84609ae83c1773272"
   },
   {
     "path": "src/api.js",
@@ -144,8 +228,16 @@
     "sha256": "e93c7489348525f6f92855d1ff56c9d4e5061721ec2b818071bc14a7b1e898b7"
   },
   {
+    "path": "tests/account-mail.test.mjs",
+    "sha256": "1da7da4b18aeb737258a108388d6196326e31806a2ea9b7fd59c103aa450a8c6"
+  },
+  {
     "path": "tests/accounts.test.mjs",
     "sha256": "f5a67357050849f771bbd2551499b57d976d889a545ebe88187a1d4314de4f55"
+  },
+  {
+    "path": "tests/fixtures/account-store.mjs",
+    "sha256": "3cdf7cb2dc94a1ddffad05567de994a7ab915dc78c570ad3341f5b9b146ad8e0"
   },
   {
     "path": "tests/fixtures/live-evidence.mjs",
@@ -156,8 +248,16 @@
     "sha256": "56e037b4548e9787e8c20f3d821bc029dc9c13ebe6c8cc6b7ae6df1dc4e4e8a9"
   },
   {
+    "path": "tests/funding-journey.test.mjs",
+    "sha256": "65f2dbe6150ddcbd4db97029332949ad167589cab4f1c8b6a78164936791380e"
+  },
+  {
     "path": "tests/hosted-live.test.mjs",
     "sha256": "cd13646eccbd94ad4d1fc0211b0b59f8aeadcbe4c0a75e7af61d38940262f786"
+  },
+  {
+    "path": "tests/hosted-peer-connection.test.mjs",
+    "sha256": "737e80cdc7facd81ab8d62381883a62e3da7fb2c1bc5f33f1f86c67420a6e5b8"
   },
   {
     "path": "tests/hosted-tracking-sandbox.test.mjs",
@@ -168,8 +268,20 @@
     "sha256": "7cdbc09f0df22a3a0725f95291ea88ec64e7b484ef623ca08dc22878eec50b4a"
   },
   {
+    "path": "tests/live-funding.test.mjs",
+    "sha256": "426b60df417b3f6ef7f6b9e83c1289b7afee8ddc041081b3ea71ce3b6d29340f"
+  },
+  {
     "path": "tests/live.test.mjs",
     "sha256": "0798bfcbba2b2ddd6fb2ac2bcb369209a8e9b28e0d7407e1734c353c65403395"
+  },
+  {
+    "path": "tests/pay-funding-preflight.test.mjs",
+    "sha256": "3f0e6f2bf4bf92424b039b6db8b4f296b31f7e616201136d2512ff02da61cac3"
+  },
+  {
+    "path": "tests/pay-payin.test.mjs",
+    "sha256": "0c0ed6cab8fba12eb893e32a840f9fb013168ce1a311963b1b9a58bfc727b1c8"
   },
   {
     "path": "tests/pay-verification.test.mjs",
@@ -188,6 +300,14 @@
     "sha256": "c0a787ac0f4624f1e5299dbf3b6f7fe8d3ed567675912a86db52ce41d8c27b97"
   },
   {
+    "path": "tests/restricted-test.test.mjs",
+    "sha256": "7e0113430b96e465e6a58f473a653b21aa6d3b4241b4fc078fad688859c813a7"
+  },
+  {
+    "path": "tests/revolut-test.test.mjs",
+    "sha256": "09c69085428241a25fac28568f58248b69f6dcb4dfbf5eb3777cf36766d5ea9d"
+  },
+  {
     "path": "tests/webhook-ingress.test.mjs",
     "sha256": "2e676e1b124a064947925c03862b65e05fd2a104045acb5380ef24d9547a9189"
   },
@@ -198,6 +318,10 @@
   {
     "path": "scripts/export-deployment.mjs",
     "sha256": "e759a0c1f1752bdc19af9abff884132ea42338739cf1e043e46eb6e57a8474bd"
+  },
+  {
+    "path": "scripts/revolut-test-operator.mjs",
+    "sha256": "32abf06a7b3e51731fc20cc0030487fcd48e669ed3a6d4aae3bbef03fb6e8a10"
   },
   {
     "path": "scripts/sandbox-webhook.mjs",
@@ -246,69 +370,5 @@
   {
     "path": ".github/workflows/verify.yml",
     "sha256": "7b06a4a5fd36757385bb20c4dad58214085b4daa2a767dd71528731862062f39"
-  },
-  {
-    "path": "hosted/peer-connection.mjs",
-    "sha256": "30ddcc226a61953ccead2f0797ef41b0a2a116fb4395290ec5e673da9b638dfa"
-  },
-  {
-    "path": "hosted/peer-notifications.sql",
-    "sha256": "0767fb41d33e3d264217cb22e5402df66854a9601638577e3f143be088a969cc"
-  },
-  {
-    "path": "tests/hosted-peer-connection.test.mjs",
-    "sha256": "737e80cdc7facd81ab8d62381883a62e3da7fb2c1bc5f33f1f86c67420a6e5b8"
-  },
-  {
-    "path": "hosted/funding-drafts.sql",
-    "sha256": "fbae079906e6e11c5829782131c9af4b5acd4588d0348942284b7cad50e548a0"
-  },
-  {
-    "path": "hosted/funding-drafts.mjs",
-    "sha256": "06d3c1296fc341ea9ee2f71781eaf871b9ee84be70d56fa94e520b08cf25295d"
-  },
-  {
-    "path": "hosted/live-funding.mjs",
-    "sha256": "0ca529307460da872c1ee4f4492aba3f9e5053c485fbc09db00787600860ab60"
-  },
-  {
-    "path": "server/pay-live-create.mjs",
-    "sha256": "98bf6b9baf17bac8de336b5df35a7f34dd51f173ceb4add8ea5db177f926423f"
-  },
-  {
-    "path": "src/LiveFunding.jsx",
-    "sha256": "25020f5a0d40f1c34d34f68a4efab0d27272a0518816625585d14ea1303d175b"
-  },
-  {
-    "path": "tests/live-funding.test.mjs",
-    "sha256": "426b60df417b3f6ef7f6b9e83c1289b7afee8ddc041081b3ea71ce3b6d29340f"
-  },
-  {
-    "path": "hosted/restricted-test.sql",
-    "sha256": "d33fb0cbc1302a14487e87447e91eab0a337cffd227887963da722d244bb4f8a"
-  },
-  {
-    "path": "hosted/restricted-test.mjs",
-    "sha256": "b2283d7b1785cf6f7ed807a90bff57ae7254c8fdabc0a8221a2a55eb4ec85a0f"
-  },
-  {
-    "path": "hosted/restricted-funding.mjs",
-    "sha256": "5552b7b41dadfebefcb9b927e7521d553fa4392161aec5e181f85e29dc17a628"
-  },
-  {
-    "path": "hosted/live-observation.mjs",
-    "sha256": "1f8966e2d9541393a5feea6d1369fcc8cc2be722b18ce5981956a95d5747356a"
-  },
-  {
-    "path": "tests/restricted-test.test.mjs",
-    "sha256": "7e0113430b96e465e6a58f473a653b21aa6d3b4241b4fc078fad688859c813a7"
-  },
-  {
-    "path": "server/pay-payin.mjs",
-    "sha256": "bc0879cbd53a77330c5855def7719591a77243818e039427794822285eb661c9"
-  },
-  {
-    "path": "tests/pay-payin.test.mjs",
-    "sha256": "0c0ed6cab8fba12eb893e32a840f9fb013168ce1a311963b1b9a58bfc727b1c8"
   }
 ]

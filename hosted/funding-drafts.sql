@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS relay_funding_drafts (
  CHECK(status NOT IN ('creating','unresolved','bound','closed') OR (attempt_token IS NOT NULL AND merchant_id IS NOT NULL)),
  CHECK(status NOT IN ('bound','closed') OR (provider_id IS NOT NULL AND requested_usdc IS NOT NULL))
 );
+ALTER TABLE relay_funding_drafts ADD COLUMN IF NOT EXISTS rail text NOT NULL DEFAULT 'wise' CHECK(rail IN ('wise','revolut'));
 CREATE UNIQUE INDEX IF NOT EXISTS relay_funding_one_active ON relay_funding_drafts(owner) WHERE status NOT IN ('cancelled','closed');
 CREATE TABLE IF NOT EXISTS relay_funding_audit (
  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, draft_id uuid NOT NULL REFERENCES relay_funding_drafts(id),
@@ -27,7 +28,7 @@ CREATE TABLE IF NOT EXISTS relay_funding_audit (
 CREATE OR REPLACE FUNCTION relay_funding_immutable() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
  IF NEW.id IS DISTINCT FROM OLD.id OR NEW.owner IS DISTINCT FROM OLD.owner OR NEW.request_id IS DISTINCT FROM OLD.request_id
- OR NEW.agent_revision IS DISTINCT FROM OLD.agent_revision OR NEW.agent_id IS DISTINCT FROM OLD.agent_id OR NEW.agent IS DISTINCT FROM OLD.agent OR NEW.pence IS DISTINCT FROM OLD.pence
+ OR NEW.rail IS DISTINCT FROM OLD.rail OR NEW.agent_revision IS DISTINCT FROM OLD.agent_revision OR NEW.agent_id IS DISTINCT FROM OLD.agent_id OR NEW.agent IS DISTINCT FROM OLD.agent OR NEW.pence IS DISTINCT FROM OLD.pence
  OR (OLD.attempt_token IS NOT NULL AND (NEW.attempt_token IS DISTINCT FROM OLD.attempt_token OR NEW.merchant_id IS DISTINCT FROM OLD.merchant_id OR NEW.attempted_at IS DISTINCT FROM OLD.attempted_at))
  OR (OLD.provider_id IS NOT NULL AND (NEW.provider_id IS DISTINCT FROM OLD.provider_id OR NEW.requested_usdc IS DISTINCT FROM OLD.requested_usdc))
  THEN RAISE EXCEPTION 'Immutable funding intent'; END IF;

@@ -5,7 +5,7 @@ const sameUsdc=(a,b)=>typeof a==='string'&&typeof b==='string'&&/^\d{1,5}(\.\d{1
 export function checkoutRequest(order,origin){
  return {requestedFiatAmount:(order.quote.pence/100).toFixed(2),requestedFiatCurrency:'GBP',
   destinationAddress:address(order.agent.address),destinationToken:'USDC',destinationChainId:8453,
-  feePayer:'MERCHANT',enabledRails:['wise'],dynamicOrdersEnabled:false,
+  feePayer:'MERCHANT',enabledRails:[order.quote.platform??'wise'],dynamicOrdersEnabled:false,
   idempotencyKey:order.id,successUrl:origin+'/?checkout='+encodeURIComponent(order.id),
   notes:{relayOrderId:order.id}};
 }
@@ -20,7 +20,7 @@ export function validateCheckout(remote,local,merchantId){
    !same(remote.destinationAddress,local.agent.address)||String(remote.destinationChainId)!=='8453'||
    !(remote.destinationToken==='USDC'||same(remote.destinationToken,TOKEN))||
    remote.feePayer!=='MERCHANT'||remote.amountMode!=='FIXED'||
-   remote.enabledRails?.length!==1||remote.enabledRails[0]!=='wise'||
+   !['wise','revolut'].includes(local.quote.platform)||remote.enabledRails?.length!==1||remote.enabledRails[0]!==local.quote.platform||
    fiat?.currency!=='GBP'||pence(fiat.amount)!==local.quote.pence||!metadataMatches||
    remote.notes?.relayOrderId!==local.id||!['CREATED','PARTIALLY_FULFILLED','FULFILLED','CANCELLED'].includes(remote.status)){
   throw new InputError('Peer checkout details do not match this order. Keep this order for reconciliation.',502);
