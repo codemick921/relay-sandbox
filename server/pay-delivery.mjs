@@ -8,6 +8,8 @@ export function microUsdc(value){
  return parseUnits(value,6);
 }
 const issue=message=>{throw new InputError(message,502);};
+// Absence during provider/RPC convergence is retryable; conflicting evidence is not.
+export class EvidencePendingError extends Error {}
 // Settlement observations do not authorise a new payment or change its GBP request.
 export function settlementAdjustments(rows){
  if(!Array.isArray(rows)||rows.length>1)issue('Unsupported settlement adjustments.');
@@ -47,7 +49,7 @@ export function paymentSnapshot(local,remote,rows){
  // display the actual net delivered, never equate it to the requested gross.
  const remaining=microUsdc(remote.remainingUsdcAmount);
  if(remaining>microUsdc(remote.requestedUsdcAmount))issue('Invalid remaining order amount.');
- if(remote.status==='FULFILLED'&&!payments.some(p=>p.status==='SETTLED'))issue('Peer fulfilment has no complete settlement evidence yet.');
+ if(remote.status==='FULFILLED'&&!payments.some(p=>p.status==='SETTLED'))throw new EvidencePendingError('Peer settlement history is still arriving.');
  return payments;
 }
 
@@ -58,7 +60,7 @@ export async function verifyPayDelivery(local,remote,rows,{rpc=chain,now=Date.no
  const payments=paymentSnapshot(local,remote,rows),settled=payments.filter(p=>p.status==='SETTLED');
  if(settled.length&&await rpc.getChainId()!==8453)issue('The receipt service is not connected to Base.');
  const finalized=settled.length?await rpc.getBlock({blockTag:'finalized'}):null;
- if(settled.length&&(typeof finalized?.number!=='bigint'||finalized.number<0n))issue('Base finality is unavailable.');
+ if(settled.length&&(typeof finalized?.number!=='bigint'||finalized.number<0n))throw new EvidencePendingError('Base finality is temporarily unavailable.');
  for(const payment of settled){
   let receipt;
   try{receipt=await rpc.getTransactionReceipt({hash:payment.transactionHash});}

@@ -11,7 +11,7 @@ import {createLiveStore,liveOrderView} from '../hosted/live-store.mjs';
 import {createLiveWorker} from '../hosted/live-worker.mjs';
 import {createLiveTrackingHandler} from '../hosted/live-http.mjs';
 import {createLiveReadService,TrackingReviewError} from '../server/pay-readonly.mjs';
-import {verifyPayDelivery} from '../server/pay-delivery.mjs';
+import {verifyPayDelivery,EvidencePendingError} from '../server/pay-delivery.mjs';
 import {verifyWebhook} from '../server/pay-webhooks.mjs';
 import {digest,createStore} from '../hosted/db.mjs';
 import {config} from '../hosted/config.mjs';
@@ -239,5 +239,29 @@ test('review holds require explicit fresh finalised resolution and keep an audit
   assert.equal((await s.state('bob')).orders[0].status,'checkout_ready');
   assert.equal((await s.query("SELECT * FROM relay_live_audit WHERE order_id=$1 AND event='operator_review_resolved'",[o.id])).rows.length,1);
   assert.equal(await s.apply(claim,result,{resolveReviewReason:'Duplicate retry must not apply'}),false);
+ }finally{await f.close();}
+});
+
+
+test('automatic retries never clear a real review hold or credit a mismatched recipient',async()=>{
+ const f=await fixture();try{
+  const s=f.store,o=intent();await s.bindTrustedOrder('alice',o);let bad=true,pending=false;
+  const pay=createLiveReadService({apiKey:'fixture',merchantId:'merchant',rpc:rpc(),fetcher:async url=>new Response(JSON.stringify({success:true,responseObject:url.endsWith('/me')?{id:'merchant',environment:'LIVE'}:url.endsWith('/payments')?{payments:[paymentFor(o)]}:{merchant:{id:'merchant',environment:'LIVE'},order:remoteFor(o,bad?{destinationAddress:'0x'+'22'.repeat(20)}:{}),currentPayment:paymentFor(o)}}))});
+  const worker=createLiveWorker({store:s,pay:{refresh:order=>{if(pending)throw new EvidencePendingError('Still waiting');return pay.refresh(order);}}});
+  await worker.tick();assert.equal((await s.state('alice')).orders[0].reviewRequired,true);
+  bad=false;pending=true;await due(s,o.id);await worker.tick();assert.equal((await s.state('alice')).orders[0].status,'checkout_review');
+  pending=false;await due(s,o.id);await worker.tick();const state=(await s.state('alice')).orders[0];
+  assert.equal(state.status,'checkout_review');assert.equal(state.reviewRequired,true);
+  assert.equal((await s.query("SELECT * FROM relay_live_audit WHERE event='operator_review_resolved'")).rows.length,0);
+ }finally{await f.close();}
+});
+
+test('Revolut GBP settlement completes through the background reader without operator resolution',async()=>{
+ const f=await fixture();try{
+  const s=f.store,o=intent({quote:{pence:2500,platform:'revolut'}});await s.bindTrustedOrder('alice',o);
+  const p=paymentFor(o,{rail:'revolut',quote:{...payment().quote,signalIntent:{...payment().quote.signalIntent,processorName:'revolut'}}});
+  const pay=createLiveReadService({apiKey:'fixture',merchantId:'merchant',rpc:rpc({getTransactionReceipt:async()=>receipt(p)}),fetcher:async url=>new Response(JSON.stringify({success:true,responseObject:url.endsWith('/me')?{id:'merchant',environment:'LIVE'}:url.endsWith('/payments')?{payments:[p]}:{merchant:{id:'merchant',environment:'LIVE'},order:remoteFor(o,{enabledRails:['revolut']}),currentPayment:p}}))});
+  await createLiveWorker({store:s,pay}).tick();const state=(await s.state('alice')).orders[0];
+  assert.equal(state.status,'checkout_received');assert.equal(state.reviewRequired,false);assert.equal(state.delivery.amountRaw,'12000000');
  }finally{await f.close();}
 });

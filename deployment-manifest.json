@@ -49,11 +49,11 @@
   },
   {
     "path": "hosted/live-store.mjs",
-    "sha256": "8d6f60fadfc4652adfa03e526410fc71098fc8de6607454bd730e0342832dbde"
+    "sha256": "77456a58f35beffdf9a33d4cb9c862b320e17fab3ff0b1a7db1e424d59e2e152"
   },
   {
     "path": "hosted/live-worker.mjs",
-    "sha256": "dc7588fab66242fdb8b7ce1fd288d96c74cb18c8e6ad80bcf89745c2dd1eab46"
+    "sha256": "e753f4c175042e048988630beb4061453e3fa53c4ca014fa2c4a134d0b462991"
   },
   {
     "path": "hosted/mail-transport.mjs",
@@ -137,7 +137,7 @@
   },
   {
     "path": "server/pay-delivery.mjs",
-    "sha256": "a9d21015d22e496e3b72b6c9198ba1b4a4ea902bd1b566c6e59929f47928eb6e"
+    "sha256": "35cfd40f0be6f2c3c12784373daf5540ada6271b335da62a652f5c409950d92f"
   },
   {
     "path": "server/pay-funding-preflight.mjs",
@@ -153,7 +153,7 @@
   },
   {
     "path": "server/pay-readonly.mjs",
-    "sha256": "3ac389f7f8258a8cc0f9b60a588d66e12a0f9ba6fd4e19b6c8fbabba8f63800d"
+    "sha256": "94039e6b55d5465cbb0df14e1df78abe3ce1a6254cbd6381dcbe3e6fe9bd7f3d"
   },
   {
     "path": "server/pay-sandbox.mjs",
@@ -285,7 +285,7 @@
   },
   {
     "path": "tests/hosted-live.test.mjs",
-    "sha256": "f708da185b2a1bf2175d71b7a39b0b177e223daeb3f3bee3acdac91d11b45a10"
+    "sha256": "b1d3c56ab0ecf211c1419543b9b864c4f5bfdd936e0a4dfd398e6bbaf194f39b"
   },
   {
     "path": "tests/hosted-peer-connection.test.mjs",
@@ -301,7 +301,7 @@
   },
   {
     "path": "tests/live-funding.test.mjs",
-    "sha256": "426b60df417b3f6ef7f6b9e83c1289b7afee8ddc041081b3ea71ce3b6d29340f"
+    "sha256": "5acc3326c8cca2e94eed9dab264371eb0590998f396b629d0f8133809e88faec"
   },
   {
     "path": "tests/live.test.mjs",
@@ -313,7 +313,7 @@
   },
   {
     "path": "tests/pay-payin.test.mjs",
-    "sha256": "c96010d0d9261b16124ca588c2e80ca216f62dd49937de6a75b2935c677e57fc"
+    "sha256": "09979c6eeb43d42d95c77f6f1a3dce2f45c8d4ba9f0324d67282b13450e62bad"
   },
   {
     "path": "tests/pay-verification.test.mjs",
@@ -358,6 +358,10 @@
   {
     "path": "scripts/export-deployment.mjs",
     "sha256": "e759a0c1f1752bdc19af9abff884132ea42338739cf1e043e46eb6e57a8474bd"
+  },
+  {
+    "path": "scripts/reconcile-live-order.mjs",
+    "sha256": "188ba995de795d48ae7cb4b011f7b8c7c23f0b3c0f414119cab4b5e72f9734ed"
   },
   {
     "path": "scripts/revolut-test-operator.mjs",
@@ -405,14 +409,10 @@
   },
   {
     "path": "DEPLOYMENT.md",
-    "sha256": "6ff8706e593adfae4a9f3e6280994450c13b958bbd8870448ba78682243fb87b"
+    "sha256": "45eba51326f870169716e783c01087d54ee43c5b0da408e40fe0485bd950a661"
   },
   {
     "path": ".github/workflows/verify.yml",
     "sha256": "7b06a4a5fd36757385bb20c4dad58214085b4daa2a767dd71528731862062f39"
-  },
-  {
-    "path": "scripts/reconcile-live-order.mjs",
-    "sha256": "188ba995de795d48ae7cb4b011f7b8c7c23f0b3c0f414119cab4b5e72f9734ed"
   }
 ]

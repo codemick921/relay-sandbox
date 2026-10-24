@@ -12,6 +12,7 @@ import {createLiveCheckoutWriter} from '../server/pay-live-create.mjs';
 import {createLiveReadService} from '../server/pay-readonly.mjs';
 import {verifyWebhook} from '../server/pay-webhooks.mjs';
 import {createHostedServer} from '../hosted/server.mjs';
+import {prepareLiveObservation} from '../hosted/live-observation.mjs';
 import {remote,payment,receipt,rpc} from './fixtures/live-evidence.mjs';
 const password='funding fixture river meadow lantern';
 const envelope=data=>new Response(JSON.stringify({success:true,responseObject:data}));
@@ -82,4 +83,55 @@ test('validated duplicate provider IDs cannot bind across customers or erase the
 test('live creation validates the complete returned payment contract before exposing the checkout',async()=>{const id=randomUUID(),local={id,merchantId:'merchant',source:'live',agent:{id:randomUUID(),name:'Agent',address:remote().destinationAddress,network:'Base',token:'USDC'},quote:{pence:2500,platform:'wise'}},base=orderFor(id);
  const changes=[{merchantId:'other'},{requestedFiat:{amount:'26',currency:'GBP'}},{requestedFiat:{amount:'25',currency:'EUR'}},{enabledRails:['wise','revolut']},{feePayer:'BUYER'},{destinationChainId:'1'},{destinationToken:'USDT'},{destinationAddress:'0x2222222222222222222222222222222222222222'},{notes:{relayOrderId:randomUUID()}},{amountMode:'OPEN'},{dynamicOrdersEnabled:true},{successUrl:'https://evil.example'},{requestedUsdcAmount:'0'},{requestedUsdcAmount:'10001'},{buyerFeeShareBps:1}];
  for(const change of changes){let posts=0;const writer=createLiveCheckoutWriter({apiKey:'fixture',merchantId:'merchant',authorise:()=>true,fetcher:async(url,opts)=>{if(url.endsWith('/me'))return envelope({id:'merchant',environment:'LIVE',merchantConfig:{enabledRails:['wise']}});posts++;return envelope({order:{...base,...change},orderToken:'hidden'});}});await assert.rejects(writer.create(local,'https://relay.example'));assert.equal(posts,1);}
+});
+
+
+test('automatic hosted tracking retries convergence, survives restart and updates customer receipt without refresh or review',async()=>{
+ const f=await setup();let observation,server;try{
+  const {id}=await draft(f);let phase='empty',orderReads=0,posts=0;
+  const p={...payment(),currency:'USD',paymentAmount:'12.50',penalties:[{kind:'CROSS_CURRENCY',penaltyBps:300,originalAmount:'12.50',attestedAmount:'12.12'}]};
+  const provider={...orderFor(id),remainingUsdcAmount:'0.02'};
+  const fetcher=async(url,options)=>{
+   if(options.method==='POST'){posts++;return envelope({order:{...provider,status:'CREATED'},orderToken:'fixture-private-token'});}
+   assert.equal(options.method,'GET');
+   if(url.endsWith('/me'))return envelope({id:'merchant',environment:'LIVE',merchantConfig:{enabledRails:['wise']}});
+   if(url.endsWith('/payments'))return envelope({payments:['empty','lag'].includes(phase)?[]:[p]});
+   orderReads++;
+   return envelope({merchant:{id:'merchant',environment:'LIVE'},order:phase==='snapshot'&&orderReads%2===1?{...provider,status:'PARTIALLY_FULFILLED'}:provider,currentPayment:phase==='empty'?null:p});
+  };
+  await service(f,fetcher).start(f.owner,{id,confirm:true,consent:true});assert.equal(posts,1);
+  const chain=rpc({getBlock:async({blockTag})=>blockTag==='finalized'&&phase==='finality'?null:({hash:receipt(p).blockHash,number:blockTag==='finalized'&&phase!=='final'?119n:120n}),getTransactionReceipt:async()=>{if(phase==='missing')throw {name:'TransactionReceiptNotFoundError'};return receipt(p);}});
+  const prepare=()=>prepareLiveObservation({pool:f.pool,base:f.store,drafts:f.drafts,connection:{environment:'LIVE',mode:'receive_only',merchantId:'merchant',apiKey:'fixture'},fetcher,rpc:chain});
+  observation=await prepare();
+  // A signed fulfilment hint starts the work; no customer refresh or resolution API is used.
+  const raw=Buffer.from(JSON.stringify({id:'automatic-event',type:'ORDER_FULFILLED',data:{order:provider}})),timestamp=String(Math.floor(Date.now()/1000));
+  const headers={'x-webhook-id':'automatic-delivery','x-webhook-timestamp':timestamp,'x-webhook-signature':createHmac('sha256','fixture-secret').update(timestamp+'.').update(raw).digest('hex')};
+  const hint=verifyWebhook(raw,headers,{secret:'fixture-secret',merchantId:'merchant',environment:'LIVE'});
+  await observation.store.accept(hint);assert.equal((await observation.store.accept(hint)).duplicate,true);
+  server=createHostedServer({store:f.store,config:{origin:'https://relay.example',host:'relay.example',testers:[]},fundingDrafts:f.drafts,liveObservation:observation,paymentsDisabled:true,allowHttpForTests:true});
+  await new Promise(r=>server.listen(0,'127.0.0.1',r));
+  const get=route=>new Promise((resolve,reject)=>{http.get({hostname:'127.0.0.1',port:server.address().port,path:route,headers:{host:'relay.example',cookie:'__Host-relay_sandbox='+f.account.token}},res=>{let b='';res.on('data',x=>b+=x);res.on('end',()=>resolve({status:res.statusCode,data:JSON.parse(b)}));}).on('error',reject);});
+  await observation.start();
+  // More than five normal waits must not trip the outage circuit breaker.
+  for(const step of ['empty','empty','lag','lag','snapshot','finality','missing','confirming','final']){
+   phase=step;orderReads=0;
+   if(step==='confirming'){await observation.stop();observation=await prepare();}
+   await f.pool.query('UPDATE relay_live_orders SET next_check_at=now() WHERE id=$1',[id]);
+   await observation.tick();
+   const state=(await get('/api/state')).data,o=state.orders.find(o=>o.id===id);
+   assert.equal(o.reviewRequired,false,step);assert.equal(state.orders.length,1);
+   if(['empty','lag','snapshot','finality'].includes(step)){
+    assert.equal(o.status,'checkout_ready',step);assert.equal(o.delivery,undefined);
+    const r=(await f.pool.query('SELECT attempts,extract(epoch FROM(next_check_at-now())) AS delay FROM relay_live_orders WHERE id=$1',[id])).rows[0];
+    assert.equal(r.attempts,0);assert.ok(Number(r.delay)>0&&Number(r.delay)<=15);
+   }else assert.equal(o.status,step==='missing'?'checkout_settled':step==='confirming'?'checkout_confirming':'checkout_received');
+   const exported=await get('/api/wallet-tracking/orders/'+id+'/receipt');
+   assert.equal(exported.status,step==='final'?200:409,step);
+   if(step==='final'){assert.equal(exported.data.delivery.amountRaw,'12000000');assert.equal(exported.data.delivery.recipient,f.agent.address);assert.equal(exported.data.delivery.finalized,true);assert.equal(exported.data.payIn.settlement.currency,'USD');}
+  }
+  assert.equal((await f.drafts.list(f.owner))[0].status,'closed');assert.equal(posts,1);
+  assert.equal((await f.pool.query('SELECT * FROM relay_live_payments')).rows.length,1);
+  assert.equal((await f.pool.query("SELECT * FROM relay_live_audit WHERE event IN ('review_required','operator_review_resolved')")).rows.length,0);
+  assert.equal((await f.pool.query('SELECT * FROM relay_live_webhooks WHERE processed_at IS NULL')).rows.length,0);
+ }finally{await observation?.stop();if(server)await new Promise(r=>server.close(r));await f.close();}
 });

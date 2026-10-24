@@ -1,6 +1,6 @@
 import {InputError} from './validation.mjs';
 import {validateCheckout,sameUsdc} from './pay-contract.mjs';
-import {verifyPayDelivery} from './pay-delivery.mjs';
+import {verifyPayDelivery,EvidencePendingError} from './pay-delivery.mjs';
 import {observePeerPayIn,payInSnapshotKey} from './pay-payin.mjs';
 import {recipientHash} from './revolut-replacement-read.mjs';
 
@@ -32,15 +32,16 @@ export function createLiveReadService({apiKey,merchantId,rpc,fetcher=fetch}){
     // Conservatively hold bounded or explicitly paginated histories for review.
     if(!Array.isArray(history.payments)||history.payments.length>=100||history.hasMore||history.nextCursor||history.nextPage||history.pagination?.hasMore||history.pagination?.nextCursor||
       (history.totalCount!==undefined&&history.totalCount!==history.payments.length))throw new TrackingReviewError('The payment history is incomplete or exceeds the supported limit.');
-    if(aggregate.currentPayment&&!history.payments.some(p=>p.id===aggregate.currentPayment.id&&p.status===aggregate.currentPayment.status))throw Error('Payment reads have not converged.');
+    if(aggregate.currentPayment&&!history.payments.some(p=>p.id===aggregate.currentPayment.id&&p.status===aggregate.currentPayment.status))throw new EvidencePendingError('Payment reads have not converged.');
     const latest=await read('/orders/'+encodeURIComponent(order.providerOrderId));
+    if(payInSnapshotKey(aggregate)!==payInSnapshotKey(latest))throw new EvidencePendingError('Payment changed during verification.');
     const payIn=observePeerPayIn(order,aggregate,history.payments,{consistent:payInSnapshotKey(aggregate)===payInSnapshotKey(latest)});
     if(payInSnapshotKey(aggregate)===payInSnapshotKey(latest)&&aggregate.currentPayment?.rail==='revolut'&&aggregate.currentPayment.status==='CREATED')payIn.recipientHash=recipientHash(aggregate.currentPayment.payTo);
     const result=await verifyPayDelivery(order,aggregate.order,history.payments,{rpc});
     if(!['NONE','PARTIALLY_CHARGEBACKED','CHARGEBACKED'].includes(aggregate.order.chargebackStatus))throw new TrackingReviewError('Unknown dispute state.');
     return {...result,verification:{...result.verification,payIn},checkedAt:result.verification.checkedAt,providerStatus:aggregate.order.status,chargebackStatus:aggregate.order.chargebackStatus};
    }catch(e){
-    if(e instanceof TrackingReviewError)throw e;
+    if(e instanceof TrackingReviewError||e instanceof EvidencePendingError)throw e;
     if(e instanceof InputError)throw new TrackingReviewError('Payment or receipt evidence conflicts with the saved order.');
     // Do not persist provider bodies, URLs, credentials or transport error text.
     throw Error('Payment verification is temporarily unavailable.');

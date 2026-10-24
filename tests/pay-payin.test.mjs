@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 import {computeDisplayedFiatAmount} from '@zkp2p/pay-shared';
 import {observePeerPayIn,payInProjection} from '../server/pay-payin.mjs';
 import {createLiveReadService} from '../server/pay-readonly.mjs';
+import {EvidencePendingError} from '../server/pay-delivery.mjs';
 import {local,remote,payment,rpc} from './fixtures/live-evidence.mjs';
 const now=1792860000000;
 function sample(){
@@ -60,7 +61,7 @@ test('stored observations expire in presentation and cannot authorise via inject
 test('trusted reader connects actual fields using reads only and detects repricing between requests',async()=>{
  for(const change of [false,true]){const f=sample();f.p.quoteExpiresAt=new Date(Date.now()+60000).toISOString();f.h=[structuredClone(f.p)];let orderReads=0;const calls=[];
  const reader=createLiveReadService({apiKey:'fixture',merchantId:'merchant',rpc:rpc(),fetcher:async(url,opts)=>{assert.equal(opts.method,'GET');assert.equal(opts.redirect,'error');calls.push(url);let body;if(url.endsWith('/me'))body={id:'merchant',environment:'LIVE'};else if(url.endsWith('/payments'))body={payments:f.h};else {body=structuredClone(f.a);if(++orderReads===2&&change)body.order.remainingUsdcAmount='12.6';}return new Response(JSON.stringify({success:true,responseObject:body}));}});
- const result=await reader.refresh(f.l);assert.equal(result.verification.payIn.status,change?'snapshot_changed':'within_peer_limit');assert.equal(result.delivery,null);assert.equal(calls.length,4);
+ if(change)await assert.rejects(reader.refresh(f.l),EvidencePendingError);else{const result=await reader.refresh(f.l);assert.equal(result.verification.payIn.status,'within_peer_limit');assert.equal(result.delivery,null);}assert.equal(calls.length,4);
  }
 });
 
