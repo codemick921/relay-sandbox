@@ -46,6 +46,7 @@ export function CheckoutOrder({order,act,busy,error,onClose,paymentsDisabled=fal
  const sandbox=order.source==='sandbox',v=order.verification,done=order.status==='checkout_received'&&!sandbox;
  const receipts=v?.payments?.filter(p=>p.receipt)??[],settled=v?.payments?.filter(p=>p.status==='SETTLED')??[];
  return <Modal title={order.journey?'Your test funding order':order.fixture?'Example funding receipt':sandbox?'Your sandbox checkout':done?'Funds arrived in your agent wallet':v?.providerFulfilled?'Payment verified by Peer':'Your Peer Pay checkout'} onClose={onClose}>
+  {state.account&&open&&<button className="text-button" onClick={()=>open('payment-help',order.id)}>Payment help and downloadable record</button>}
   {order.fixture?<Notice>Example tracking screen · simulated evidence only. No real funds moved.</Notice>:sandbox?<Notice>Sandbox order. Completion here does not prove a real payment or agent-wallet balance.</Notice>:<Notice>Relay checks Peer’s payment record and the USDC transfer to your saved Base address.</Notice>}
   {paymentsDisabled&&!order.tracking&&<Notice>Saved sandbox history. Peer connections are paused; this order cannot be opened or refreshed.</Notice>}
   {children}

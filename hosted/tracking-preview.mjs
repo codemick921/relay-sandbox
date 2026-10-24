@@ -25,7 +25,9 @@ const pool=new pg.Pool({connectionString:database.href,options:`-c search_path=$
 try{
 const store=createStore(pool),tracking=createLiveStore(pool,{merchantId:'relay-fixture-only'});
 await store.migrate();await tracking.migrate();const journey=createFundingJourney({baseStore:store,store:tracking});await journey.migrate();
-const cases=[['alice','received','Research assistant'],['alice','confirming','Travel assistant'],['alice','partial','Shopping assistant'],['alice','review','Calendar assistant'],['bob','received','Bob’s private example']];
+const previewAccount=await createAccounts(store).signup({email:'ramp-preview@example.test',name:'Preview Customer',password:'preview lantern river meadow',acceptSandbox:true});
+const previewOwner=(await createAccounts(store).session(previewAccount.token)).owner;
+const cases=[['alice','received','Research assistant'],['alice','confirming','Travel assistant'],['alice','partial','Shopping assistant'],['alice','review','Calendar assistant'],['bob','received','Bob’s private example'],[previewOwner,'received','Preview agent'],[previewOwner,'confirming','Preview agent'],[previewOwner,'partial','Preview agent'],[previewOwner,'review','Preview agent']];
 const fixtures=new Map(),agents=new Map();
 for(const [i,[owner,stage,name]] of cases.entries()){
  const o={...local(),id:randomUUID(),merchantId:'relay-fixture-only',providerOrderId:'fixture-'+i,requestedUsdcAmount:'12.5',agent:{...local().agent,id:randomUUID(),name,network:'Base',token:'USDC'}};
@@ -34,7 +36,7 @@ for(const [i,[owner,stage,name]] of cases.entries()){
  const p={...payment(),id:'fixture-payment-'+i,orderId:o.providerOrderId,railIdentifier:'0x'+(i+1).toString(16).padStart(64,'0'),fulfillTransaction:'0x'+(i+11).toString(16).padStart(64,'0')};p.quote={...p.quote,intentHash:p.railIdentifier};
  fixtures.set(o.providerOrderId,{stage,p,checks:0});
 }
-const worker=createLiveWorker({store:journey.workerStore(),pay:{refresh:async o=>{
+const worker=createLiveWorker({store:journey.workerStore(),maxBatch:cases.length,pay:{refresh:async o=>{
  const dynamic=await journey.refresh(o);if(dynamic)return dynamic;
  const f=fixtures.get(o.providerOrderId);if(!f)throw Error('Unknown fixture');
  if(f.stage==='review'){
@@ -53,9 +55,6 @@ const origin=`http://127.0.0.1:${port}`,config={origin,host:new URL(origin).host
 const mail=createAccountMail(store,{enabled:true,preview:true,origin,deliver:async message=>({id:'local-'+message.id})});
 const fundingDrafts=createFundingDrafts(store);await fundingDrafts.migrate();
 const ramp=createRampSimulation(store);await ramp.migrate();
-const previewAccount=await createAccounts(store).signup({email:'ramp-preview@example.test',name:'Preview Customer',password:'preview lantern river meadow',acceptSandbox:true});
-const previewOwner=(await createAccounts(store).session(previewAccount.token)).owner;
-await store.addAgent(previewOwner,{id:randomUUID(),name:'Preview agent',address:'0x1111111111111111111111111111111111111111',network:'Base',token:'USDC'});
 const walletBalances=createWalletBalances(store,{simulated:true,rpc:{getChainId:async()=>8453,getBlock:async()=>({number:123n,timestamp:BigInt(Math.floor(Date.now()/1000))}),readContract:async()=>7250000n}});
 await walletBalances.migrate();await walletBalances.state(previewOwner);await walletBalances.tick();
 walletBalances.start();

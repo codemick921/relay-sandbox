@@ -1,3 +1,4 @@
+import {paymentRecords,renderRecord} from './payment-records.mjs';
 import {createAccountSecurity} from './account-security.mjs';
 import {createWalletBalances} from './wallet-balances.mjs';
 import {createReceiptRpc} from '../server/receipts.mjs';
@@ -88,7 +89,8 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
     const file=path.join(staticRoot,decoded==='/'?'index.html':decoded.slice(1));const data=await readFile(file);res.setHeader('Content-Type',({'.html':'text/html','.css':'text/css','.js':'text/javascript','.svg':'image/svg+xml'})[path.extname(file)]);return res.end(data);
    }
    const allowed=new Set(['/api/wallet-balances/preferences','/api/wallet-balances/refresh','/api/ramp-test/create','/api/ramp-test/advance','/api/revolut-test/checkout','/api/funding/drafts','/api/funding/cancel','/api/funding/stop','/api/funding/request-cancellation','/api/funding/checkout','/api/funding/resume','/api/funding/availability','/api/test-funding/quote','/api/test-funding/create','/api/test-funding/action','/api/agents/update','/api/account/security','/api/account/revokeSession','/api/account/rotateRecovery','/api/account/confirmRecovery','/api/account/signup','/api/account/login','/api/account/recover','/api/account/password','/api/account/requestVerification','/api/account/requestReset','/api/account/verifyEmail','/api/account/resetPassword','/api/account/emailPreview','/api/access','/api/login','/api/logout','/api/state','/api/agents','/api/checkouts','/api/checkout-resume','/api/checkout-refresh','/api/checkout-setup']);
-   if(!allowed.has(url.pathname))throw new InputError('Not found.',404);
+   const recordRoute=url.pathname==='/api/payment-records'||/^\/api\/payment-records\/[a-f0-9-]{36}\/download$/i.test(url.pathname);
+   if(!allowed.has(url.pathname)&&!recordRoute)throw new InputError('Not found.',404);
    if(req.headers['sec-fetch-site']==='cross-site')throw new InputError('Cross-site access blocked.',403);
    if(req.method==='POST'&&(req.headers.origin!==config.origin||!String(req.headers['content-type']).startsWith('application/json')))throw new InputError('Same-origin JSON required.',403);
    if(!['GET','POST'].includes(req.method))throw new InputError('Method not allowed.',405);
@@ -128,9 +130,23 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
    if(req.method==='GET'){
     await store.rate('read:'+owner,120,60);
     if(url.pathname==='/api/state')return send(res,200,{...await stateFor(owner),account:customer?.account??null});
+    if(recordRoute){
+     if(!customer)throw new InputError('Sign in to your customer account to view funding records.',403);
+     const records=paymentRecords(await stateFor(owner));
+     if(url.pathname==='/api/payment-records')return send(res,200,{records});
+     const record=records.find(r=>r.id===url.pathname.split('/')[3]);
+     if(!record)throw new InputError('Funding record not found.',404);
+     const format=url.searchParams.get('format');
+     if(!['html','csv'].includes(format))throw new InputError('Choose HTML or CSV.');
+     res.setHeader('Content-Type',format==='html'?'text/html; charset=utf-8':'text/csv; charset=utf-8');
+     res.setHeader('Content-Disposition',`attachment; filename="relay-${record.simulated?'simulated-':''}${record.document}-${record.id}.${format}"`);
+     return res.end(renderRecord(record,format));
+    }
+
     if(url.pathname==='/api/checkout-setup')return send(res,200,paymentsDisabled?{ready:false,reason:'Payments and external provider connections are disabled.'}:await pay.readiness());
     throw new InputError('Not found.',404);
    }
+   if(recordRoute)throw new InputError('Method not allowed.',405);
    await store.rate('mutation:'+owner,30,60);
    if(url.pathname.startsWith('/api/wallet-balances/')){
     if(!customer||!walletBalances)throw new InputError('Customer wallet monitoring is unavailable.',403);

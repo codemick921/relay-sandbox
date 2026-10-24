@@ -131,3 +131,8 @@ Schema version 4 is additive. It preserves existing accounts/sessions and adds s
 Validation: 178 offline tests pass against disposable PostgreSQL on the portable drive, with no skips. Browser checks cover session revocation, password rejection/acceptance for a synthetic wallet edit, persisted destination after reload, and a mobile security layout without horizontal overflow. Recovery-code rotation and race conditions are covered by backend tests. No real customer account was modified. See `development/2026-10-24-account-security/action-log.md`.
 
 For this task, large test data, release output and logs use `/Volumes/WD Elements 1TB/Relay/`. The development evidence directory and old disposable database path are verified symlinks to that drive; it must remain connected for these local resources. Production hosting is unaffected. Browser screenshots briefly use private temporary files before being copied to the drive because the browser file API cannot write there directly. Existing app source stays at its established workspace path; the prepared release copy and its build output are on the portable drive.
+
+
+### Account-security deployment confirmed
+
+The account-security release was deployed on 24 October 2026 as `7af3e435de0d2b0ba30892e058b56ae129f8dafa` (Render `dep-dbej1mnavr4c73b365kg`). All live payment flags remained unchanged. GitHub passed 178 tests and build; existing-session, recovery-checklist and protected-wallet-editor screens were verified in production without changing customer details. Full evidence and the current deployment checkout are under `/Volumes/WD Elements 1TB/Relay/development/2026-10-24-account-security/render-deployment/`. Earlier local-only entries are historical.
