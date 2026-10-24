@@ -8,30 +8,46 @@ export function microUsdc(value){
  return parseUnits(value,6);
 }
 const issue=message=>{throw new InputError(message,502);};
+// Settlement observations do not authorise a new payment or change its GBP request.
+export function settlementAdjustments(rows){
+ if(!Array.isArray(rows)||rows.length>1)issue('Unsupported settlement adjustments.');
+ return rows.map(p=>{
+  if(p.kind!=='CROSS_CURRENCY'||!Number.isInteger(p.penaltyBps)||p.penaltyBps<0||p.penaltyBps>10000||
+    typeof p.originalAmount!=='string'||!/^\d{1,9}\.\d{2}$/.test(p.originalAmount)||
+    typeof p.attestedAmount!=='string'||!/^\d{1,9}\.\d{2}$/.test(p.attestedAmount)||
+    microUsdc(p.originalAmount)<=0n||microUsdc(p.attestedAmount)<=0n||microUsdc(p.attestedAmount)>microUsdc(p.originalAmount))issue('Unsupported settlement adjustments.');
+  return {kind:p.kind,penaltyBps:p.penaltyBps,originalAmount:p.originalAmount,attestedAmount:p.attestedAmount};
+ });
+}
 export function paymentSnapshot(local,remote,rows){
  if(!Array.isArray(rows)||rows.length>100)issue('Peer payment history is incomplete or too large to verify.');
  const ids=new Set(),intents=new Set();
  const payments=rows.map(p=>{
-  if(!id(p.id)||ids.has(p.id)||p.orderId!==local.providerOrderId||!['wise','revolut'].includes(local.quote.platform)||p.rail!==local.quote.platform||p.currency!=='GBP'||!['CREATED','SETTLED','FAILED','EXPIRED','CANCELLED'].includes(p.status))issue('Peer payment history does not match this order.');
+  if(!id(p.id)||ids.has(p.id)||p.orderId!==local.providerOrderId||!['wise','revolut'].includes(local.quote.platform)||p.rail!==local.quote.platform||!['GBP','USD','EUR'].includes(p.currency)||!['CREATED','SETTLED','FAILED','EXPIRED','CANCELLED'].includes(p.status))issue('Peer payment history does not match this order.');
   ids.add(p.id);
   if(!['NONE','CHARGEBACKED'].includes(p.chargebackStatus))issue('Peer returned an unknown chargeback state.');
-  const item={id:p.id,status:p.status,chargebackStatus:p.chargebackStatus};
+  const item={id:p.id,status:p.status,chargebackStatus:p.chargebackStatus,currency:p.currency};
   if(p.status!=='SETTLED')return item;
+  const adjustments=settlementAdjustments(p.penalties);
   const net=microUsdc(p.netSettledUsdcAmount),fee=microUsdc(p.totalUsdcFeeAmount),signal=p.quote?.signalIntent;
   const intentHash=hash(p.railIdentifier),transactionHash=hash(p.fulfillTransaction);
   if(net<=0n||!signal||!same(signal.toAddress,local.agent.address)||signal.processorName!==local.quote.platform||
     (signal.orchestratorAddress&&!same(signal.orchestratorAddress,ORCHESTRATOR.address))||
     (signal.escrowAddress&&!same(signal.escrowAddress,ESCROW))||
     (p.quote.intentHash&&!same(p.quote.intentHash,intentHash))||!/^\d{1,16}$/.test(signal.amount)||BigInt(signal.amount)<net+fee||
-    !Array.isArray(p.penalties)||p.penalties.length!==0||intents.has(intentHash.toLowerCase()))issue('This payment uses an unsupported or inconsistent settlement route.');
+    intents.has(intentHash.toLowerCase()))issue('This payment uses an unsupported or inconsistent settlement route.');
   intents.add(intentHash.toLowerCase());
   const prior=local.verification?.payments?.find(x=>x.id===p.id&&x.intentHash);
   if(prior&&(!same(prior.intentHash,intentHash)||!same(prior.transactionHash,transactionHash)||prior.amountRaw!==String(net)))issue('A settled payment changed. Delivery needs reconciliation.');
-  return {...item,intentHash,transactionHash,amountRaw:String(net),feeRaw:String(fee)};
+  return {...item,intentHash,transactionHash,amountRaw:String(net),feeRaw:String(fee),adjustments};
  });
  // A truncated or stale history cannot erase a previously known settlement.
  for(const prior of local.verification?.payments??[])if(prior.status==='SETTLED'&&!payments.some(p=>p.id===prior.id&&p.status==='SETTLED'))issue('Peer settlement history is incomplete. Retry reconciliation.');
- if(remote.status==='FULFILLED'&&(microUsdc(remote.remainingUsdcAmount)!==0n||!payments.some(p=>p.status==='SETTLED')))issue('Peer fulfilment has no complete settlement evidence yet.');
+ // FULFILLED is Peer’s decision and may retain a rounding residual. Verify and
+ // display the actual net delivered, never equate it to the requested gross.
+ const remaining=microUsdc(remote.remainingUsdcAmount);
+ if(remaining>microUsdc(remote.requestedUsdcAmount))issue('Invalid remaining order amount.');
+ if(remote.status==='FULFILLED'&&!payments.some(p=>p.status==='SETTLED'))issue('Peer fulfilment has no complete settlement evidence yet.');
  return payments;
 }
 
@@ -62,6 +78,6 @@ export async function verifyPayDelivery(local,remote,rows,{rpc=chain,now=Date.no
  const status=complete?'checkout_received':settled.some(p=>p.deliveryStatus==='reverted')?'checkout_review':
   settled.some(p=>p.deliveryStatus==='confirming')?'checkout_confirming':settled.some(p=>p.deliveryStatus==='pending')?'checkout_settled':
   remote.status==='CANCELLED'?'checkout_cancelled':remote.status==='PARTIALLY_FULFILLED'||settled.length?'checkout_partial':'checkout_ready';
- return {status,verification:{environment:'LIVE',checkedAt:new Date(now).toISOString(),providerFulfilled:remote.status==='FULFILLED',expectedNetRaw:String(total),receivedRaw:String(arrived),payments},
+ return {status,verification:{environment:'LIVE',checkedAt:new Date(now).toISOString(),providerFulfilled:remote.status==='FULFILLED',providerRemainingRaw:String(microUsdc(remote.remainingUsdcAmount)),expectedNetRaw:String(total),receivedRaw:String(arrived),payments},
   delivery:complete?{chainId:8453,tokenAddress:TOKEN,recipient:local.agent.address,amountRaw:String(arrived),finalized:true,verifiedAt:new Date(now).toISOString(),receipts:settled.map(p=>p.receipt)}:null};
 }

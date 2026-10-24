@@ -220,3 +220,24 @@ test('tracking uses the real sign-in session, isolates owners, disables payments
   assert.throws(()=>createHostedServer({store,config:cfg,pay,tracking:{store:f.store,simulated:true},paymentsDisabled:true,localPreview:true}),/loopback HTTP/);
  }finally{if(server)await new Promise(r=>server.close(r));await f.close();}
 });
+
+test('review holds require explicit fresh finalised resolution and keep an audit trail',async()=>{
+ const f=await fixture();try{
+  const s=f.store,o=intent(),other=intent({providerOrderId:'other-peer'});await s.bindTrustedOrder('alice',o);await s.bindTrustedOrder('bob',other);
+  let claim=await s.claimNext({orderId:o.id});await s.fail(claim,{review:true});
+  claim=await s.claimNext({orderId:o.id});await s.apply(claim,await verified(o));
+  assert.equal((await s.state('alice')).orders[0].status,'checkout_review');
+  claim=await s.claimNext({orderId:o.id});
+  const result=await verified(o);
+  await assert.rejects(s.apply(claim,result,{resolveReviewReason:'short'}),/reason/);
+  await assert.rejects(s.apply(claim,{...result,checkedAt:new Date(0).toISOString()},{resolveReviewReason:'Reviewed currency parser correction'}),/fresh/);
+  await assert.rejects(s.apply(claim,{...result,chargebackStatus:'CHARGEBACKED'},{resolveReviewReason:'Reviewed currency parser correction'}),/chargeback/);
+  const pending=await verified(o,{chain:rpc({getBlock:async({blockTag})=>({hash:receipt().blockHash,number:blockTag==='finalized'?119n:120n})})});
+  await assert.rejects(s.apply(claim,pending,{resolveReviewReason:'Reviewed currency parser correction'}),/finalised/);
+  assert.equal(await s.apply(claim,result,{resolveReviewReason:'Reviewed currency parser correction'}),true);
+  const resolved=(await s.state('alice')).orders[0];assert.equal(resolved.reviewRequired,false);assert.equal(resolved.status,'checkout_received');
+  assert.equal((await s.state('bob')).orders[0].status,'checkout_ready');
+  assert.equal((await s.query("SELECT * FROM relay_live_audit WHERE order_id=$1 AND event='operator_review_resolved'",[o.id])).rows.length,1);
+  assert.equal(await s.apply(claim,result,{resolveReviewReason:'Duplicate retry must not apply'}),false);
+ }finally{await f.close();}
+});

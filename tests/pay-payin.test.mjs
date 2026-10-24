@@ -45,7 +45,7 @@ test('multiple attempts and changed selected quotes stay held across subsequent 
 
 test('actual fiat payment, settlement fee and net USDC remain distinct, including zero-fee and overpayment',()=>{
  const f=sample();editPayment(f,p=>{p.status='SETTLED';p.paymentAmount='10.00';p.netSettledUsdcAmount='11.88125';p.totalUsdcFeeAmount='0.61875';});f.a.order.remainingUsdcAmount='0';
- let v=evaluate(f);assert.equal(v.status,'settled_observation');assert.deepEqual(v.settlement,{paidPence:'1000',netUsdcRaw:'11881250',feeUsdcRaw:'618750',feeExcludesSpread:true});assert.equal(v.allInLimitVerified,false);
+ let v=evaluate(f);assert.equal(v.status,'settled_observation');assert.deepEqual(v.settlement,{paidPence:'1000',paymentAmount:'10.00',currency:'GBP',adjustments:[],netUsdcRaw:'11881250',feeUsdcRaw:'618750',feeExcludesSpread:true});assert.equal(v.allInLimitVerified,false);
  editPayment(f,p=>p.paymentAmount='10.01');assert.equal(evaluate(f).status,'over_limit');
  editPayment(f,p=>p.paymentAmount='0');assert.equal(evaluate(f).status,'malformed_amount');
  editPayment(f,p=>{p.paymentAmount='10';p.totalUsdcFeeAmount='0';});assert.equal(evaluate(f).settlement.feeUsdcRaw,'0');
@@ -62,4 +62,10 @@ test('trusted reader connects actual fields using reads only and detects reprici
  const reader=createLiveReadService({apiKey:'fixture',merchantId:'merchant',rpc:rpc(),fetcher:async(url,opts)=>{assert.equal(opts.method,'GET');assert.equal(opts.redirect,'error');calls.push(url);let body;if(url.endsWith('/me'))body={id:'merchant',environment:'LIVE'};else if(url.endsWith('/payments'))body={payments:f.h};else {body=structuredClone(f.a);if(++orderReads===2&&change)body.order.remainingUsdcAmount='12.6';}return new Response(JSON.stringify({success:true,responseObject:body}));}});
  const result=await reader.refresh(f.l);assert.equal(result.verification.payIn.status,change?'snapshot_changed':'within_peer_limit');assert.equal(result.delivery,null);assert.equal(calls.length,4);
  }
+});
+
+test('foreign-currency settlement is observed without relabelling it GBP or authorising another debit',()=>{
+ const f=sample();editPayment(f,p=>{p.status='SETTLED';p.currency='USD';p.paymentAmount='6.67';p.netSettledUsdcAmount='5.93259';p.totalUsdcFeeAmount='0.308955';p.penalties=[{kind:'CROSS_CURRENCY',penaltyBps:300,originalAmount:'6.67',attestedAmount:'6.46'}];});
+ f.a.order.status='FULFILLED';f.a.order.remainingUsdcAmount='0.02';
+ const v=evaluate(f);assert.equal(v.status,'settled_other_currency');assert.equal(v.totalPence,null);assert.equal(v.settlement.paidPence,null);assert.equal(v.settlement.currency,'USD');assert.equal(v.settlement.paymentAmount,'6.67');assert.equal(v.settlement.netUsdcRaw,'5932590');assert.equal(v.settlement.feeUsdcRaw,'308955');assert.equal(v.paymentAuthorised,false);assert.equal(v.allInLimitVerified,false);
 });

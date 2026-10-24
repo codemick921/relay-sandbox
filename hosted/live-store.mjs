@@ -73,13 +73,19 @@ export function createLiveStore(pool,{merchantId}={}){
   owned:(owner,id)=>owned(pool,owner,id),
   async state(owner){const orders=await query('SELECT * FROM relay_live_orders WHERE owner=$1 AND merchant_id=$2 ORDER BY created_at DESC LIMIT 100',[owner,merchantId]);return {orders:orders.rows.map(liveOrderView)};},
   async schedule(owner,id){await owned(pool,owner,id);await query('UPDATE relay_live_orders SET next_check_at=now() WHERE id=$1 AND owner=$2 AND merchant_id=$3',[id,owner,merchantId]);},
-  async claimNext(){return tx(async c=>{
-   const row=(await c.query(`SELECT * FROM relay_live_orders WHERE merchant_id=$1 AND next_check_at<=now() AND (lease_until IS NULL OR lease_until<now()) ORDER BY next_check_at,created_at FOR UPDATE SKIP LOCKED LIMIT 1`,[merchantId])).rows[0];
+  async claimNext({orderId}={}){
+   if(orderId!==undefined&&!uuid(orderId))throw new InputError('Invalid order ID.');
+   return tx(async c=>{
+   const row=(await c.query(`SELECT * FROM relay_live_orders WHERE merchant_id=$1 AND (($2::uuid IS NULL AND next_check_at<=now()) OR id=$2::uuid) AND (lease_until IS NULL OR lease_until<now()) ORDER BY next_check_at,created_at FOR UPDATE SKIP LOCKED LIMIT 1`,[merchantId,orderId??null])).rows[0];
    return row?(await c.query(`UPDATE relay_live_orders SET generation=generation+1,lease_token=$2,lease_until=now()+interval '60 seconds',claimed_at=clock_timestamp(),claimed_event_ids=ARRAY(SELECT event_id FROM relay_live_webhooks WHERE merchant_id=$3 AND provider_id=$4 AND processed_at IS NULL ORDER BY received_at LIMIT 1000) WHERE id=$1 RETURNING *`,[row.id,randomUUID(),merchantId,row.provider_id])).rows[0]:null;
   });},
-  async apply(claim,update){return tx(async c=>{
+  async apply(claim,update,{resolveReviewReason}={}){return tx(async c=>{
    const row=await current(c,claim);if(!row)return false;
    const order=liveOrderView(row),result=checkedResult(order,update);
+   if(resolveReviewReason!==undefined){
+    check(row.review_required&&typeof resolveReviewReason==='string'&&resolveReviewReason.trim().length>=12&&resolveReviewReason.length<=500,'An existing review and operator reason are required.');
+    check(result.status==='checkout_received'&&result.delivery?.finalized===true&&result.chargebackStatus==='NONE'&&Math.abs(Date.now()-Date.parse(result.checkedAt))<60000,'Review resolution requires fresh finalised evidence without a chargeback.');
+   }
    // Retain the original settlement bindings even if a later API history is stale.
    for(const prior of row.result.verification?.payments??[]){if(prior.status!=='SETTLED')continue;
     const next=result.verification.payments.find(p=>p.id===prior.id&&p.status==='SETTLED');
@@ -103,7 +109,12 @@ export function createLiveStore(pool,{merchantId}={}){
    const pending=(await c.query('SELECT 1 FROM relay_live_webhooks WHERE merchant_id=$1 AND provider_id=$2 AND processed_at IS NULL LIMIT 1',[merchantId,row.provider_id])).rows.length>0;
    // Review holds require an explicit operator resolution; successful polling alone
    // cannot erase a collision or conflicting finalised history.
-   const status=row.review_required?'checkout_review':result.status;
+   const resolving=resolveReviewReason!==undefined;
+   const status=row.review_required&&!resolving?'checkout_review':result.status;
+   if(resolving){
+    await c.query('UPDATE relay_live_orders SET review_required=false WHERE id=$1',[row.id]);
+    await c.query("INSERT INTO relay_live_audit(order_id,event,data) VALUES($1,'operator_review_resolved',$2)",[row.id,{reason:resolveReviewReason,previousStatus:row.status,receivedRaw:result.verification.receivedRaw,transactions:result.delivery.receipts.map(r=>r.transactionHash)}]);
+   }
    const previousPayIn=row.result.verification?.payIn,nextPayIn=result.verification.payIn;
    if(nextPayIn&&(previousPayIn?.quoteFingerprint!==nextPayIn.quoteFingerprint||previousPayIn?.status!==nextPayIn.status||JSON.stringify(previousPayIn?.settlement)!==JSON.stringify(nextPayIn.settlement)))await c.query("INSERT INTO relay_live_audit(order_id,event,data) VALUES($1,'payin_observed',$2)",[row.id,nextPayIn]);
    await c.query(`UPDATE relay_live_orders SET result=$2,status=$3,generation=generation+1,lease_token=NULL,lease_until=NULL,attempts=0,next_check_at=now()+$4*interval '1 second',updated_at=now() WHERE id=$1`,[row.id,result,status,pending?0:status==='checkout_received'||status==='checkout_cancelled'||row.review_required?3600:30]);

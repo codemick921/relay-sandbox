@@ -49,7 +49,7 @@
   },
   {
     "path": "hosted/live-store.mjs",
-    "sha256": "6dc85d0f86757033cdd55c79c896ed39c1d717a02177de49789755e8ed7d4c62"
+    "sha256": "8d6f60fadfc4652adfa03e526410fc71098fc8de6607454bd730e0342832dbde"
   },
   {
     "path": "hosted/live-worker.mjs",
@@ -137,7 +137,7 @@
   },
   {
     "path": "server/pay-delivery.mjs",
-    "sha256": "15d39fcf80fff10bdaa906fa80901bb78445a555cbf3f271d760a7157c0294fb"
+    "sha256": "a9d21015d22e496e3b72b6c9198ba1b4a4ea902bd1b566c6e59929f47928eb6e"
   },
   {
     "path": "server/pay-funding-preflight.mjs",
@@ -149,7 +149,7 @@
   },
   {
     "path": "server/pay-payin.mjs",
-    "sha256": "b103ebce703ef7d734130c932b80187ae8c15ddc7483930f1f407814bc147921"
+    "sha256": "51e8c3c51f6747b3257f11d8117562669868dc2b06a8415538439ef7d00c6d51"
   },
   {
     "path": "server/pay-readonly.mjs",
@@ -229,7 +229,7 @@
   },
   {
     "path": "src/SimpleFunding.jsx",
-    "sha256": "a52acb3604103b5edbd3a8d7684c10ea3a2eac2dcbd903c07540cd9c31760d7a"
+    "sha256": "b403ab502147428bd7e7990b54cbdf743dd78ac5d5915981801baaac4a7b1e7f"
   },
   {
     "path": "src/TestFunding.jsx",
@@ -285,7 +285,7 @@
   },
   {
     "path": "tests/hosted-live.test.mjs",
-    "sha256": "cd13646eccbd94ad4d1fc0211b0b59f8aeadcbe4c0a75e7af61d38940262f786"
+    "sha256": "f708da185b2a1bf2175d71b7a39b0b177e223daeb3f3bee3acdac91d11b45a10"
   },
   {
     "path": "tests/hosted-peer-connection.test.mjs",
@@ -313,11 +313,11 @@
   },
   {
     "path": "tests/pay-payin.test.mjs",
-    "sha256": "0c0ed6cab8fba12eb893e32a840f9fb013168ce1a311963b1b9a58bfc727b1c8"
+    "sha256": "c96010d0d9261b16124ca588c2e80ca216f62dd49937de6a75b2935c677e57fc"
   },
   {
     "path": "tests/pay-verification.test.mjs",
-    "sha256": "034bdfe068d82fcbafe7ac8677d06468d07a305333aef2055d9155e0fe4c7c7e"
+    "sha256": "161c0dc0534b0e510598bf44430c88e3c441d4f2bd5393dab4272b78d5cc2a90"
   },
   {
     "path": "tests/pay.test.mjs",
@@ -405,10 +405,14 @@
   },
   {
     "path": "DEPLOYMENT.md",
-    "sha256": "f05c2d2c36553c97b1b53cc37225bbc01d0601a6ab020b7baebfc14941437936"
+    "sha256": "6ff8706e593adfae4a9f3e6280994450c13b958bbd8870448ba78682243fb87b"
   },
   {
     "path": ".github/workflows/verify.yml",
     "sha256": "7b06a4a5fd36757385bb20c4dad58214085b4daa2a767dd71528731862062f39"
+  },
+  {
+    "path": "scripts/reconcile-live-order.mjs",
+    "sha256": "188ba995de795d48ae7cb4b011f7b8c7c23f0b3c0f414119cab4b5e72f9734ed"
   }
 ]

@@ -149,3 +149,15 @@ test('failed durable inbox write returns retryable failure without marking a web
  try{const s=signed();const r=await fetch(`http://127.0.0.1:${server.address().port}/api/webhooks/peer/live`,{method:'POST',headers:{'Content-Type':'application/json',...s.headers},body:s.raw});assert.equal(r.status,500);assert.equal(server.webhookStats().pending,0);}
  finally{server.close();await once(server,'close');rmSync(dir,{recursive:true});}
 });
+
+test('completed foreign-currency settlement retains adjustments and residual without weakening receipt proof',async()=>{
+ const p={...payment(),currency:'USD',penalties:[{kind:'CROSS_CURRENCY',penaltyBps:300,originalAmount:'6.67',attestedAmount:'6.46'}]};
+ const r=await verifyPayDelivery(local(),{...remote(),remainingUsdcAmount:'0.02'},[p],{rpc:rpc()});
+ assert.equal(r.status,'checkout_received');assert.equal(r.verification.providerRemainingRaw,'20000');
+ assert.equal(r.verification.payments[0].currency,'USD');assert.equal(r.verification.payments[0].adjustments[0].penaltyBps,300);
+ assert.equal(r.delivery.amountRaw,'12000000');
+ for(const edit of [p=>p.penalties[0].kind='unknown',p=>p.penalties[0].attestedAmount='9.00',p=>p.penalties[0].penaltyBps=-1,p=>p.penalties[0].originalAmount='NaN',p=>p.currency='BAD',p=>p.quote.signalIntent.toAddress=other,p=>p.netSettledUsdcAmount='11']){
+  const bad=structuredClone(p);edit(bad);await assert.rejects(verifyPayDelivery(local(),remote(),[bad],{rpc:rpc()}));
+ }
+ await assert.rejects(verifyPayDelivery(local(),{...remote(),remainingUsdcAmount:'99'},[p],{rpc:rpc()}));
+});
