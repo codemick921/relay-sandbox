@@ -36,6 +36,14 @@ for(const [i,[owner,stage,name]] of cases.entries()){
  const p={...payment(),id:'fixture-payment-'+i,orderId:o.providerOrderId,railIdentifier:'0x'+(i+1).toString(16).padStart(64,'0'),fulfillTransaction:'0x'+(i+11).toString(16).padStart(64,'0')};p.quote={...p.quote,intentHash:p.railIdentifier};
  fixtures.set(o.providerOrderId,{stage,p,checks:0});
 }
+// Optional larger history fixture for pagination and older-record browser QA.
+const historyRows=Number(process.env.RELAY_PREVIEW_HISTORY_ROWS??0);
+if(!Number.isInteger(historyRows)||historyRows<0||historyRows>200)throw Error('Preview history rows must be between 0 and 200.');
+for(let i=0;i<historyRows;i++){
+ const o={...local(),id:randomUUID(),merchantId:'relay-fixture-only',providerOrderId:'history-fixture-'+i,requestedUsdcAmount:'12.5',agent:agents.get(previewOwner)};
+ await tracking.bindTrustedOrder(previewOwner,o);
+ await tracking.query("UPDATE relay_live_orders SET created_at=$2,next_check_at=now()+interval '10 years' WHERE id=$1",[o.id,new Date(Date.UTC(2026,8,1,0,i)).toISOString()]);
+}
 const worker=createLiveWorker({store:journey.workerStore(),maxBatch:cases.length,pay:{refresh:async o=>{
  const dynamic=await journey.refresh(o);if(dynamic)return dynamic;
  const f=fixtures.get(o.providerOrderId);if(!f)throw Error('Unknown fixture');

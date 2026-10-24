@@ -1,3 +1,4 @@
+import {createFundingHistoryReader} from './funding-history.mjs';
 import pg from 'pg';
 import {readFileSync} from 'node:fs';
 import {randomUUID,createHash} from 'node:crypto';
@@ -18,7 +19,7 @@ export function createStore(pool){
  async function tx(fn){const c=await pool.connect();try{await c.query('BEGIN');const value=await fn(c);await c.query('COMMIT');return value;}catch(e){await c.query('ROLLBACK').catch(()=>{});throw e;}finally{c.release();}}
  const owned=async(c,owner,id)=>{const r=await c.query('SELECT * FROM relay_orders WHERE id=$1 AND owner=$2',[id,owner]);if(!r.rows[0])throw new InputError('Order not found.',404);return r.rows[0];};
  return {
-  query,tx,
+  query,tx,fundingHistory:createFundingHistoryReader(pool),
   async migrate(){const c=await pool.connect();try{await c.query('SELECT pg_advisory_lock(431924)');await c.query('BEGIN');await c.query(readFileSync(new URL('./schema.sql',import.meta.url),'utf8'));await c.query('COMMIT');}catch(e){await c.query('ROLLBACK').catch(()=>{});throw e;}finally{await c.query('SELECT pg_advisory_unlock(431924)').catch(()=>{});c.release();}},
   async rate(key,limit,seconds){const r=await query(`INSERT INTO relay_rate_limits(key,count,reset_at) VALUES($1,1,now()+$2*interval '1 second') ON CONFLICT(key) DO UPDATE SET count=CASE WHEN relay_rate_limits.reset_at<=now() THEN 1 ELSE relay_rate_limits.count+1 END, reset_at=CASE WHEN relay_rate_limits.reset_at<=now() THEN now()+$2*interval '1 second' ELSE relay_rate_limits.reset_at END RETURNING count`,[key,seconds]);if(r.rows[0].count>limit)throw new InputError('Too many requests. Please try again later.',429);},
   async session(token,principals){if(!token||!/^[a-f0-9]{64}$/.test(token))return null;const r=await query(`UPDATE relay_sessions SET last_seen_at=now() WHERE token_hash=$1 AND NOT revoked AND expires_at>now() AND last_seen_at>now()-interval '2 hours' RETURNING owner,credential_hash`,[digest(token)]);const s=r.rows[0];return s&&principals.some(p=>p.label===s.owner&&p.sha256hex===s.credential_hash)?s.owner:null;},

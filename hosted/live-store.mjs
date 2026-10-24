@@ -58,7 +58,7 @@ export function createLiveStore(pool,{merchantId}={}){
  async function owned(c,owner,id){const r=await c.query('SELECT * FROM relay_live_orders WHERE id=$1 AND owner=$2 AND merchant_id=$3',[id,owner,merchantId]);if(!r.rows[0])throw new InputError('Order not found.',404);return r.rows[0];}
  const current=async(c,claim)=>{const r=(await c.query('SELECT * FROM relay_live_orders WHERE id=$1 AND merchant_id=$2 FOR UPDATE',[claim.id,merchantId])).rows[0];return r&&String(r.generation)===String(claim.generation)&&r.lease_token===claim.lease_token?r:null;};
  return {
-  query,tx,paymentHealth:createPaymentHealthReader(pool,merchantId),
+  query,tx,historyScope:Object.freeze({merchantId}),paymentHealth:createPaymentHealthReader(pool,merchantId),
   async migrate(){return tx(async c=>{await c.query('SELECT pg_advisory_xact_lock(431925)');await c.query(readFileSync(new URL('./live-schema.sql',import.meta.url),'utf8'));});},
   // SERVER-ONLY boundary for the future authorised checkout creation transaction.
   // Never expose this as arbitrary order import, webhook discovery or browser input.
