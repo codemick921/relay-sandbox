@@ -61,7 +61,7 @@ test('HTTP downloads enforce customer ownership, session revocation, same-origin
   assert.equal((await req(path,{token:null})).status,401);assert.equal((await req(path,{token:bob.token})).status,404);assert.equal((await req(path,{site:'cross-site'})).status,403);assert.equal((await req(path,{method:'POST'})).status,405);
   const list=await req('/api/payment-records');assert.equal(JSON.parse(list.body).records.length,1);assert.equal(JSON.parse((await req('/api/payment-records',{token:bob.token})).body).records.length,0);
   const downloaded=await req(path);assert.equal(downloaded.status,200);assert.equal(downloaded.headers['cache-control'],'no-store');assert.match(downloaded.headers['content-disposition'],/attachment; filename="relay-simulated-receipt-/);assert.match(downloaded.body,/12.000000/);
-  o={...o,reviewRequired:true};const changed=await req(path);assert.match(changed.headers['content-disposition'],/simulated-summary/);assert.match(changed.body,/needs review/);
+  o={...o,reviewRequired:true};const changed=await req(path);assert.match(changed.headers['content-disposition'],/simulated-summary/);assert.match(changed.body,/need review/);
   assert.equal((await req(path.replace('html','exe'))).status,400);assert.equal((await req('/healthz')).body.includes('"realPaymentsEnabled":false'),true);assert.equal(calls,0);
   await accounts.logout(alice.token);assert.equal((await req(path)).status,401);
  }finally{if(server)await new Promise(r=>server.close(r));await f.close();}

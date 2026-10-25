@@ -18,21 +18,21 @@ export default function PaymentRecovery({state,open,onClose,selectedId}){
   {r.simulated&&<Notice>These are example payment and wallet records. They do not confirm real funds.</Notice>}
   <section className="recovery-next"><h4>What to do next</h4><p>{r.next}</p></section>
   {r.stopped&&r.code!=='stopped'&&<Notice>This request was stopped in Relay. Its Peer checkout was not cancelled by that action. Do not pay the old checkout; late transfers remain tracked.</Notice>}
-  {(r.stale||r.trackingUnavailable)&&<Notice>Tracking is not up to date. The evidence below is from the last successful check. An unavailable check does not mean your payment failed.</Notice>}
+  {(r.stale||r.trackingUnavailable)&&<Notice>Tracking is not up to date. The details below are from the last successful check. An unavailable check does not mean your payment failed.</Notice>}
   <dl className="details recovery-facts">
    <div><dt>Last successful check</dt><dd>{when(r.checkedAt)}</dd></div>
-   <div><dt>Payment verification</dt><dd>{r.providerFulfilled?'Peer marked the order fulfilled':'Full payment not confirmed'}</dd></div>
-   <div><dt>Wallet delivery</dt><dd>{r.deliveryConfirmed?'Matching transfer finalised':r.confirmedUsdc!==null?'Some arrival evidence recorded · full receipt pending':'Complete arrival not confirmed'}</dd></div>
-   <div><dt>Fiat payment recorded by Peer</dt><dd>{r.recordedFiat??'Not available'}</dd></div>
-   <div><dt>Net settled</dt><dd>{value(r.netUsdc,'USDC')}</dd></div>
+   <div><dt>Payment verification</dt><dd>{r.providerFulfilled?'Peer marked the payment complete':'Full payment not confirmed'}</dd></div>
+   <div><dt>Wallet delivery</dt><dd>{r.deliveryConfirmed?'Funds arrived · confirmed on Base':r.confirmedUsdc!==null?'Some funds recorded · full arrival not yet confirmed':'Complete arrival not confirmed'}</dd></div>
+   <div><dt>Payment recorded by Peer</dt><dd>{r.recordedFiat??'Not available'}</dd></div>
+   <div><dt>USDC after Peer fees</dt><dd>{value(r.netUsdc,'USDC')}</dd></div>
    <div><dt>Arrival confirmed</dt><dd>{value(r.confirmedUsdc,'USDC')}</dd></div>
    <div><dt>Peer fees</dt><dd>{value(r.peerFeeUsdc,'USDC')}</dd></div>
    <div><dt>Receiving address</dt><dd><code>{r.address??'Not available'}</code><small>USDC on Base · saved for this request</small></dd></div>
    <div><dt>Relay request ID</dt><dd><code>{r.id}</code></dd></div>
    <div><dt>Peer order ID</dt><dd><code>{r.providerOrderId??'Not available'}</code></dd></div>
   </dl>
-  <p className="fine-print">The requested GBP amount is not proof of the amount paid. Bank or payment-app fees and the seller’s exchange-rate spread are not included in the Peer fee shown here.</p>
-  {r.receipts.length>0&&<section><h4>{r.simulated?'Example transfers':'Finalised transfers'}</h4>{r.receipts.map(t=><div className="recovery-transfer" key={t.transactionHash}><strong>{t.amountUsdc} USDC</strong><code>{t.transactionHash}</code>{!r.simulated&&<a href={`https://basescan.org/tx/${t.transactionHash}`} target="_blank" rel="noreferrer">View transfer on Base ↗</a>}</div>)}</section>}
+  <p className="fine-print">The requested GBP amount is not proof of the amount paid. The Peer fee shown here excludes bank or payment-app fees and any markup in the seller’s exchange rate.</p>
+  {r.receipts.length>0&&<section><h4>{r.simulated?'Example transfers':'Confirmed wallet transfers'}</h4>{r.receipts.map(t=><div className="recovery-transfer" key={t.transactionHash}><strong>{t.amountUsdc} USDC</strong><code>{t.transactionHash}</code>{!r.simulated&&<a href={`https://basescan.org/tx/${t.transactionHash}`} target="_blank" rel="noreferrer">View transfer on Base ↗</a>}</div>)}</section>}
   <section className="recovery-download"><h4>{r.document==='receipt'?'Download wallet receipt':'Download status summary'}</h4><p>{r.document==='receipt'?'Keep a record of the confirmed delivery, destination and known fees.':'A full wallet receipt is not yet available. You can save the current status and request details.'} {r.simulated?'Downloads are clearly marked as simulations.':'This record does not show the wallet’s current balance.'}</p><div className="recovery-actions"><Button secondary disabled={busy} onClick={()=>download(r,'html')}><Icon name="download"/>Download {r.document==='receipt'?'receipt':'summary'}</Button><Button secondary disabled={busy} onClick={()=>download(r,'csv')}>Download CSV</Button></div><p className="fine-print">The receipt or summary is an HTML file. Open it in a browser to print or save as PDF. Downloads contain your wallet address and payment details; share them only when needed.</p></section>
   {state.orders?.some(o=>o.id===r.id)||state.fundingDrafts?.some(d=>d.id===r.id)?<Button secondary onClick={()=>open(r.hasOrder?'order':'funding-draft',r.id)}>View existing request</Button>:<p className="fine-print">This older request is available as a saved record. Its checkout controls are not loaded here.</p>}
  </article>;

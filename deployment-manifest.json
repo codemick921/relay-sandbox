@@ -45,7 +45,7 @@
   },
   {
     "path": "hosted/funding-history.mjs",
-    "sha256": "8008fd4c8becab57f8f3dfd68331d4ff415be78a4095125b74c833d0e6b6eba5"
+    "sha256": "f3f395c278d0d842ccf65583bab90c01dfdcbee7b58fb6069a6a3b48cd7d5e25"
   },
   {
     "path": "hosted/funding-journey.mjs",
@@ -89,7 +89,7 @@
   },
   {
     "path": "hosted/payment-records.mjs",
-    "sha256": "8b59e78c29f6c6ce7c0f1146ca1c20493671542714f2651de292fd54625beae7"
+    "sha256": "387f73ca8e466822a4907b599741ebd764f2d0de00bf3157937a8706e0afb2b6"
   },
   {
     "path": "hosted/peer-connection.mjs",
@@ -253,7 +253,7 @@
   },
   {
     "path": "src/App.jsx",
-    "sha256": "655d8e2b7aff18c410c8883eec7c8aa110fd76141e3e426f87a97725cd23221e"
+    "sha256": "d1aea6e55bcd2eb7a07c042cfa66f0018b4b113d340bfbc3878a216236466c75"
   },
   {
     "path": "src/Funding.jsx",
@@ -261,23 +261,27 @@
   },
   {
     "path": "src/FundingCosts.jsx",
-    "sha256": "f11cb49a91cc323a567047ff46170519e075db692010ab8c3b004301cdbd93de"
+    "sha256": "f7db10f7e7985a3a4d485b950c6e1e1ee53222cbbc41de3cc2acfe51e2ad0629"
   },
   {
     "path": "src/FundingHistory.jsx",
-    "sha256": "848f160126aa5e27e29145842a1547439f61f7f83232cfb195f21baf8bd57e40"
+    "sha256": "b9686f12b50082dc985814f5493443514935e58113f66ce9d5b7d141c8fdcd89"
   },
   {
     "path": "src/FundingHome.jsx",
-    "sha256": "b5f4c65036edb486bb931c1c3752ef41ac6812d83f7a969b46a9001ce653fa94"
+    "sha256": "c37c1cfc86408b8121b16c33e9bc7991d4a700febbb2fd2e7e125e248122e3f2"
   },
   {
     "path": "src/FundingInstructions.jsx",
-    "sha256": "2c561ff09b1bdc2080649d9afea1e402ad889514fa5bb15ac93f1714da1ce3eb"
+    "sha256": "98a1c525a99343d3b622e8b6ea5f7670586ee42ccb34773245a560dbafa3eb79"
+  },
+  {
+    "path": "src/FundingTerms.jsx",
+    "sha256": "13138ec93fe3cb5c33fc4c6cefdc099d1f60dcf5ea527c2c3983f89aed9fd73a"
   },
   {
     "path": "src/LiveFunding.jsx",
-    "sha256": "a1a03c6e40796f85acb40c0d1adbafe73d09b3d3c008caa355d46b8bf2a683bc"
+    "sha256": "0a6fe567534dbd1bc23d0f6ae4120b3e978272bf2a4dd7d5f16aadf7cb86b2dc"
   },
   {
     "path": "src/LiveOrder.jsx",
@@ -289,7 +293,7 @@
   },
   {
     "path": "src/PaymentRecovery.jsx",
-    "sha256": "39b543dd81583627dd4c7656d91b2fad2041db863f71b02c0826a793b5234507"
+    "sha256": "43e4ac518715c3096a8df247006e38ea5112e89145a09ebaf5f7707da3697927"
   },
   {
     "path": "src/PhoneResume.jsx",
@@ -305,7 +309,7 @@
   },
   {
     "path": "src/SimpleFunding.jsx",
-    "sha256": "5ac376b3a6d956b8ffd285e406eb2000d57971d5e2670cf0e00c2a2ccd8cd0bf"
+    "sha256": "c1e85cc582a35967e5fb12e45a04eb3f3b99d238633ffee77fd0767417bab9e3"
   },
   {
     "path": "src/TestFunding.jsx",
@@ -313,11 +317,11 @@
   },
   {
     "path": "src/WalletDashboard.jsx",
-    "sha256": "e4d8b8f79643d203aa5f133803dce096e6e1db2531a688382afe1c033e41de23"
+    "sha256": "c24f445a9e3952afafe867492ff06b6bfeeb9427ea762a61e86781af6bd79f34"
   },
   {
     "path": "src/WalletEditor.jsx",
-    "sha256": "60d01d40ab8db1913202216722b770348ac75bf3916424e58f456177c5f04831"
+    "sha256": "e26d587e104ad52fa7270b45cce6cd39da3adb884ad8e944d7b771b4ed4dd740"
   },
   {
     "path": "src/api.js",
@@ -329,7 +333,7 @@
   },
   {
     "path": "src/funding-costs.mjs",
-    "sha256": "7816103e3d54d74382f3ccb7403f99d35f640398f7546f3da19e249ced43dea9"
+    "sha256": "48e1b22f574afcf58c5b1222592b13dc2f16ebf350200c9d5caedb7b08a57e86"
   },
   {
     "path": "src/funding-entry.mjs",
@@ -369,7 +373,7 @@
   },
   {
     "path": "src/styles.css",
-    "sha256": "5e4dd41f74ce610ffc82b8b6102e83e1bcb914d7c9dd5602b99ffe2d460f27ae"
+    "sha256": "9c8bbfc6aeddfad403a5d3efd773776c058dda46e434005b18ff731ae86a0f15"
   },
   {
     "path": "src/ui.jsx",
@@ -417,7 +421,7 @@
   },
   {
     "path": "tests/funding-costs.test.mjs",
-    "sha256": "f5628915b7fa7df31fd04994d0a396906ee13a10ba6720f35620a1ebb08d1207"
+    "sha256": "478967ee3817a00f7846e635161db58edbe01be9c50ab3dc4f7af559b8faf185"
   },
   {
     "path": "tests/funding-entry.test.mjs",
@@ -485,7 +489,7 @@
   },
   {
     "path": "tests/payment-records.test.mjs",
-    "sha256": "d665f8989eb740b54ef304e9ad9a64451fbd451c9101ba3f870391e7c915833a"
+    "sha256": "a8e66e5178721848c3bc56274eb69355ab85fae3972f1affd3f955066467f6bf"
   },
   {
     "path": "tests/payment-resume.test.mjs",

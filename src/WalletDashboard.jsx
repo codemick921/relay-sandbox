@@ -17,11 +17,11 @@ export function WalletDashboard({state,open,act,busy}){
     <div className="section-head"><h3>{agent.name}</h3><span className={'status-pill '+(w?.lowBalance?'wallet-low':'')}>{data.simulated?'Example · ':''}{!w||w.status==='unavailable'?'Not checked':w.status==='stale'?'Last known balance':w.lowBalance?'Low balance':'Up to date'}</span></div>
     <code>{short(agent.address)}</code>
     <p className="wallet-amount">{w?.amountRaw==null?'Balance unavailable':`${formatUsdc(w.amountRaw)} USDC`}</p>
-    <p className="fine-print">{w?.observedAt?`Checked ${new Date(w.observedAt).toLocaleString('en-GB')}`:'Waiting for the first network check.'}</p>
+    <p className="fine-print">{w?.observedAt?`Checked ${new Date(w.observedAt).toLocaleString('en-GB')}`:'The wallet balance has not been checked yet.'}</p>
     {w?.status==='stale'&&<Notice>Balance check delayed. The last known amount may have changed; low-balance alerts are paused until a fresh check.</Notice>}
     {w?.refreshFailed&&w.status==='unavailable'&&<Notice>We could not read this balance. Relay will retry automatically.</Notice>}
     {w?.alertsEnabled&&<p className="fine-print">Alert below {formatUsdc(w.thresholdRaw)} USDC · Target {formatUsdc(w.targetRaw)} USDC</p>}
-    {w?.lowBalance&&<Notice>{formatUsdc(shortfall)} USDC below your target. Choose a GBP amount and review the net USDC in the new checkout. No automatic payment will be made.</Notice>}
+    {w?.lowBalance&&<Notice>{formatUsdc(shortfall)} USDC below your target. Choose a GBP amount and check how much USDC the wallet will receive after fees in the new checkout. No automatic payment will be made.</Notice>}
     <div className="wallet-actions"><Button disabled={busy||!fundable} onClick={()=>open('fund',agent.id)}>{state.liveFunding?.paymentsEnabled?'Fund agent':'Test funding'}</Button><Button secondary disabled={busy||!w} onClick={()=>open('wallet-preferences',agent.id)}>Balance alerts</Button><button className="text-button" disabled={busy} onClick={async()=>{const r=await act('wallet-balances/refresh',{agentId:agent.id});setMessage(r?'Balance refresh requested. Recent checks are limited to once every 30 seconds.':'Refresh could not be requested. Please try again.');}}>Refresh</button></div>
    </article>;
   })}</div><p className="fine-print" role="status">{message}</p>
@@ -31,7 +31,7 @@ export function WalletPreferences({state,agentId,act,busy,error,onClose}){
  const wallet=state.walletBalances?.wallets.find(w=>w.agentId===agentId),agent=state.agents.find(a=>a.id===agentId);
  const [enabled,setEnabled]=useState(wallet?.alertsEnabled??false),[threshold,setThreshold]=useState(inputUsdc(wallet?.thresholdRaw??'10000000')),[target,setTarget]=useState(inputUsdc(wallet?.targetRaw??'50000000'));
  if(!wallet||!agent)return <Modal title="Balance alerts" onClose={onClose}><Notice>Wallet not available.</Notice></Modal>;
- return <Modal title={`Balance alerts · ${agent.name}`} onClose={busy?()=>{}:onClose}><p>Show a reminder in Relay when this wallet falls below your threshold. Alerts use a fresh USDC balance and do not trigger payments or emails.</p>{error&&<Notice error>{error}</Notice>}
+ return <Modal title={`Balance alerts · ${agent.name}`} onClose={busy?()=>{}:onClose}><p>Show a reminder in Relay when this wallet balance falls below the amount you choose. Alerts use a fresh USDC balance and do not trigger payments or emails.</p>{error&&<Notice error>{error}</Notice>}
   <form onSubmit={async e=>{e.preventDefault();if(await act('wallet-balances/preferences',{agentId,enabled,threshold,target}))onClose();}}>
    <Check checked={enabled} onChange={e=>setEnabled(e.target.checked)}>Show low-balance alerts in Relay</Check>
    <Field label="Alert below (USDC)"><input required inputMode="decimal" value={threshold} onChange={e=>setThreshold(e.target.value)}/></Field>

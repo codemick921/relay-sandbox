@@ -30,3 +30,8 @@
 .phone-resume{margin:20px 0}.phone-resume-content{border:1px solid var(--border);border-radius:14px;padding:18px;margin-top:12px}.resume-qr{display:block;width:min(100%,240px);height:auto;margin:18px auto}.phone-resume-content input{font-size:13px}.payment-help{margin-top:18px}.payment-help summary{cursor:pointer;font-weight:600}.payment-help p{margin-top:12px}
 
 .account-security-tools{border-top:1px solid var(--line,#dce2da);margin-top:24px;padding-top:16px}.security-checklist{list-style:none;padding:0;display:grid;gap:12px}.security-checklist li,.security-sessions article{padding:14px;background:#f5f6ef;border:1px solid #dce2da;border-radius:12px;display:grid;gap:8px;overflow-wrap:anywhere}.security-checklist span,.security-sessions small{font-size:14px;line-height:1.5}.security-sessions{display:grid;gap:12px;margin:16px 0}.security-section{margin:18px 0}.security-section summary{cursor:pointer;font-weight:650}.security-confirm{padding:16px;border:1px solid #dce2da;border-radius:12px;margin:18px 0}.security-confirm form>.button{margin:8px 8px 0 0}.wallet-before{margin:16px 0}.account-security-tools p{line-height:1.5}
+
+/* Optional explanations for customer funding terms. */
+.funding-terms{margin:14px 0;font-size:14px;line-height:1.55;text-align:left}.funding-terms summary{cursor:pointer;font-weight:650;color:var(--green,#244c3b)}.funding-terms dl{margin:12px 0}.funding-terms dl>div{margin:12px 0}.funding-terms dt{font-weight:650}.funding-terms dd{margin:4px 0 0;overflow-wrap:anywhere}
+
+.funding-start-content,.funding-public-hero>div:first-child{align-self:start}

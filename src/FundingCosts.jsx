@@ -1,3 +1,4 @@
+import FundingTerms from './FundingTerms';
 import React,{useEffect,useState} from 'react';
 import {fundingCosts} from './funding-costs.mjs';
 import './funding-costs.css';
@@ -13,6 +14,7 @@ export default function FundingCosts(props){
   <dl className="costs-rows">{costs.rows.map(row=><div key={row.label}><dt>{row.label}<small>{row.note}</small></dt><dd>{row.value}</dd></div>)}</dl>
   {costs.adjustments.map((text,i)=><p className="fine-print" key={i}>{text}</p>)}
   {(costs.checkedAt||costs.expiresAt)&&<p className="fine-print">{costs.checkedAt&&<>Saved check: {new Date(costs.checkedAt).toLocaleString('en-GB')}. </>}{costs.expiresAt&&<>Quote deadline: {new Date(costs.expiresAt).toLocaleString('en-GB')}.</>}</p>}
-  <p className="fine-print">The seller’s exchange-rate spread is separate from the Peer fee. Relay cannot confirm your total bank debit.</p>
+  <p className="fine-print">The seller’s exchange rate can include a markup, separate from the Peer fee. Check your payment app for the total taken from your account.</p>
+  <FundingTerms/>
  </section>;
 }
