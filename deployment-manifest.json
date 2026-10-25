@@ -260,6 +260,10 @@
     "sha256": "a5cfdd3496211bcb6f22c85f89c52bccae37be031c4c76f9e4d337f9a6f10e23"
   },
   {
+    "path": "src/FundingCosts.jsx",
+    "sha256": "f11cb49a91cc323a567047ff46170519e075db692010ab8c3b004301cdbd93de"
+  },
+  {
     "path": "src/FundingHistory.jsx",
     "sha256": "848f160126aa5e27e29145842a1547439f61f7f83232cfb195f21baf8bd57e40"
   },
@@ -273,7 +277,7 @@
   },
   {
     "path": "src/LiveFunding.jsx",
-    "sha256": "0fb1dbf6cccf315f6507003796fa15c9bbdc3e3b6909cae504272eaa81eba663"
+    "sha256": "a1a03c6e40796f85acb40c0d1adbafe73d09b3d3c008caa355d46b8bf2a683bc"
   },
   {
     "path": "src/LiveOrder.jsx",
@@ -301,7 +305,7 @@
   },
   {
     "path": "src/SimpleFunding.jsx",
-    "sha256": "052bdbab4770e5f4b097673808abc784b8125cdb768cc9b3781a871f41b81860"
+    "sha256": "5ac376b3a6d956b8ffd285e406eb2000d57971d5e2670cf0e00c2a2ccd8cd0bf"
   },
   {
     "path": "src/TestFunding.jsx",
@@ -318,6 +322,14 @@
   {
     "path": "src/api.js",
     "sha256": "354f7d5631edc9eb9826a82812813e49438abe64f54362b15d613023d74a6df3"
+  },
+  {
+    "path": "src/funding-costs.css",
+    "sha256": "8e161a1754b0e5395be5394bfd78dca791a4df40fb10ecbef555848f2105fb8a"
+  },
+  {
+    "path": "src/funding-costs.mjs",
+    "sha256": "7816103e3d54d74382f3ccb7403f99d35f640398f7546f3da19e249ced43dea9"
   },
   {
     "path": "src/funding-entry.mjs",
@@ -402,6 +414,10 @@
   {
     "path": "tests/fixtures/offline-guard.mjs",
     "sha256": "56e037b4548e9787e8c20f3d821bc029dc9c13ebe6c8cc6b7ae6df1dc4e4e8a9"
+  },
+  {
+    "path": "tests/funding-costs.test.mjs",
+    "sha256": "f5628915b7fa7df31fd04994d0a396906ee13a10ba6720f35620a1ebb08d1207"
   },
   {
     "path": "tests/funding-entry.test.mjs",

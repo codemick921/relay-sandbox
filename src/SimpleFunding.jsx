@@ -1,3 +1,4 @@
+import FundingCosts from './FundingCosts';
 import React,{useEffect,useState} from 'react';
 import {Button,Modal,Field,Check,Notice,Icon} from './ui';
 import {api,gbp} from './api';
@@ -5,13 +6,6 @@ import FundingInstructions from './FundingInstructions';
 
 export const checkoutLabels={checkout_unknown:'Checkout needs recovery',checkout_ready:'Ready to open Peer checkout',checkout_recovery:'Checkout link needs recovery',checkout_partial:'Part payment received',sandbox_complete:'Sandbox complete · no real wallet receipt',checkout_cancelled:'Checkout cancelled',checkout_settled:'Payment verified · checking wallet',checkout_confirming:'USDC detected · awaiting finality',checkout_received:'Funds arrived in agent wallet',checkout_review:'Delivery needs review'};
 export const testCheckoutLabels={checkout_ready:'Test checkout ready',checkout_partial:'Simulated part payment received',checkout_settled:'Test payment verified · checking simulated transfer',checkout_confirming:'Simulated USDC detected · awaiting test confirmation',checkout_received:'Simulated wallet delivery complete',checkout_cancelled:'Test checkout cancelled',checkout_review:'Test evidence needs review'};
-
-export function PayInEvidence({evidence}){
- if(!evidence)return null;
- const labels={within_peer_limit:'Peer’s quoted amount is within the requested amount.',awaiting_selection:'No payment quote has been selected yet.',over_limit:'The payment amount exceeds the requested amount. Do not pay.',settled_observation:'Peer has recorded the GBP payment and settlement fee.',settled_other_currency:'Peer recorded this payment in a different currency. The original funding request was in GBP.',stale:'The saved quote needs a fresh check.',quote_expired:'The quote has expired. Do not pay.'};
- const money=raw=>`${(BigInt(raw)/1000000n).toString()}.${(BigInt(raw)%1000000n).toString().padStart(6,'0')}`;
- return <section className="panel spaced" aria-label="Payment amount and fees"><h3>{evidence.settlement?'Payment amount and fees':'GBP amount and fees'}</h3><p>{labels[evidence.status]??'Payment details need review. Do not pay.'}</p><dl className="details"><div><dt>{evidence.settlement?'Payment recorded by Peer':'Last observed Peer amount'}</dt><dd>{evidence.settlement?.currency?`${evidence.settlement.paymentAmount} ${evidence.settlement.currency}`:evidence.totalPence===null?'Not available':gbp(evidence.totalPence)}</dd></div>{evidence.settlement&&<><div><dt>Peer settlement fee</dt><dd>{money(evidence.settlement.feeUsdcRaw)} USDC</dd></div><div><dt>Net USDC reported by Peer</dt><dd>{money(evidence.settlement.netUsdcRaw)} USDC</dd></div></>}</dl>{evidence.settlement?.adjustments?.map((a,i)=><p key={i}>Peer applied a {a.penaltyBps/100}% currency adjustment, reducing the recorded amount from {a.originalAmount} {evidence.settlement.currency} to {a.attestedAmount} {evidence.settlement.currency} before conversion and settlement fees.</p>)}<p className="fine-print">Peer fees reduce the USDC settlement. The fee shown excludes the seller’s exchange-rate spread. Separate payment-app fees are not visible to Relay. This observation does not authorise a payment.</p></section>;
-}
 
 export default function SimpleFunding({state,act,busy,error,onClose,open,selected}){
  const [agentId,setAgentId]=useState(selected??state.agents[0]?.id??''),[amount,setAmount]=useState('100'),[consent,setConsent]=useState(false),[setup,setSetup]=useState(null),[checking,setChecking]=useState(false),[requestId]=useState(()=>crypto.randomUUID());
@@ -66,7 +60,7 @@ export function CheckoutOrder({order,act,busy,error,onClose,paymentsDisabled=fal
    {(order.chargebackRecorded||order.chargebackStatus&&order.chargebackStatus!=='NONE')&&<Notice error>Peer reports a payment chargeback. The historical wallet receipt remains recorded; the payment dispute needs separate review.</Notice>}
    {receipts.length>0&&<section className="delivery-receipts"><h3>{order.fixture?'Simulated wallet receipts':'Wallet receipts'}</h3>{receipts.map(p=><div key={p.id}><strong>{usdc(p.amountRaw)} USDC</strong><span>{order.fixture?'Simulated confirmation':p.receipt.finalized?'Finalised on Base':'Awaiting Base finality'}</span>{!order.fixture?<a href={`https://basescan.org/tx/${p.receipt.transactionHash}`} target="_blank" rel="noreferrer noopener">View transaction ↗</a>:<span>Illustrative receipt</span>}</div>)}</section>}
   </>}
-  {!order.fixture&&!sandbox&&<PayInEvidence evidence={v?.payIn}/>}
+  {!sandbox&&<FundingCosts requestedPence={order.quote?.pence} verification={v} simulated={!!order.fixture||!!order.journey||!!v?.simulated} stopped={!!order.stoppedInRelay} ended={order.status==='checkout_cancelled'||!!order.checkoutEnded} review={!!order.reviewRequired||order.status==='checkout_review'} trackingError={!!order.trackingError}/> }
   {order.stoppedInRelay&&<Notice>This request was stopped in Relay. Do not pay its old Peer checkout. Tracking continues here for any late funds.</Notice>}
   {state.fundingDrafts?.some(d=>d.id===order.id)&&<Button secondary className="full spaced" onClick={()=>open('funding-draft',order.id)}>Manage funding request</Button>}
   {(order.fixture||sandbox)&&!['sandbox_complete','checkout_received','checkout_cancelled'].includes(order.status)&&<FundingInstructions preview/>}

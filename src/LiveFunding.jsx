@@ -1,3 +1,5 @@
+import FundingCosts from './FundingCosts';
+import {inputPence} from './funding-costs.mjs';
 import {activeFundingDraft} from './funding-entry.mjs';
 import PhoneResume from './PhoneResume';
 import {canContinueCheckout} from './payment-resume.mjs';
@@ -19,7 +21,7 @@ export function LiveFunding({state,act,busy,error,onClose,open,selected,fundingP
    {!state.agents.length&&<Button type="button" secondary onClick={()=>open('wallet')}>Add agent wallet</Button>}
    {live&&<Field label="Pay GBP with"><select value={rail} disabled={busy} onChange={e=>{setRail(e.target.value);setConfirmed(false);}}><option value="revolut">Revolut account balance</option><option value="wise">Wise</option></select></Field>}
    <Field label="GBP funding amount" hint={rail==='revolut'?'£0.01–£1,000. Available offers and provider limits apply.':'£2–£1,000. Available offers and provider limits apply.'}><div className="money-input"><span>£</span><input aria-label="GBP funding amount" required disabled={busy} inputMode="decimal" pattern="[0-9]+([.][0-9]{1,2})?" value={amount} onChange={e=>{setAmount(e.target.value);setConfirmed(false);}}/></div></Field>
-   <dl className="details"><div><dt>Destination</dt><dd>USDC on Base</dd></div><div><dt>Rate, fees and USDC amount</dt><dd>Review in Peer checkout</dd></div></dl>
+   <p className="fine-print">Destination: USDC on Base.</p><FundingCosts requestedPence={inputPence(amount)}/>
    {agent&&<><p>Receiving address</p><code className="checkout-address">{agent.address}</code></>}
    <Check checked={confirmed} onChange={e=>setConfirmed(e.target.checked)}>This is my receiving wallet. I have checked the full address and amount.</Check>
    <Button className="full spaced" disabled={busy||!agent||!confirmed}>{busy?'Saving…':'Review funding request'}</Button>
@@ -41,6 +43,7 @@ export function FundingDraft({state,draft,act,busy,error,onClose,open}){
   {!draft.stoppedAt&&draft.cancellationState==='blocked'&&<Notice error>Peer cancellation is unavailable. If you have not paid, Relay can check whether you can stop this request and start again.</Notice>}
   {(error||localError)&&<Notice error>{error||localError}</Notice>}
   <dl className="details"><div><dt>Requested funding</dt><dd>{gbp(draft.pence)}</dd></div><div><dt>Pay with</dt><dd>{draft.rail==='revolut'?'Revolut':'Wise'} · GBP</dd></div><div><dt>Agent</dt><dd>{draft.agent.name}</dd></div><div><dt>Receives</dt><dd>USDC on Base</dd></div></dl>
+  <FundingCosts requestedPence={draft.pence} verification={tracked?.verification} simulated={!!tracked?.fixture||!!tracked?.journey} stopped={!!draft.stoppedAt} ended={cancelled||closed} review={!!tracked?.reviewRequired||tracked?.status==='checkout_review'} trackingError={!!tracked?.trackingError}/>
   <p>Receiving address</p><code className="checkout-address">{draft.agent.address}</code>
   {!draft.walletCurrent&&draftOnly&&<Notice error>The saved wallet has changed. Cancel this draft and review the updated address.</Notice>}
   {!draft.supersededBy&&<FundingInstructions preview={!live||draftOnly} rail={draft.rail} requestedPence={draft.pence} stage={draft.stoppedAt?'stopped':closed||cancelled?'closed':draftOnly?'ready':tracked?.status==='checkout_partial'?'partial':ready?'ready':'tracking'}/>}
