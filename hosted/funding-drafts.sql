@@ -20,8 +20,12 @@ CREATE TABLE IF NOT EXISTS relay_funding_drafts (
  CHECK(status NOT IN ('bound','closed') OR (provider_id IS NOT NULL AND requested_usdc IS NOT NULL))
 );
 ALTER TABLE relay_funding_drafts ADD COLUMN IF NOT EXISTS rail text NOT NULL DEFAULT 'wise' CHECK(rail IN ('wise','revolut'));
+ALTER TABLE relay_funding_drafts ADD COLUMN IF NOT EXISTS currency text NOT NULL DEFAULT 'GBP';
+ALTER TABLE relay_funding_drafts DROP CONSTRAINT IF EXISTS relay_funding_drafts_rail_check;
 ALTER TABLE relay_funding_drafts DROP CONSTRAINT IF EXISTS relay_funding_drafts_pence_check;
-ALTER TABLE relay_funding_drafts ADD CONSTRAINT relay_funding_drafts_pence_check CHECK((rail='wise' AND pence BETWEEN 200 AND 100000) OR (rail='revolut' AND pence BETWEEN 1 AND 100000));
+ALTER TABLE relay_funding_drafts ADD CONSTRAINT relay_funding_drafts_pence_check CHECK(pence BETWEEN CASE WHEN rail='wise' AND currency='GBP' THEN 200 ELSE 1 END AND 100000);
+ALTER TABLE relay_funding_drafts DROP CONSTRAINT IF EXISTS relay_funding_currency_rail;
+ALTER TABLE relay_funding_drafts ADD CONSTRAINT relay_funding_currency_rail CHECK((rail='venmo' AND currency IN ('USD')) OR (rail='revolut' AND currency IN ('AED','AUD','CAD','CHF','CNY','CZK','DKK','EUR','GBP','HKD','HUF','JPY','MXN','NOK','NZD','PLN','RON','SAR','SEK','SGD','THB','TRY','USD','ZAR')) OR (rail='cashapp' AND currency IN ('USD')) OR (rail='wise' AND currency IN ('AED','AUD','CAD','CHF','CNY','CZK','DKK','EUR','GBP','HKD','HUF','IDR','ILS','INR','JPY','KES','MXN','MYR','NOK','NZD','PHP','PLN','RON','SEK','SGD','THB','TRY','UGX','USD','VND','ZAR')) OR (rail='zelle' AND currency IN ('USD')) OR (rail='monzo' AND currency IN ('GBP')) OR (rail='chime' AND currency IN ('USD')));
 ALTER TABLE relay_funding_drafts ADD COLUMN IF NOT EXISTS superseded_by uuid REFERENCES relay_funding_drafts(id) DEFERRABLE INITIALLY DEFERRED;
 ALTER TABLE relay_funding_drafts ADD COLUMN IF NOT EXISTS stopped_at timestamptz;
 DROP INDEX IF EXISTS relay_funding_one_active;
@@ -36,7 +40,7 @@ BEGIN
  IF NEW.stopped_at IS DISTINCT FROM OLD.stopped_at AND OLD.status<>'bound' THEN RAISE EXCEPTION 'Only a bound request can be stopped'; END IF;
  IF NEW.superseded_by IS DISTINCT FROM OLD.superseded_by AND (OLD.superseded_by IS NOT NULL OR OLD.status<>'bound' OR NEW.status<>'bound' OR NEW.superseded_by=OLD.id) THEN RAISE EXCEPTION 'Immutable supersession'; END IF;
  IF NEW.id IS DISTINCT FROM OLD.id OR NEW.owner IS DISTINCT FROM OLD.owner OR NEW.request_id IS DISTINCT FROM OLD.request_id
- OR NEW.rail IS DISTINCT FROM OLD.rail OR NEW.agent_revision IS DISTINCT FROM OLD.agent_revision OR NEW.agent_id IS DISTINCT FROM OLD.agent_id OR NEW.agent IS DISTINCT FROM OLD.agent OR NEW.pence IS DISTINCT FROM OLD.pence
+ OR NEW.currency IS DISTINCT FROM OLD.currency OR NEW.rail IS DISTINCT FROM OLD.rail OR NEW.agent_revision IS DISTINCT FROM OLD.agent_revision OR NEW.agent_id IS DISTINCT FROM OLD.agent_id OR NEW.agent IS DISTINCT FROM OLD.agent OR NEW.pence IS DISTINCT FROM OLD.pence
  OR (OLD.attempt_token IS NOT NULL AND (NEW.attempt_token IS DISTINCT FROM OLD.attempt_token OR NEW.merchant_id IS DISTINCT FROM OLD.merchant_id OR NEW.attempted_at IS DISTINCT FROM OLD.attempted_at))
  OR (OLD.provider_id IS NOT NULL AND (NEW.provider_id IS DISTINCT FROM OLD.provider_id OR NEW.requested_usdc IS DISTINCT FROM OLD.requested_usdc))
  THEN RAISE EXCEPTION 'Immutable funding intent'; END IF;

@@ -28,7 +28,7 @@ test('historical, stopped and simulated orders do not block the next funding ent
 });
 test('payment mode is reflected in the entry without changing server flags',()=>{
  const s={...state(),liveFunding:{paymentsEnabled:false,draftsEnabled:true}};
- assert.equal(fundingEntry(s).kind,'live-fund');assert.equal(fundingEntry(s).label,'Prepare GBP funding');
+ assert.equal(fundingEntry(s).kind,'live-fund');assert.equal(fundingEntry(s).label,'Prepare funding');
  s.fundingJourneyEnabled=true;assert.equal(fundingEntry(s).label,'Try test funding');assert.equal(fundingEntry(s).kind,'fund');
  s.liveFunding.draftsEnabled=false;s.fundingJourneyEnabled=false;assert.equal(fundingEntry(s).disabled,true);assert.equal(fundingEntry(s).kind,null);
  assert.equal(s.liveFunding.paymentsEnabled,false);

@@ -1,5 +1,6 @@
+import {fundingCatalog} from '../shared/fiat.mjs';
 import {fundingEntry} from './funding-entry.mjs';
-const labels={revolut:'Revolut account balance',wise:'Wise'};
+const labels=Object.fromEntries(fundingCatalog.methods.filter(m=>m.checkoutSupported).map(m=>[m.id,m.id==='revolut'?'Revolut account balance':m.label]));
 // Presentation only. Server-side permissions and offer checks remain authoritative.
 export function peerMethods(state){
  const rails=state?.liveFunding?.rails;

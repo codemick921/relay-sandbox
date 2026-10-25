@@ -43,7 +43,7 @@ export function createRevolutOperator({base,drafts,policy,tracker,merchantId,api
   },
   async provision(owner,id,{walletAddress,maxTotalPence=1000,approvalRef,consentRef,hours=2}){
    const row=await drafts.review(owner,id);
-   if(row.status!=='draft'||row.rail!=='revolut'||row.agent.network!=='Base'||row.agent.token!=='USDC'||row.agent.address.toLowerCase()!==walletAddress?.toLowerCase()||row.pence>maxTotalPence||!Number.isInteger(maxTotalPence)||maxTotalPence>1000||maxTotalPence<200||!Number.isInteger(hours)||hours<1||hours>24)throw new InputError('Review the exact Revolut test draft and receiving wallet.');
+   if((row.currency??'GBP')!=='GBP'||row.status!=='draft'||row.rail!=='revolut'||row.agent.network!=='Base'||row.agent.token!=='USDC'||row.agent.address.toLowerCase()!==walletAddress?.toLowerCase()||row.pence>maxTotalPence||!Number.isInteger(maxTotalPence)||maxTotalPence>1000||maxTotalPence<200||!Number.isInteger(hours)||hours<1||hours>24)throw new InputError('Review the exact Revolut test draft and receiving wallet.');
    await base.tx(async c=>{await c.query('SELECT pg_advisory_xact_lock(431932)');
     if((await c.query('SELECT 1 FROM relay_restricted_attempt UNION ALL SELECT 1 FROM relay_revolut_attempt')).rows.length)throw new InputError('A controlled test has already been attempted.',409);
     await c.query("INSERT INTO relay_revolut_policy(owner,draft_id,draft_hash,merchant_id,wallet_address,max_total_pence,expires_at,approval_ref,consent_ref) VALUES($1,$2,$3,$4,$5,$6,now()+$7*interval '1 hour',$8,$9)",[owner,id,revolutFingerprint(row),merchantId,row.agent.address.toLowerCase(),maxTotalPence,hours,approvalRef,consentRef]);
@@ -51,7 +51,7 @@ export function createRevolutOperator({base,drafts,policy,tracker,merchantId,api
   },
   async start(owner,id){
    const row=await drafts.review(owner,id);if(!await policy.permit(row,merchantId))throw new InputError('This test is not approved.',403);
-   if(row.status!=='draft')return {id,attempted:false,status:row.status};
+   if((row.currency??'GBP')!=='GBP'||row.status!=='draft')return {id,attempted:false,status:row.status};
    const replacement=(await base.query('SELECT old_draft_id FROM relay_revolut_replacement_policy WHERE draft_id=$1',[id])).rows[0];
    if(replacement)await originalUnpaid(owner,replacement.old_draft_id);
    const m=await getMerchant(options()),cfg=m.merchantConfig;

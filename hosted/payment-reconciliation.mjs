@@ -24,7 +24,7 @@ export function reconcileSavedPayment(row,ledger,draft,now=Date.now()){
  const arrived=sumsValid?settled.filter(p=>p.deliveryStatus==='finalized').reduce((n,p)=>n+BigInt(p.amountRaw),0n).toString():null;
  add('totals','Net settlement and arrival totals',!result.verification?'pending':total===v.expectedNetRaw&&arrived===v.receivedRaw?'pass':'mismatch');
  add('receipt','Complete wallet receipt',record.deliveryConfirmed?'pass':row.status==='checkout_received'?'mismatch':'pending');
- const draftMatches=draft&&draft.id===row.id&&draft.owner===row.owner&&draft.merchant_id===row.merchant_id&&draft.provider_id===row.provider_id&&same(draft.agent?.address,request.agent?.address)&&draft.agent_id===request.agent?.id&&draft.pence===request.quote?.pence&&draft.rail===request.quote?.platform&&decimal(draft.requested_usdc)!==null&&decimal(draft.requested_usdc)===decimal(request.requestedUsdcAmount);
+ const draftMatches=draft&&draft.id===row.id&&draft.owner===row.owner&&draft.merchant_id===row.merchant_id&&draft.provider_id===row.provider_id&&same(draft.agent?.address,request.agent?.address)&&draft.agent_id===request.agent?.id&&draft.pence===request.quote?.pence&&(draft.currency??'GBP')===(request.quote?.currency??'GBP')&&draft.rail===request.quote?.platform&&decimal(draft.requested_usdc)!==null&&decimal(draft.requested_usdc)===decimal(request.requestedUsdcAmount);
  add('draft','Original funding request',!draft?'unavailable':draftMatches?'pass':'mismatch');
  add('closure','Funding request closed after delivery',!draft?'unavailable':record.deliveryConfirmed?(draft.status==='closed'?'pass':'pending'):'pending');
  add('holds','Disputes and review holds',record.chargeback||row.review_required||row.status==='checkout_review'?'attention':'pass');

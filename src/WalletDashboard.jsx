@@ -21,7 +21,7 @@ export function WalletDashboard({state,open,act,busy}){
     {w?.status==='stale'&&<Notice>Balance check delayed. The last known amount may have changed; low-balance alerts are paused until a fresh check.</Notice>}
     {w?.refreshFailed&&w.status==='unavailable'&&<Notice>We could not read this balance. Eupova will retry automatically.</Notice>}
     {w?.alertsEnabled&&<p className="fine-print">Alert below {formatUsdc(w.thresholdRaw)} USDC · Target {formatUsdc(w.targetRaw)} USDC</p>}
-    {w?.lowBalance&&<Notice>{formatUsdc(shortfall)} USDC below your target. Choose a GBP amount and check how much USDC the wallet will receive after fees in the new checkout. No automatic payment will be made.</Notice>}
+    {w?.lowBalance&&<Notice>{formatUsdc(shortfall)} USDC below your target. Choose a currency and amount and check how much USDC the wallet will receive after fees in the new checkout. No automatic payment will be made.</Notice>}
     <div className="wallet-actions"><Button disabled={busy||!fundable} onClick={()=>open('fund',agent.id)}>{state.liveFunding?.paymentsEnabled?'Fund agent':'Test funding'}</Button><Button secondary disabled={busy||!w} onClick={()=>open('wallet-preferences',agent.id)}>Balance alerts</Button><button className="text-button" disabled={busy} onClick={async()=>{const r=await act('wallet-balances/refresh',{agentId:agent.id});setMessage(r?'Balance refresh requested. Recent checks are limited to once every 30 seconds.':'Refresh could not be requested. Please try again.');}}>Refresh</button></div>
    </article>;
   })}</div><p className="fine-print" role="status">{message}</p>

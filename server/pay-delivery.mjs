@@ -1,3 +1,4 @@
+import {checkoutRails,currencyCode,supportsFunding,knownCurrency,minimumMinor,methodLabel} from '../shared/fiat.mjs';
 import {parseUnits} from 'viem';
 import {InputError,TOKEN} from './validation.mjs';
 import {chain,ORCHESTRATOR,ESCROW,same,hash,validateDelivery} from './receipts.mjs';
@@ -25,7 +26,7 @@ export function paymentSnapshot(local,remote,rows){
  if(!Array.isArray(rows)||rows.length>100)issue('Peer payment history is incomplete or too large to verify.');
  const ids=new Set(),intents=new Set();
  const payments=rows.map(p=>{
-  if(!id(p.id)||ids.has(p.id)||p.orderId!==local.providerOrderId||!['wise','revolut'].includes(local.quote.platform)||p.rail!==local.quote.platform||!['GBP','USD','EUR'].includes(p.currency)||!['CREATED','SETTLED','FAILED','EXPIRED','CANCELLED'].includes(p.status))issue('Peer payment history does not match this order.');
+  if(!id(p.id)||ids.has(p.id)||p.orderId!==local.providerOrderId||!supportsFunding(local.quote.platform,currencyCode(local.quote.currency))||p.rail!==local.quote.platform||!knownCurrency(p.currency)||!['CREATED','SETTLED','FAILED','EXPIRED','CANCELLED'].includes(p.status))issue('Peer payment history does not match this order.');
   ids.add(p.id);
   if(!['NONE','CHARGEBACKED'].includes(p.chargebackStatus))issue('Peer returned an unknown chargeback state.');
   const item={id:p.id,status:p.status,chargebackStatus:p.chargebackStatus,currency:p.currency};

@@ -1,3 +1,4 @@
+import {checkoutRails,currencyCode,supportsFunding,knownCurrency,minimumMinor,methodLabel} from '../shared/fiat.mjs';
 import {createLiveFunding} from './live-funding.mjs';
 import {createLiveCheckoutWriter} from '../server/pay-live-create.mjs';
 import {liveOrderView} from './live-store.mjs';
@@ -6,8 +7,8 @@ import {InputError} from '../server/validation.mjs';
 // Explicit web-only composition. The worker and local preview never enable it.
 export function createCustomerFunding({drafts,tracker,reader,connection,origin,fetcher=fetch}){
  if(connection?.environment!=='LIVE'||!origin?.startsWith('https://'))throw Error('Live funding requires a pinned live connection and HTTPS origin.');
- const authorise=async intent=>/^customer:/.test(intent.owner??'')&&['wise','revolut'].includes(intent.quote?.platform)&&intent.agent?.network==='Base'&&intent.agent?.token==='USDC';
- const flows=Object.fromEntries(['wise','revolut'].map(rail=>[rail,createLiveFunding({drafts,tracker,reader,merchantId:connection.merchantId,origin,authorise,
+ const authorise=async intent=>/^customer:/.test(intent.owner??'')&&supportsFunding(intent.quote?.platform,currencyCode(intent.quote?.currency))&&intent.agent?.network==='Base'&&intent.agent?.token==='USDC';
+ const flows=Object.fromEntries(checkoutRails.map(rail=>[rail,createLiveFunding({drafts,tracker,reader,merchantId:connection.merchantId,origin,authorise,
   writer:createLiveCheckoutWriter({apiKey:connection.apiKey,merchantId:connection.merchantId,rail,maxPence:100000,fetcher,authorise:()=>true})})]));
  async function flow(owner,id){const row=await drafts.review(owner,id);if(row.stopped_at)throw new InputError('This request was stopped in Eupova. Start a new funding request.',409);if(row.superseded_by)throw new InputError('This checkout was replaced. Open its replacement from your activity.',409);return flows[row.rail];}
  return Object.freeze({enabled:true,

@@ -50,7 +50,7 @@ export function createPaymentHealthReader(pool,merchantId){
     if(!row)throw new InputError('Payment record not found.',404);
     const audit=(await c.query('SELECT a.at,a.event,a.data FROM relay_live_audit a JOIN relay_live_orders o ON o.id=a.order_id WHERE o.merchant_id=$1 AND o.id=$2 ORDER BY a.at DESC,a.id DESC LIMIT 101',[merchantId,id])).rows;
     const ledger=(await c.query('SELECT merchant_id,payment_id,order_id,chain_id,token_address,recipient,amount_raw,intent_hash,transaction_hash,receipt,finalized FROM relay_live_payments WHERE merchant_id=$1 AND order_id=$2',[merchantId,id])).rows;
-    const draft=hasDrafts?(await c.query('SELECT id,owner,merchant_id,provider_id,agent_id,agent,pence,rail,requested_usdc,status FROM relay_funding_drafts WHERE id=$1 AND owner=$2',[id,row.owner])).rows[0]:null;
+    const draft=hasDrafts?(await c.query('SELECT id,owner,merchant_id,provider_id,agent_id,agent,pence,rail,currency,requested_usdc,status FROM relay_funding_drafts WHERE id=$1 AND owner=$2',[id,row.owner])).rows[0]:null;
     detail={...project(row),reconciliation:reconcileSavedPayment(row,ledger,draft,now),timeline:audit.slice(0,100).map(a=>({at:date(a.at),label:a.event==='verified'&&stages[a.data?.to]?'Verification saved: '+stages[a.data.to]:events[a.event]??'Saved tracking event'})),timelineTruncated:audit.length>100};
    }
    await c.query('COMMIT');

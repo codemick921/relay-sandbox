@@ -12,7 +12,7 @@ export function fundingEntry(state) {
  const test = !live && !!state.fundingJourneyEnabled;
  const available = live || test || !!state.liveFunding?.draftsEnabled;
  if (!available) return {kind:null,label:'Funding unavailable',disabled:true};
- const label = live ? 'Fund a wallet' : test ? 'Try test funding' : 'Prepare GBP funding';
+ const label = live ? 'Fund a wallet' : test ? 'Try test funding' : 'Prepare funding';
  if (!state.agents?.length) return {kind:'wallet',label,needsWallet:true};
  return {kind:live||test?'fund':'live-fund',label};
 }

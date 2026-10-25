@@ -1,0 +1,297 @@
+{
+  "checkedAt": "2026-10-25",
+  "source": "@zkp2p/sdk 0.14.10 production payment methods; @zkp2p/pay-shared 8.0.0 fiat rails; public Peer buy selector",
+  "currencies": [
+    {
+      "code": "AED",
+      "name": "United Arab Emirates Dirham"
+    },
+    {
+      "code": "ARS",
+      "name": "Argentine Peso"
+    },
+    {
+      "code": "AUD",
+      "name": "Australian Dollar"
+    },
+    {
+      "code": "BRL",
+      "name": "Brazilian Real"
+    },
+    {
+      "code": "CAD",
+      "name": "Canadian Dollar"
+    },
+    {
+      "code": "CHF",
+      "name": "Swiss Franc"
+    },
+    {
+      "code": "CNY",
+      "name": "Chinese Yuan"
+    },
+    {
+      "code": "CZK",
+      "name": "Czech Koruna"
+    },
+    {
+      "code": "DKK",
+      "name": "Danish Krone"
+    },
+    {
+      "code": "EUR",
+      "name": "Euro"
+    },
+    {
+      "code": "GBP",
+      "name": "British Pound"
+    },
+    {
+      "code": "HKD",
+      "name": "Hong Kong Dollar"
+    },
+    {
+      "code": "HUF",
+      "name": "Hungarian Forint"
+    },
+    {
+      "code": "IDR",
+      "name": "Indonesian Rupiah"
+    },
+    {
+      "code": "ILS",
+      "name": "Israeli New Shekel"
+    },
+    {
+      "code": "INR",
+      "name": "Indian Rupee"
+    },
+    {
+      "code": "JPY",
+      "name": "Japanese Yen"
+    },
+    {
+      "code": "KES",
+      "name": "Kenyan Shilling"
+    },
+    {
+      "code": "MXN",
+      "name": "Mexican Peso"
+    },
+    {
+      "code": "MYR",
+      "name": "Malaysian Ringgit"
+    },
+    {
+      "code": "NOK",
+      "name": "Norwegian Krone"
+    },
+    {
+      "code": "NZD",
+      "name": "New Zealand Dollar"
+    },
+    {
+      "code": "PHP",
+      "name": "Philippine Peso"
+    },
+    {
+      "code": "PLN",
+      "name": "Polish Złoty"
+    },
+    {
+      "code": "RON",
+      "name": "Romanian Leu"
+    },
+    {
+      "code": "SAR",
+      "name": "Saudi Riyal"
+    },
+    {
+      "code": "SEK",
+      "name": "Swedish Krona"
+    },
+    {
+      "code": "SGD",
+      "name": "Singapore Dollar"
+    },
+    {
+      "code": "THB",
+      "name": "Thai Baht"
+    },
+    {
+      "code": "TRY",
+      "name": "Turkish Lira"
+    },
+    {
+      "code": "UGX",
+      "name": "Ugandan Shilling"
+    },
+    {
+      "code": "UAH",
+      "name": "Ukrainian Hryvnia"
+    },
+    {
+      "code": "USD",
+      "name": "United States Dollar"
+    },
+    {
+      "code": "VND",
+      "name": "Vietnamese Dong"
+    },
+    {
+      "code": "ZAR",
+      "name": "South African Rand"
+    }
+  ],
+  "methods": [
+    {
+      "id": "venmo",
+      "label": "Venmo",
+      "currencies": [
+        "USD"
+      ],
+      "checkoutSupported": true
+    },
+    {
+      "id": "revolut",
+      "label": "Revolut",
+      "currencies": [
+        "AED",
+        "AUD",
+        "CAD",
+        "CHF",
+        "CNY",
+        "CZK",
+        "DKK",
+        "EUR",
+        "GBP",
+        "HKD",
+        "HUF",
+        "JPY",
+        "MXN",
+        "NOK",
+        "NZD",
+        "PLN",
+        "RON",
+        "SAR",
+        "SEK",
+        "SGD",
+        "THB",
+        "TRY",
+        "USD",
+        "ZAR"
+      ],
+      "checkoutSupported": true
+    },
+    {
+      "id": "cashapp",
+      "label": "Cash App",
+      "currencies": [
+        "USD"
+      ],
+      "checkoutSupported": true
+    },
+    {
+      "id": "wise",
+      "label": "Wise",
+      "currencies": [
+        "AED",
+        "AUD",
+        "CAD",
+        "CHF",
+        "CNY",
+        "CZK",
+        "DKK",
+        "EUR",
+        "GBP",
+        "HKD",
+        "HUF",
+        "IDR",
+        "ILS",
+        "INR",
+        "JPY",
+        "KES",
+        "MXN",
+        "MYR",
+        "NOK",
+        "NZD",
+        "PHP",
+        "PLN",
+        "RON",
+        "SEK",
+        "SGD",
+        "THB",
+        "TRY",
+        "UGX",
+        "USD",
+        "VND",
+        "ZAR"
+      ],
+      "checkoutSupported": true
+    },
+    {
+      "id": "mercadopago",
+      "label": "Mercado Pago",
+      "currencies": [
+        "ARS"
+      ],
+      "checkoutSupported": false
+    },
+    {
+      "id": "zelle",
+      "label": "Zelle",
+      "currencies": [
+        "USD"
+      ],
+      "checkoutSupported": true
+    },
+    {
+      "id": "monzo",
+      "label": "Monzo",
+      "currencies": [
+        "GBP"
+      ],
+      "checkoutSupported": true
+    },
+    {
+      "id": "alipay",
+      "label": "Alipay",
+      "currencies": [
+        "CNY"
+      ],
+      "checkoutSupported": false
+    },
+    {
+      "id": "chime",
+      "label": "Chime",
+      "currencies": [
+        "USD"
+      ],
+      "checkoutSupported": true
+    },
+    {
+      "id": "upi",
+      "label": "UPI",
+      "currencies": [
+        "INR"
+      ],
+      "checkoutSupported": false
+    },
+    {
+      "id": "xmoney",
+      "label": "X Money",
+      "currencies": [
+        "USD"
+      ],
+      "checkoutSupported": false
+    },
+    {
+      "id": "monobank",
+      "label": "Monobank Business",
+      "currencies": [
+        "UAH"
+      ],
+      "checkoutSupported": false
+    }
+  ]
+}

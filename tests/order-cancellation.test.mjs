@@ -27,7 +27,7 @@ async function setup(){
 }
 const request=f=>f.funding.requestCancellation(f.owner,{id:f.id,confirmNoPayment:true});
 test('cancellation request is durable and idempotent, blocks checkout and replacement until Peer confirms cancellation',async()=>{const f=await setup();try{
- await Promise.all([request(f),request(f)]);assert.equal((await f.drafts.list(f.owner))[0].cancellationState,'requested');assert.equal((await f.drafts.cancellationQueue()).length,1);
+ await Promise.all([request(f),request(f)]);assert.equal((await f.drafts.list(f.owner))[0].cancellationState,'requested');assert.equal((await f.drafts.cancellationQueue()).length,1);assert.equal((await f.drafts.cancellationQueue())[0].currency,'GBP');
  assert.equal((await f.pool.query("SELECT * FROM relay_funding_audit WHERE event='cancellation_requested'")).rows.length,1);
  await assert.rejects(f.drafts.checkout(f.owner,f.id),/awaiting/);await assert.rejects(f.next('30'),/existing/);
  const restarted=createFundingDrafts(f.store);await restarted.migrate();assert.equal((await restarted.list(f.owner))[0].cancellationState,'requested');

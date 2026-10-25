@@ -1,3 +1,4 @@
+import {checkoutRails,fundingCatalog} from '../shared/fiat.mjs';
 import {createCustomerNotifications} from './customer-notifications.mjs';
 import {historyOptions,renderStatement} from './funding-history.mjs';
 import {healthOptions} from './payment-health.mjs';
@@ -45,7 +46,7 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
  const authenticate=async req=>(await accounts?.session(getToken(req)))?.owner??await store.session(getToken(req),config.testers);
  const isHealthAdmin=owner=>typeof owner==='string'&&!owner.startsWith('customer:')&&Array.isArray(config.paymentHealthAdmins)&&config.paymentHealthAdmins.includes(owner)&&config.testers.some(t=>t.label===owner);
  const stateFor=async owner=>{
-  const base=await store.state(owner);let state={...base,paymentsDisabled:paymentsDisabled&&!liveObservation?.funding,...fundingDrafts&&owner.startsWith('customer:')?{liveFunding:liveObservation?.funding?{...fundingDisabled,paymentsEnabled:true,rails:['revolut','wise']}:fundingDisabled,fundingDrafts:await fundingDrafts.list(owner)}:{}};
+  const base=await store.state(owner);let state={...base,paymentsDisabled:paymentsDisabled&&!liveObservation?.funding,...fundingDrafts&&owner.startsWith('customer:')?{liveFunding:liveObservation?.funding?{...fundingDisabled,paymentsEnabled:true,rails:checkoutRails,catalog:fundingCatalog}:fundingDisabled,fundingDrafts:await fundingDrafts.list(owner)}:{}};
   if(tracking){const [tracked,worker]=await Promise.all([tracking.store.state(owner),tracking.store.health()]);state={...state,previewMode:!!tracking.simulated,trackingEnabled:true,worker,fundingJourneyEnabled:!!tracking.journey,orders:[...(await tracking.journey?.decorate(owner,tracked.orders)??tracked.orders).map(o=>presentTrackedOrder(o,tracking.simulated)),...state.orders]};}
   if(liveObservation){const [live,status,restrictedTest,revolutTest]=await Promise.all([liveObservation.store.state(owner),liveObservation.status(),liveObservation.policy.status(owner),liveObservation.revolutPolicy?.status(owner)]);state={...state,liveTracking:{...status,enabled:true},restrictedTest,revolutTest,orders:[...live.orders.map(o=>({...presentTrackedOrder(o,false),trackingPath:'wallet-tracking'})),...state.orders]};}
   if(ramp&&owner.startsWith('customer:'))state={...state,rampFunding:{mode:'simulation',paymentsEnabled:false,externalConnectionsEnabled:false},orders:[...await ramp.state(owner),...state.orders]};

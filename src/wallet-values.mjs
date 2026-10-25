@@ -1,3 +1,4 @@
+import {supportsFunding} from '../shared/fiat.mjs';
 // USDC uses six decimals. Keep money as integer strings across the API boundary.
 export function formatUsdc(raw){
  if(typeof raw!=='string'||!/^\d+$/.test(raw))return 'Unavailable';
@@ -19,8 +20,8 @@ export function totalWalletBalance(wallets){
 export function repeatFunding(order,agents){
  if(order?.source!=='live'||order.kind!=='checkout'||order.status!=='checkout_received'||order.fixture||order.journey||!order.delivery?.finalized)return null;
  const agent=agents.find(a=>a.id===order.agent?.id&&a.address.toLowerCase()===order.agent?.address?.toLowerCase()&&a.network==='Base'&&a.token==='USDC');
- if(!agent||!Number.isSafeInteger(order.quote?.pence)||order.quote.pence<1||order.quote.pence>100000||!['wise','revolut'].includes(order.quote.platform))return null;
- return {agentId:agent.id,amount:(order.quote.pence/100).toFixed(2),rail:order.quote.platform};
+ if(!agent||!Number.isSafeInteger(order.quote?.pence)||order.quote.pence<1||order.quote.pence>100000||!supportsFunding(order.quote.platform,order.quote.currency??'GBP'))return null;
+ return {agentId:agent.id,amount:(order.quote.pence/100).toFixed(2),rail:order.quote.platform,...order.quote.currency!==undefined?{currency:order.quote.currency}:{}};
 }
 
 export function visibleWallet(wallet,now=Date.now()){

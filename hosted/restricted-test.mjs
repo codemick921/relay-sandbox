@@ -8,7 +8,7 @@ const denied=()=>new InputError('The controlled test is not authorised for this 
 export function createRestrictedTestPolicy(base){
  async function checked(c,row,merchantId,{lock=false}={}){
   const p=(await c.query(`SELECT *,clock_timestamp()<expires_at AS current FROM relay_restricted_policy WHERE singleton=true ${lock?'FOR UPDATE':''}`)).rows[0];
-  if(!p||p.revoked||!p.current||p.owner!==row.owner||p.draft_id!==row.id||p.draft_hash!==draftFingerprint(row)||p.merchant_id!==merchantId||p.wallet_address!==row.agent.address.toLowerCase()||row.agent.network!=='Base'||row.agent.token!=='USDC'||!Number.isSafeInteger(row.pence)||row.pence<200||row.pence>p.max_total_pence||p.max_total_pence>1000)throw denied();
+  if((row.currency??'GBP')!=='GBP'||!p||p.revoked||!p.current||p.owner!==row.owner||p.draft_id!==row.id||p.draft_hash!==draftFingerprint(row)||p.merchant_id!==merchantId||p.wallet_address!==row.agent.address.toLowerCase()||row.agent.network!=='Base'||row.agent.token!=='USDC'||!Number.isSafeInteger(row.pence)||row.pence<200||row.pence>p.max_total_pence||p.max_total_pence>1000)throw denied();
   return p;
  }
  return Object.freeze({

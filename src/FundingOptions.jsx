@@ -1,3 +1,4 @@
+import {fundingCatalog} from '../shared/fiat.mjs';
 import React from 'react';
 import {Modal,Notice,Button} from './ui';
 import {fundingOptions} from './funding-options.mjs';
@@ -11,11 +12,12 @@ export default function FundingOptions({state,open,onClose,selected,fundingPrese
    {options.existing&&<Notice>You have an existing funding request. Review it before starting another. If you have already paid, keep following that request.</Notice>}
    <section className="funding-option" aria-labelledby="peer-option-title">
     <div className="funding-option-heading"><h3 id="peer-option-title">Peer Pay</h3><span className="funding-option-status">{options.live?'Enabled in Eupova':'Payments unavailable'}</span></div>
-    <p>{options.live?'Choose a GBP payment method, then review the offer in Peer’s checkout.':'Real Peer payments are currently unavailable in this account.'}</p>
+    <p>{options.live?'Choose your currency and payment method, then review the offer in Peer’s checkout.':'Real Peer payments are currently unavailable in this account.'}</p>
     {options.live&&<><dl className="details"><div><dt>Payment methods</dt><dd>{options.methods.map(m=>m.label).join(' · ')}</dd></div><div><dt>Your wallet receives</dt><dd>USDC on Base</dd></div></dl><p className="fine-print">An enabled method does not guarantee an offer. Peer shows the current amount, fees and payment deadline. Follow its identity and payment-verification steps.</p></>}
     {!options.live&&options.prepare&&!options.existing&&<p>You can save a draft in Eupova. Preparing a draft does not create a Peer checkout or send money.</p>}
     {options.action&&<Button className="full" onClick={continueFunding}>{options.action.label}</Button>}
    </section>
+   <details className="funding-option-tests"><summary>Peer payment methods</summary><p>Choose a currency in the funding form to see matching methods. PayPal is excluded.</p><ul>{fundingCatalog.methods.map(m=><li key={m.id}><strong>{m.label}</strong>: {m.currencies.join(', ')}. {m.checkoutSupported?'Checkout integration available; Peer checks account access and offers.':'Not connected to Eupova checkout yet.'}</li>)}</ul></details>
    <section className="funding-option funding-option-unavailable" aria-labelledby="ramp-option-title">
     <div className="funding-option-heading"><h3 id="ramp-option-title">Ramp Network</h3><span className="funding-option-status">Not connected</span></div>
     <p>Ramp cannot accept payments through Eupova yet. There is no live Ramp checkout to open.</p>
