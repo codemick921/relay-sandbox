@@ -1,3 +1,4 @@
+import {emailVerificationState} from './email-verification.mjs';
 import {randomBytes,randomUUID} from 'node:crypto';
 import {digest} from './db.mjs';
 import {verifyPassword} from './accounts.mjs';
@@ -25,10 +26,12 @@ export function createAccountSecurity(store,accounts,{mailEnabled=false,mailPrev
  return {
   async security(_input,token){
    const s=await identity(token),id=s.account.id;await store.rate('security:read:'+id,60,60);
-   const row=(await store.query('SELECT recovery_saved_at,recovery_rotated_at FROM relay_customers WHERE id=$1',[id])).rows[0];
+   const row=(await store.query('SELECT recovery_saved_at,recovery_rotated_at,email_verified_at,version FROM relay_customers WHERE id=$1',[id])).rows[0];
+   const mailJob=(await store.query("SELECT state,created_at,attempted_at,expires_at,consumed_at FROM relay_account_mail WHERE customer_id=$1 AND version=$2 AND purpose='verify' ORDER BY created_at DESC,id DESC LIMIT 1",[id,row.version])).rows[0];
+   const emailVerification=emailVerificationState({verifiedAt:row.email_verified_at,mailEnabled,mailPreview,job:mailJob});
    const sessions=(await store.query(`SELECT session_id,client_label,created_at,last_seen_at,expires_at,token_hash=$2 AS current FROM relay_customer_sessions WHERE customer_id=$1 AND version=(SELECT version FROM relay_customers WHERE id=$1) AND NOT revoked AND expires_at>now() AND last_seen_at>now()-interval '2 hours' ORDER BY created_at DESC`,[id,digest(token)])).rows;
    const events=(await store.query('SELECT event,created_at FROM relay_security_events WHERE customer_id=$1 ORDER BY created_at DESC LIMIT 20',[id])).rows;
-   return {recoveryConfirmedAt:row.recovery_saved_at,recoveryRotatedAt:row.recovery_rotated_at,emailRecoveryAvailable:mailEnabled&&!mailPreview&&s.account.emailVerified,emailRecoveryPreview:mailPreview,sessions:sessions.map(r=>({id:r.session_id,label:r.client_label,current:r.current,createdAt:r.created_at,lastSeenAt:r.last_seen_at,expiresAt:r.expires_at})),events:events.map(r=>({event:r.event,at:r.created_at}))};
+   return {emailVerification,recoveryConfirmedAt:row.recovery_saved_at,recoveryRotatedAt:row.recovery_rotated_at,emailRecoveryAvailable:mailEnabled&&!mailPreview&&emailVerification.verified,emailRecoveryPreview:mailPreview,sessions:sessions.map(r=>({id:r.session_id,label:r.client_label,current:r.current,createdAt:r.created_at,lastSeenAt:r.last_seen_at,expiresAt:r.expires_at})),events:events.map(r=>({event:r.event,at:r.created_at}))};
   },
   async revokeSession(input,token){
    fields(input,['id','allOthers','currentPassword']);if(input.allOthers!==true&&!uuid(input.id))throw new InputError('Choose a session.');

@@ -62,11 +62,13 @@ await worker.tick();
 // Leave examples stable until an authenticated user explicitly requests a refresh.
 await tracking.query("UPDATE relay_live_orders SET next_check_at=now()+interval '1 day'");
 const origin=`http://127.0.0.1:${port}`,config={origin,host:new URL(origin).host,paymentHealthAdmins:['admin'],testers:['alice','bob','admin'].map(label=>({label,sha256hex:digest('relay-preview-'+label)}))};
-const mail=createAccountMail(store,{enabled:true,preview:true,origin,deliver:async message=>({id:'local-'+message.id})});
+const mail=process.env.RELAY_PREVIEW_EMAIL_DISABLED==='true'?createAccountMail(store):createAccountMail(store,{enabled:true,preview:true,origin,deliver:async message=>({id:'local-'+message.id})});
 const fundingDrafts=createFundingDrafts(store);await fundingDrafts.migrate();
 // Synthetic stopped order with saved settlement for the read-only admin view.
 const stopped=(await tracking.state('alice')).orders.find(o=>o.status==='checkout_received');
 await store.query("INSERT INTO relay_funding_drafts(id,owner,request_id,agent_id,agent_revision,agent,pence,status,merchant_id,attempt_token,attempted_at,provider_id,requested_usdc,stopped_at) VALUES($1,'alice',$2,$3,1,$4,2500,'bound','relay-fixture-only',$5,now(),$6,'12.5',now())",[stopped.id,randomUUID(),stopped.agent.id,stopped.agent,randomUUID(),stopped.providerOrderId]);
+// Optional read-only reconciliation demo starts with the existing synthetic receipt closed.
+if(process.env.RELAY_PREVIEW_RECONCILIATION==='true')await fundingDrafts.closeVerified(stopped.id);
 await tracking.accept({environment:'LIVE',merchantId:'relay-fixture-only',eventId:'local-unmatched',digest:'a'.repeat(64),deliveryId:'local-delivery',orderId:'outside-preview',type:'order.updated'},{matchedOnly:true});
 const ramp=createRampSimulation(store);await ramp.migrate();
 const walletBalances=createWalletBalances(store,{simulated:true,rpc:{getChainId:async()=>8453,getBlock:async()=>({number:123n,timestamp:BigInt(Math.floor(Date.now()/1000))}),readContract:async()=>7250000n}});

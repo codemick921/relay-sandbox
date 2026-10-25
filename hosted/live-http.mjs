@@ -1,3 +1,4 @@
+import {paymentRecord} from './payment-records.mjs';
 import {InputError} from '../server/validation.mjs';
 import {verifyWebhook} from '../server/pay-webhooks.mjs';
 import {TrackingReviewError} from '../server/pay-readonly.mjs';
@@ -7,7 +8,7 @@ import {payInProjection} from '../server/pay-payin.mjs';
 const send=(res,status,data)=>{res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer'});res.end(JSON.stringify(data));return true;};
 async function body(req){let size=0;const chunks=[];for await(const chunk of req){size+=chunk.length;if(size>262144)throw new InputError('Request too large.',413);chunks.push(chunk);}return Buffer.concat(chunks);}
 
-export const presentTrackedOrder=(order,simulated=false)=>({...order,tracking:true,...simulated?{source:'fixture',fixture:true,verification:order.verification?{...order.verification,environment:'SIMULATED',simulated:true,payIn:undefined}:undefined}:order.verification?{verification:{...order.verification,payIn:payInProjection(order.verification.payIn)}}:{}});
+export const presentTrackedOrder=(order,simulated=false)=>{const record=paymentRecord(order);return {...order,tracking:true,chargebackRecorded:record.chargeback,...order.status==='checkout_received'&&!record.deliveryConfirmed?{status:'checkout_review',reviewRequired:true}:{},...simulated?{source:'fixture',fixture:true,verification:order.verification?{...order.verification,environment:'SIMULATED',simulated:true,payIn:undefined}:undefined}:order.verification?{verification:{...order.verification,payIn:payInProjection(order.verification.payIn)}}:{}};};
 
 // Webhooks are optional and disabled unless explicitly supplied. Session auth
 // and durable rate limits are required even when only read routes are mounted.
@@ -42,8 +43,9 @@ export function createLiveTrackingHandler({store,origin,webhook,authenticate,rat
    if(match[2]==='refresh'&&req.method==='POST'){await store.schedule(owner,row.id);return send(res,202,{scheduled:true,id:row.id});}
    if(req.method!=='GET'||match[2]==='refresh')throw new InputError('Method not allowed.',405);
    if(match[2]==='receipt'){
-    if(row.review_required||row.status!=='checkout_received'||!row.result.delivery?.finalized)throw new InputError('A complete wallet receipt is not confirmed.',409);
-    return send(res,200,{simulated,environment:simulated?'SIMULATED':'LIVE',orderId:row.id,providerOrderId:row.provider_id,delivery:row.result.delivery,payIn:simulated?null:payInProjection(row.result.verification?.payIn),checkedAt:row.result.checkedAt,trackingError:row.result.trackingError??null,chargebackStatus:row.result.chargebackStatus});
+    const record=paymentRecord(liveOrderView(row));
+    if(!record.deliveryConfirmed)throw new InputError('A complete wallet receipt is not confirmed.',409);
+    return send(res,200,{simulated,environment:simulated?'SIMULATED':'LIVE',orderId:row.id,providerOrderId:row.provider_id,delivery:row.result.delivery,payIn:simulated?null:payInProjection(row.result.verification?.payIn),checkedAt:row.result.checkedAt,trackingError:row.result.trackingError??null,chargebackStatus:row.result.chargebackStatus,chargebackRecorded:record.chargeback});
    }
    return send(res,200,presentTrackedOrder(liveOrderView(row),simulated));
   }catch(e){return send(res,e instanceof InputError?e.status:e instanceof TrackingReviewError?409:503,{error:e instanceof InputError?e.message:e instanceof TrackingReviewError?'Conflicting payment evidence requires review.':'Tracking is temporarily unavailable. Saved records are retained.'});}

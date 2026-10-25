@@ -1,14 +1,16 @@
 import AccountSecurity from './AccountSecurity';
+import AccountEmail from './AccountEmail';
 import {resumeTarget} from './payment-resume.mjs';
-import React,{useState,useEffect} from 'react';
+import React,{useState,useEffect,useCallback} from 'react';
 import App from './App';
 import {api} from './api';
 import {Button,Field,Notice,Check} from './ui';
 export default function Access(){
  const [hasResume,setHasResume]=useState(()=>!!resumeTarget(window.location));
  const [access,setAccess]=useState(null),[error,setError]=useState(''),[message,setMessage]=useState(''),[busy,setBusy]=useState(false),[mode,setMode]=useState('signin');
- const [email,setEmail]=useState(''),[name,setName]=useState(''),[password,setPassword]=useState(''),[currentPassword,setCurrentPassword]=useState(''),[code,setCode]=useState(''),[accepted,setAccepted]=useState(false),[recovery,setRecovery]=useState(''),[saved,setSaved]=useState(false),[link,setLink]=useState(null),[emails,setEmails]=useState([]);
- const clearSecrets=()=>{setPassword('');setCurrentPassword('');setCode('');setRecovery('');setSaved(false);setEmails([]);};
+ const [email,setEmail]=useState(''),[name,setName]=useState(''),[password,setPassword]=useState(''),[currentPassword,setCurrentPassword]=useState(''),[code,setCode]=useState(''),[accepted,setAccepted]=useState(false),[recovery,setRecovery]=useState(''),[saved,setSaved]=useState(false),[link,setLink]=useState(null);
+ const emailChanged=useCallback(verified=>setAccess(a=>a?.account&&a.account.emailVerified!==verified?{...a,account:{...a.account,emailVerified:verified}}:a),[]);
+ const clearSecrets=()=>{setPassword('');setCurrentPassword('');setCode('');setRecovery('');setSaved(false);};
  const switchMode=next=>{clearSecrets();setError('');setMessage('');setAccepted(false);setMode(next);};
  function openLink(value){
   const match=/^#(verify-email|reset-password)=([a-f0-9]{64})$/.exec(value);
@@ -41,7 +43,7 @@ export default function Access(){
    if(result.recoveryCode){setRecovery(result.recoveryCode);setSaved(false);}else setMode(link?.purpose==='verify-email'?'confirmEmail':'signin');
   }catch(e){setError(e.message);}finally{setBusy(false);}
  }
- async function signout(){try{await api('logout',{});clearSecrets();setLink(null);setMode('signin');setAccess({...access,authenticated:false,account:null});setError('');setMessage('');}catch{setError('Sign-out could not be confirmed. Please retry.');}}
+ async function signout(preserveVerification=false){try{await api('logout',{});clearSecrets();if(!(preserveVerification===true&&link?.purpose==='verify-email'))setLink(null);setMode('signin');setAccess({...access,authenticated:false,account:null});setError('');setMessage('');}catch{setError('Sign-out could not be confirmed. Please retry.');}}
  if(access?.authenticated&&!recovery&&!['security','confirmEmail','reset','forgot'].includes(mode))return <>{access.hostedSandbox&&<div className="sandbox-access-bar"><span>{access.account?`${access.account.name} · Your agent wallet account`:access.adminPaymentHealth?'Admin workspace · saved payment evidence':'Private tracking sandbox · simulated payments'}</span>{access.account&&<button onClick={()=>switchMode('security')}>{access.account.emailVerified?'Account security':'Account security · email unverified'}</button>}<button onClick={signout}>Sign out</button>{error&&<span role="alert">{error}</span>}</div>}<App/></>;
  const customer=access?.customerAccounts,effectiveMode=customer?mode:'tester';
  const emailEnabled=access?.emailSendingEnabled,localEmail=access?.localEmailPreview;
@@ -58,18 +60,14 @@ export default function Access(){
   <Button className="full" disabled={!saved||busy} onClick={async()=>{if(access.authenticated&&!await action('confirmRecovery',{recoveryCode:recovery}))return;setRecovery('');setSaved(false);setMode(access.authenticated?'security':'signin');}}>{access.authenticated?'Continue to account security':'Return to sign in'}</Button>
  </>:mode==='confirmEmail'?<>
   <p>{access.account?`Confirm the email address for ${access.account.email}.`:'Sign in to the account this link was sent to. Then confirm your email address.'}</p>
-  {access.account?<><Button disabled={busy||!link} onClick={async()=>{const result=await action('verifyEmail',{linkToken:link?.token});if(result){setLink(null);setMode('security');}}}>Confirm email address</Button><button className="text-button" disabled={busy} onClick={signout}>Sign in to a different account</button></>:<Button onClick={()=>setMode('signin')}>Sign in to confirm</Button>}
+  {access.account?<><Button disabled={busy||!link} onClick={async()=>{const result=await action('verifyEmail',{linkToken:link?.token});if(result){setLink(null);setMode('security');}}}>Confirm email address</Button><button className="text-button" disabled={busy} onClick={()=>signout(true)}>Sign in to a different account</button></>:<Button onClick={()=>setMode('signin')}>Sign in to confirm</Button>}
   <button className="text-button" onClick={()=>{setLink(null);switchMode(access.account?'security':'signin');}}>Cancel</button>
  </>:<>
  {customer&&!access.authenticated&&mode!=='reset'&&<nav className="auth-tabs" aria-label="Account access"><button type="button" disabled={busy} aria-pressed={mode==='signin'} onClick={()=>switchMode('signin')}>Sign in</button><button type="button" disabled={busy} aria-pressed={mode==='signup'} onClick={()=>switchMode('signup')}>Create account</button></nav>}
- {mode==='security'&&<section aria-label="Email verification">
-  <h2>Email address</h2><p>{access.account?.email}</p>
-  <Notice>{access.account?.emailVerified?(localEmail?'Test verification complete. This local preview does not prove access to an inbox or ownership of a wallet.':'Email verified. This confirms access to your email address; it does not verify wallet ownership.'):emailEnabled?'Verify your email to use email-based password recovery. Your saved wallets stay available.':'Email sending is not connected yet. Your account and saved wallets work; keep your recovery code for password recovery.'}</Notice>
-  {!access.account?.emailVerified&&<Button disabled={busy||!emailEnabled} onClick={()=>action('requestVerification')}>{localEmail?'Create verification preview':'Send verification email'}</Button>}
-  {localEmail&&<><Button disabled={busy||!access.account?.emailVerified} onClick={()=>action('requestReset',{email:access.account.email})}>Create password reset preview</Button><Button disabled={busy} onClick={async()=>{const result=await action('emailPreview');if(result)setEmails(result.emails);}}>View local test emails</Button>
-  {emails.length>0?<div aria-label="Local test mailbox">{emails.map(m=><article key={m.id}><h3>{m.subject}</h3><p className="fine-print">Test message only. No email was sent.</p>{m.purpose!=='changed'&&<a href={m.link} onClick={e=>{e.preventDefault();openLink(new URL(m.link).hash);}}>Open this test link</a>}</article>)}</div>:<p className="fine-print">New previews may take a few seconds. Use “View local test emails” to check.</p>}</>}
-  <AccountSecurity onRecovery={value=>{setRecovery(value);setSaved(false);setError('');}}/><h2>Change password</h2>
- </section>}
+ {mode==='security'&&<>
+  <AccountEmail account={access.account} onVerified={emailChanged} openLink={openLink}/>
+  <AccountSecurity key={String(access.account.emailVerified)} onRecovery={value=>{setRecovery(value);setSaved(false);setError('');}}/><h2>Change password</h2>
+ </>}
  <form onSubmit={submit}>
  {effectiveMode==='tester'?<Field label="Tester access code" hint="Existing tester workspaces stay separate from customer accounts."><input type="password" autoComplete="current-password" required value={code} onChange={e=>setCode(e.target.value)}/></Field>:<>
  {mode==='signup'&&<Field label="Your name"><input autoComplete="name" required minLength={2} maxLength={60} value={name} onChange={e=>setName(e.target.value)}/></Field>}

@@ -5,11 +5,11 @@
   },
   {
     "path": "hosted/account-security.mjs",
-    "sha256": "7a42c25d382dd93795a3892420cc6f31408c8adc3f49f8c00460f0d9ce001218"
+    "sha256": "83fe6a14291fcc94675c49845e77312daebb9c01e9196c3a1197676738050bdc"
   },
   {
     "path": "hosted/accounts.mjs",
-    "sha256": "3bd30ee5ae580b40c0ea7987514c80b9164bc48cbc01f65e1c7c668d7419c66d"
+    "sha256": "7867010d974f670e1fcc927cd88496960a501c87b91704b7c49de899eb945320"
   },
   {
     "path": "hosted/config.mjs",
@@ -20,8 +20,20 @@
     "sha256": "fa018d4a9aa9a25f48c0d48e88d4462eacb2544e062818e18c6d9c6ddb7bf5bb"
   },
   {
+    "path": "hosted/customer-notifications.mjs",
+    "sha256": "d3ec74ba2593a894b8ba9e96783613facffc70f4d6db7e1af022852502ca5b07"
+  },
+  {
+    "path": "hosted/customer-notifications.sql",
+    "sha256": "26b3b13b66f7866b1cbd1facad881e01b772a5c8db48da759ffe72147e603da8"
+  },
+  {
     "path": "hosted/db.mjs",
-    "sha256": "0b7a03ed45486ede3a6a46c1eddbf9c16ee61ba035e5303d269f0eb284f1fc3a"
+    "sha256": "90e40ae9621ca45f25d54c52ffe51dd53c54c6b0073c86b51df2ea82b154d935"
+  },
+  {
+    "path": "hosted/email-verification.mjs",
+    "sha256": "8e0d3f862fae48c2ccbcd6a2df019fe912ad793baeb09f1e3d9556c13764f2dc"
   },
   {
     "path": "hosted/funding-drafts.mjs",
@@ -45,7 +57,7 @@
   },
   {
     "path": "hosted/live-http.mjs",
-    "sha256": "6438e1556e6bb2ab4dd88e188ff511520b958f093f63cddd05a6e5341451761a"
+    "sha256": "30e9cbcfd9eee1ae4683a57a8b0c96da1cb02c200c8da5f634897f0dc91d7df3"
   },
   {
     "path": "hosted/live-observation.mjs",
@@ -69,11 +81,15 @@
   },
   {
     "path": "hosted/payment-health.mjs",
-    "sha256": "bdad73949548fe9e5aecdd5a13d672ac27daeaecbfafb79f79f3cccc32510aac"
+    "sha256": "f5207fbc35da0ad09a4568b31bb3601ffc50364b35024385fe67de042ff52a19"
+  },
+  {
+    "path": "hosted/payment-reconciliation.mjs",
+    "sha256": "fe0e505107c6e5970bd95d27c12dada81c497bf228bc7d34f52f0eec61ef741f"
   },
   {
     "path": "hosted/payment-records.mjs",
-    "sha256": "95e106b4614b9876d6d7268d1631825e69dfc6ef18ffed4b2919fba78407b1f1"
+    "sha256": "8b59e78c29f6c6ce7c0f1146ca1c20493671542714f2651de292fd54625beae7"
   },
   {
     "path": "hosted/peer-connection.mjs",
@@ -117,7 +133,7 @@
   },
   {
     "path": "hosted/server.mjs",
-    "sha256": "d7fc786b5b2a1ca67bb04ed2fcac44e03f8ca8f0fb964bbd5b14f7a3e801170a"
+    "sha256": "606fc24dc388cc3f2e03e67dc74089e620979b131e1702d68f1cc2ff77e21826"
   },
   {
     "path": "hosted/startup.mjs",
@@ -125,7 +141,7 @@
   },
   {
     "path": "hosted/tracking-preview.mjs",
-    "sha256": "d8a21dc3cd87b7d847981f5cbc72b72c79a6945099c7af2790999823175ad996"
+    "sha256": "db0164d3b37bdc655e137a5f89d7d56a7a056b567cb8200b10600721644e7bb5"
   },
   {
     "path": "hosted/tracking-sandbox.mjs",
@@ -221,19 +237,23 @@
   },
   {
     "path": "src/Access.jsx",
-    "sha256": "ef131bc812d308ee79b5fb6e27fe8fa354c836806a8e57d08d70df46d786cc3d"
+    "sha256": "86e33c6934230cb13ade6f14ca177e9fc88b86a29bcd7c120819b33581fcbe56"
+  },
+  {
+    "path": "src/AccountEmail.jsx",
+    "sha256": "017f2690f35c55dce945977ca9f10e33d14fd242030cee9154ba42e783911750"
   },
   {
     "path": "src/AccountSecurity.jsx",
-    "sha256": "239adb8962ae32f17e5dc8d4fb6d90d0ffcff4ef650735c054a4e8a7ef36054a"
+    "sha256": "4ff2ad58d6a6c6a68850424007fc70c1153ef052405331a7a3f80540e4b68f0b"
   },
   {
     "path": "src/AdminPaymentHealth.jsx",
-    "sha256": "bb822c90689b7360306d7ec8db2f74da7d4ae62b8caf90b3b17cfc05f41bbdab"
+    "sha256": "2eb44d916afafcd21e1cd81b9f7d3eaa4262bd06b13796603703c15fc1224c35"
   },
   {
     "path": "src/App.jsx",
-    "sha256": "4e13ecd086f4f10c887e3b37792e6c6c4b4a526f2466d8f0df7164f15a14e53c"
+    "sha256": "9aa083633e5a6aa3e2c49f7575bee135effc9c119fa58d82dbfd0945ae7c136f"
   },
   {
     "path": "src/Funding.jsx",
@@ -256,6 +276,10 @@
     "sha256": "f95bd8e4f58d732b8b7741c519248e8389399e0c7935fac79aedcaad508dbc59"
   },
   {
+    "path": "src/Notifications.jsx",
+    "sha256": "ef3f72991ba79956b3372273450404c51a632782d7cdb4d0128c7dde7106f673"
+  },
+  {
     "path": "src/PaymentRecovery.jsx",
     "sha256": "39b543dd81583627dd4c7656d91b2fad2041db863f71b02c0826a793b5234507"
   },
@@ -273,7 +297,7 @@
   },
   {
     "path": "src/SimpleFunding.jsx",
-    "sha256": "c4b4dc19d638aa47342879b6528bfbdc7ecbaf817c9ab14e10c1008a12255b2b"
+    "sha256": "052bdbab4770e5f4b097673808abc784b8125cdb768cc9b3781a871f41b81860"
   },
   {
     "path": "src/TestFunding.jsx",
@@ -298,6 +322,10 @@
   {
     "path": "src/main.jsx",
     "sha256": "778309c02531bc16e76ce8d199601a5cb722e63431dff02501e8bb7c2a0d9602"
+  },
+  {
+    "path": "src/notifications.css",
+    "sha256": "6984c5e3f6e423d91db56637eb6d3019782308addcd5a984d1bc9bfb0c141129"
   },
   {
     "path": "src/payment-health.css",
@@ -342,6 +370,14 @@
   {
     "path": "tests/customer-funding.test.mjs",
     "sha256": "206a116b3c9ef3fe11fabac29f3a29aab71dfef9c8b76eea5415a20d971929a6"
+  },
+  {
+    "path": "tests/customer-notifications.test.mjs",
+    "sha256": "5fe8194df13c2018c4f7d69016a196d482900ae0408128ebb25329bc30ec2c68"
+  },
+  {
+    "path": "tests/email-verification.test.mjs",
+    "sha256": "d05cef62fb311d8eff1172fa48f79f2b673cf18f6344169bb360c411f13db0e2"
   },
   {
     "path": "tests/fixtures/account-store.mjs",
@@ -412,8 +448,12 @@
     "sha256": "1b1ab20c08def5cb4d18617da46e1b629527b1309e1539025c8f51cc57acbe72"
   },
   {
+    "path": "tests/payment-reconciliation.test.mjs",
+    "sha256": "c2dda20710cdcc306250ddcf70395ca9d81ac132a34b34519e183d6da0ced391"
+  },
+  {
     "path": "tests/payment-records.test.mjs",
-    "sha256": "ce9b71efb649026d2ee9f12d3e422f81d33fb9c5f6628fb209ad703e065749b4"
+    "sha256": "d665f8989eb740b54ef304e9ad9a64451fbd451c9101ba3f870391e7c915833a"
   },
   {
     "path": "tests/payment-resume.test.mjs",
@@ -481,7 +521,7 @@
   },
   {
     "path": "scripts/test-postgres.mjs",
-    "sha256": "7352d292b11b516712fa586f577b4f81e79573889daa91fe2220e0d2268abac0"
+    "sha256": "8290c76fd301550b66f5cb3b85e4fe1cbf1e6d0ca966cf9046930bb94bacf70d"
   },
   {
     "path": "scripts/test-sandbox-webhook-flow.mjs",
@@ -513,7 +553,7 @@
   },
   {
     "path": "DEPLOYMENT.md",
-    "sha256": "c3358c454fb7d14d7745156f3f52ddbcc212d441c39af280ecd5b95d10796eea"
+    "sha256": "fe08fcd553963f28353a32cf1104594c8f8e41b5c12f38018f42d5a339882c95"
   },
   {
     "path": ".github/workflows/verify.yml",

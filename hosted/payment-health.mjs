@@ -1,3 +1,4 @@
+import {reconcileSavedPayment} from './payment-reconciliation.mjs';
 // Saved evidence only. This reader has no provider client and no payment write path.
 import {paymentRecord} from './payment-records.mjs';
 import {InputError} from '../server/validation.mjs';
@@ -22,7 +23,7 @@ export function createPaymentHealthReader(pool,merchantId){
    const now=new Date((await c.query('SELECT now() AS at')).rows[0].at).getTime();
    const hasDrafts=!!(await c.query("SELECT to_regclass('relay_funding_drafts') AS name")).rows[0].name;
    const base=`WITH saved AS (SELECT o.*, ${hasDrafts?'d.stopped_at':'NULL::timestamptz'} AS stopped_at FROM relay_live_orders o ${hasDrafts?'LEFT JOIN relay_funding_drafts d ON d.id=o.id AND d.owner=o.owner AND d.merchant_id=o.merchant_id AND d.provider_id=o.provider_id':''} WHERE o.merchant_id=$1), flags AS (SELECT *,
-    (review_required OR status='checkout_review' OR coalesce(result->>'chargebackStatus','NONE') NOT IN ('NONE','')) AS review,
+    (review_required OR status='checkout_review' OR coalesce(result->>'chargebackStatus','NONE') NOT IN ('NONE','') OR EXISTS(SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(result->'verification'->'payments')='array' THEN result->'verification'->'payments' ELSE '[]'::jsonb END) p WHERE coalesce(p->>'chargebackStatus','NONE') NOT IN ('NONE',''))) AS review,
     (attempts>0 OR coalesce(result->>'trackingError','')<>'') AS retry,
     (status NOT IN ('checkout_received','checkout_cancelled') AND next_check_at<now()-interval '5 minutes') AS overdue,
     (status='checkout_partial') AS partial,
@@ -42,7 +43,9 @@ export function createPaymentHealthReader(pool,merchantId){
     const row=(await c.query(base+' SELECT * FROM records WHERE id=$2',[merchantId,id])).rows[0];
     if(!row)throw new InputError('Payment record not found.',404);
     const audit=(await c.query('SELECT a.at,a.event,a.data FROM relay_live_audit a JOIN relay_live_orders o ON o.id=a.order_id WHERE o.merchant_id=$1 AND o.id=$2 ORDER BY a.at DESC,a.id DESC LIMIT 101',[merchantId,id])).rows;
-    detail={...project(row),timeline:audit.slice(0,100).map(a=>({at:date(a.at),label:a.event==='verified'&&stages[a.data?.to]?'Verification saved: '+stages[a.data.to]:events[a.event]??'Saved tracking event'})),timelineTruncated:audit.length>100};
+    const ledger=(await c.query('SELECT merchant_id,payment_id,order_id,chain_id,token_address,recipient,amount_raw,intent_hash,transaction_hash,receipt,finalized FROM relay_live_payments WHERE merchant_id=$1 AND order_id=$2',[merchantId,id])).rows;
+    const draft=hasDrafts?(await c.query('SELECT id,owner,merchant_id,provider_id,agent_id,agent,pence,rail,requested_usdc,status FROM relay_funding_drafts WHERE id=$1 AND owner=$2',[id,row.owner])).rows[0]:null;
+    detail={...project(row),reconciliation:reconcileSavedPayment(row,ledger,draft,now),timeline:audit.slice(0,100).map(a=>({at:date(a.at),label:a.event==='verified'&&stages[a.data?.to]?'Verification saved: '+stages[a.data.to]:events[a.event]??'Saved tracking event'})),timelineTruncated:audit.length>100};
    }
    await c.query('COMMIT');
    const heartbeatAt=date(worker.last),age=heartbeatAt?(now-Date.parse(heartbeatAt))/1000:null;

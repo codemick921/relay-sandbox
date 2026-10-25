@@ -77,3 +77,15 @@ test('a transfer check on a partially paid order does not imply that no balance 
 test('PostgreSQL Date values and JSON timestamps produce the same creation date',()=>{
  const date=new Date('2026-10-24T12:00:00Z');assert.equal(paymentRecord({...local(),createdAt:date}).createdAt,date.toISOString());assert.equal(paymentRecord({...local(),createdAt:date.toISOString()}).createdAt,date.toISOString());
 });
+
+test('a saved payment dispute remains visible when the aggregate order has not caught up',async()=>{
+ const o=await received();o.chargebackStatus='NONE';o.verification.payments[0].chargebackStatus='CHARGEBACKED';
+ const r=paymentRecord(o);assert.equal(r.chargeback,true);assert.equal(r.code,'disputed');assert.equal(r.document,'receipt');
+});
+
+test('delivery export rejects contradictory receipt summaries and duplicate or empty settlement identities',async()=>{
+ const o=await received();
+ for(const change of [x=>{x.delivery.receipts=[];},x=>{x.delivery.receipts=[null];},x=>{x.verification.payments=[null];},x=>{x.verification.payments[0].intentHash=123;},x=>{x.delivery.receipts[0].blockHash='0x'+'12'.repeat(32);},x=>{x.verification.payments[0].intentHash='invalid';},x=>{x.verification.payments[0].id='';}]){
+  const x=JSON.parse(JSON.stringify(o));change(x);assert.equal(paymentRecord(x).document,'summary');
+ }
+});

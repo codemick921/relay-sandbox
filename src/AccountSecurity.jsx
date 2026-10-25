@@ -15,7 +15,7 @@ export default function AccountSecurity({onRecovery}){
   {!data?<Button secondary disabled={busy} onClick={()=>load().catch(e=>setError(e.message))}>Load security details</Button>:<>
    <ul className="security-checklist">
     <li><strong>Recovery code</strong><span>{data.recoveryConfirmedAt?'Current code confirmed '+date(data.recoveryConfirmedAt):'Not confirmed. Check that you can retrieve your saved code.'}</span></li>
-    <li><strong>Email recovery</strong><span>{data.emailRecoveryPreview?'Test recovery only. No email is sent.':data.emailRecoveryAvailable?'Available for your verified email.':'Not available yet. Keep your recovery code safe.'}</span></li>
+    <li><strong>Email recovery</strong><span>{data.emailRecoveryPreview?'Test recovery only. No email is sent.':data.emailRecoveryAvailable?'Available for your verified email.':data.emailVerification?.mode==='unavailable'?'Email sending is unavailable. Use your recovery code.':'Verify your email address to enable email recovery.'}</span></li>
     <li><strong>Wallet changes</strong><span>Your current password is required each time. Existing requests keep their original destination.</span></li>
    </ul>
    <details className="security-section"><summary>Confirm my saved recovery code</summary><p>Enter the latest code from your password manager. Relay checks it without replacing it.</p><form onSubmit={e=>{e.preventDefault();run('confirmRecovery',{recoveryCode:code});}}><Field label="Saved recovery code"><input required type="password" autoComplete="off" minLength={64} maxLength={64} value={code} onChange={e=>setCode(e.target.value.trim())}/></Field><Button secondary disabled={busy}>Confirm saved code</Button></form></details>

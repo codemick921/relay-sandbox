@@ -8,9 +8,11 @@ const text=(v,max=160)=>typeof v==='string'?v.slice(0,max):null;
 export const units=(value,decimals=6)=>{if(raw(value)===null)return null;const s=BigInt(value).toString().padStart(decimals+1,'0');return s.slice(0,-decimals)+'.'+s.slice(-decimals);};
 const sum=values=>values.length&&values.every(v=>raw(v)!==null)?values.reduce((a,v)=>a+BigInt(v),0n).toString():null;
 function evidence(order){
- const v=order.verification??{},payments=Array.isArray(v.payments)?v.payments.filter(p=>p.status==='SETTLED'):[];
- const seen=new Set();const receipts=[];let valid=payments.length>0;
+ const v=order.verification??{},payments=Array.isArray(v.payments)?v.payments.filter(p=>p?.status==='SETTLED'):[];
+ const seen=new Set(),ids=new Set(),intents=new Set();const receipts=[];let valid=payments.length>0;
  for(const p of payments){const r=p.receipt;
+  if(typeof p.id!=='string'||!p.id||ids.has(p.id)||!/^0x[0-9a-f]{64}$/i.test(p.intentHash??'')||intents.has(typeof p.intentHash==='string'?p.intentHash.toLowerCase():null)||raw(p.amountRaw)===null||BigInt(p.amountRaw)<=0n)valid=false;
+  ids.add(p.id);intents.add(typeof p.intentHash==='string'?p.intentHash.toLowerCase():null);
   if(!r)continue;
   const key=String(r.transactionHash).toLowerCase();
   if(r.chainId!==8453||!same(r.tokenAddress,TOKEN)||!same(r.recipient,order.agent?.address)||!/^0x[0-9a-f]{64}$/i.test(r.transactionHash??'')||!same(r.transactionHash,p.transactionHash)||raw(r.amountRaw)===null||r.amountRaw!==p.amountRaw||seen.has(key)||!/^0x[0-9a-f]{64}$/i.test(r.blockHash??'')||raw(String(r.blockNumber))===null){valid=false;continue;}
@@ -19,12 +21,14 @@ function evidence(order){
  }
  const expected=sum(payments.map(p=>p.amountRaw));
  const confirmed=sum(payments.filter(p=>receipts.some(r=>same(r.transactionHash,p.transactionHash))).map(p=>p.amountRaw));
- const complete=valid&&order.status==='checkout_received'&&!order.reviewRequired&&v.providerFulfilled===true&&receipts.length===payments.length&&expected===v.expectedNetRaw&&confirmed===v.receivedRaw&&order.delivery?.finalized===true&&order.delivery.chainId===8453&&same(order.delivery.tokenAddress,TOKEN)&&same(order.delivery.recipient,order.agent?.address)&&order.delivery.amountRaw===confirmed;
+ const summary=order.delivery?.receipts;
+ const summaryMatches=Array.isArray(summary)&&summary.length===receipts.length&&summary.every(r=>payments.some(p=>{const x=p.receipt;return r&&x&&['transactionHash','blockHash','tokenAddress','recipient'].every(k=>same(r[k],x[k]))&&r.chainId===x.chainId&&String(r.blockNumber)===String(x.blockNumber)&&r.amountRaw===x.amountRaw&&r.finalized===true;}))&&new Set(summary.map(r=>typeof r?.transactionHash==='string'?r.transactionHash.toLowerCase():null)).size===summary.length;
+ const complete=valid&&summaryMatches&&order.status==='checkout_received'&&!order.reviewRequired&&v.providerFulfilled===true&&receipts.length===payments.length&&expected===v.expectedNetRaw&&confirmed===v.receivedRaw&&order.delivery?.finalized===true&&order.delivery.chainId===8453&&same(order.delivery.tokenAddress,TOKEN)&&same(order.delivery.recipient,order.agent?.address)&&order.delivery.amountRaw===confirmed;
  return {complete,receipts:valid?receipts:[],net:units(expected),confirmed:valid?units(confirmed):null,fee:units(sum(payments.map(p=>p.feeRaw)))};
 }
 export function paymentRecord(order,draft,now=Date.now()){
  const o=order??{},d=draft??{},v=o.verification??{},e=evidence(o),simulated=!!o.fixture||!!v.simulated||['fixture','simulation','practice','sandbox'].includes(o.source)||o.kind==='ramp';
- const stopped=!!(o.stoppedInRelay||d.stoppedAt),chargeback=typeof o.chargebackStatus==='string'&&!['NONE',''].includes(o.chargebackStatus);
+ const stopped=!!(o.stoppedInRelay||d.stoppedAt),chargeback=(typeof o.chargebackStatus==='string'&&!['NONE',''].includes(o.chargebackStatus))||(Array.isArray(v.payments)&&v.payments.some(p=>p&&typeof p.chargebackStatus==='string'&&!['NONE',''].includes(p.chargebackStatus)));
  let code='awaiting',title='Waiting for payment verification',next='Open your existing request to review its current instructions. If you have already paid, do not pay again; keep your bank confirmation while Relay checks the payment.';
  if(!order&&d.status==='draft'){code='draft';title='Saved draft';next='Nothing has been sent to Peer for this draft. Review the amount and saved wallet in your existing request before continuing.';}
  if(['checkout_unknown','checkout_recovery'].includes(o.status)||(!order&&!['draft','cancelled','closed'].includes(d.status))){code='uncertain';title='Checkout needs recovery';next='Open the existing request to recover its checkout. Do not create or pay a duplicate while the first attempt is uncertain.';}

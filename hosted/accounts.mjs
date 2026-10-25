@@ -57,7 +57,7 @@ export function createAccounts(store,{mail=createAccountMail(store)}={}){
   async signup(input,_token,context){
    const email=emailKey(input.email);await limits(email,'signup');
    const name=typeof input.name==='string'?input.name.trim():'';
-   if(name.length<2||name.length>60||input.acceptSandbox!==true)throw new InputError('Enter your name and confirm that payments are disabled.');
+   if(name.length<2||name.length>60||input.acceptSandbox!==true)throw new InputError('Enter your name and confirm the wallet and checkout acknowledgement.');
    const password=await hashPassword(input.password),code=recovery(),id=randomUUID();
    try{
     return await store.tx(async c=>{
