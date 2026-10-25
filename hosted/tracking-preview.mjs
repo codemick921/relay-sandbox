@@ -64,6 +64,13 @@ await tracking.query("UPDATE relay_live_orders SET next_check_at=now()+interval 
 const origin=`http://127.0.0.1:${port}`,config={origin,host:new URL(origin).host,paymentHealthAdmins:['admin'],testers:['alice','bob','admin'].map(label=>({label,sha256hex:digest('relay-preview-'+label)}))};
 const mail=process.env.RELAY_PREVIEW_EMAIL_DISABLED==='true'?createAccountMail(store):createAccountMail(store,{enabled:true,preview:true,origin,deliver:async message=>({id:'local-'+message.id})});
 const fundingDrafts=createFundingDrafts(store);await fundingDrafts.migrate();
+// Optional funding-first QA: synthetic empty customer and an existing saved request.
+// No provider calls or new payment orders; this binds a fixture seeded above.
+if(process.env.RELAY_PREVIEW_FUNDING_FIRST==='true'){
+ await createAccounts(store).signup({email:'first-wallet@example.test',name:'First Wallet Preview',password:'preview lantern river meadow',acceptSandbox:true});
+ const existing=(await tracking.state(previewOwner)).orders.find(o=>o.status==='checkout_confirming');
+ await store.query("INSERT INTO relay_funding_drafts(id,owner,request_id,agent_id,agent_revision,agent,pence,status,merchant_id,attempt_token,attempted_at,provider_id,requested_usdc) VALUES($1,$2,$3,$4,1,$5,2500,'bound','relay-fixture-only',$6,now(),$7,'12.5')",[existing.id,previewOwner,randomUUID(),existing.agent.id,existing.agent,randomUUID(),existing.providerOrderId]);
+}
 // Synthetic stopped order with saved settlement for the read-only admin view.
 const stopped=(await tracking.state('alice')).orders.find(o=>o.status==='checkout_received');
 await store.query("INSERT INTO relay_funding_drafts(id,owner,request_id,agent_id,agent_revision,agent,pence,status,merchant_id,attempt_token,attempted_at,provider_id,requested_usdc,stopped_at) VALUES($1,'alice',$2,$3,1,$4,2500,'bound','relay-fixture-only',$5,now(),$6,'12.5',now())",[stopped.id,randomUUID(),stopped.agent.id,stopped.agent,randomUUID(),stopped.providerOrderId]);

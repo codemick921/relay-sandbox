@@ -1,3 +1,4 @@
+import {activeFundingDraft} from './funding-entry.mjs';
 import PhoneResume from './PhoneResume';
 import {canContinueCheckout} from './payment-resume.mjs';
 import React,{useState,useEffect} from 'react';
@@ -8,7 +9,7 @@ import FundingInstructions from './FundingInstructions';
 export function LiveFunding({state,act,busy,error,onClose,open,selected,fundingPreset}){
  const live=state.liveFunding?.paymentsEnabled===true;
  const [agentId,setAgentId]=useState(selected??state.agents[0]?.id??''),[amount,setAmount]=useState(fundingPreset?.amount??'25'),[rail,setRail]=useState(fundingPreset?.rail??(live?'revolut':'wise')),[confirmed,setConfirmed]=useState(false),[requestId]=useState(()=>crypto.randomUUID());
- const agent=state.agents.find(a=>a.id===agentId),existing=state.fundingDrafts?.find(d=>!d.stoppedAt&&!d.supersededBy&&!['cancelled','closed'].includes(d.status));
+ const agent=state.agents.find(a=>a.id===agentId),existing=activeFundingDraft(state);
  return <Modal title={live?'Fund your agent with GBP':'Prepare GBP funding'} onClose={busy?()=>{}:onClose}>
   <Notice>{live?'Choose your receiving wallet and payment app. You will review Peer’s current rate, fees and recipient before paying.':'Payments are disabled. Saving a draft sends nothing to Peer.'}</Notice>
   {fundingPreset&&<Notice>Previous amount filled in for convenience. This is a new request: review the current rate, fees and payment instructions before paying.</Notice>}

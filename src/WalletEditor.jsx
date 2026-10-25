@@ -1,12 +1,12 @@
 import React,{useState} from 'react';
 import {Modal,Notice,Field,Check,Button} from './ui';
-export default function WalletEditor({state,agent,act,busy,error,onClose}){
+export default function WalletEditor({state,agent,act,busy,error,onClose,onSaved}){
  const [name,setName]=useState(agent?.name??'Research assistant'),[address,setAddress]=useState(agent?.address??''),[own,setOwn]=useState(false),[password,setPassword]=useState('');
  const customer=!!state.account,edited=!!agent;
  return <Modal title={edited?'Edit saved wallet':'Add your agent wallet'} onClose={busy?()=>{}:onClose}>
   <Notice>{edited?'Changes apply to future requests only. Existing drafts, payments and receipts keep their original destination. Cancel an unsubmitted draft and review a new one to use the updated wallet.':'Save a Base USDC destination. This does not verify wallet ownership or give Relay permission to spend.'}</Notice>
   {error&&<Notice error>{error}</Notice>}
-  <form onSubmit={async e=>{e.preventDefault();const result=await act(edited?'agents/update':'agents',{name,address,own,network:'base',...customer?{currentPassword:password}:{},...edited?{id:agent.id,expectedAddress:agent.address,expectedName:agent.name}:{}});setPassword('');if(result)onClose();}}>
+  <form onSubmit={async e=>{e.preventDefault();const result=await act(edited?'agents/update':'agents',{name,address,own,network:'base',...customer?{currentPassword:password}:{},...edited?{id:agent.id,expectedAddress:agent.address,expectedName:agent.name}:{}});setPassword('');if(result){if(onSaved)onSaved(result);else onClose();}}}>
    <Field label="Agent name"><input required minLength={2} maxLength={60} disabled={busy} value={name} onChange={e=>{setName(e.target.value);setOwn(false);}}/></Field>
    <div className="two-fields"><Field label="Network"><input readOnly value="Base"/></Field><Field label="Token"><input readOnly value="USDC"/></Field></div>
    {edited&&<section className="wallet-before"><strong>Currently saved address</strong><code className="checkout-address">{agent.address}</code></section>}

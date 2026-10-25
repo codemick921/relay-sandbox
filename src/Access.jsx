@@ -1,3 +1,4 @@
+import {FundingIntroduction} from './FundingHome';
 import AccountSecurity from './AccountSecurity';
 import AccountEmail from './AccountEmail';
 import {resumeTarget} from './payment-resume.mjs';
@@ -7,7 +8,7 @@ import {api} from './api';
 import {Button,Field,Notice,Check} from './ui';
 export default function Access(){
  const [hasResume,setHasResume]=useState(()=>!!resumeTarget(window.location));
- const [access,setAccess]=useState(null),[error,setError]=useState(''),[message,setMessage]=useState(''),[busy,setBusy]=useState(false),[mode,setMode]=useState('signin');
+ const [access,setAccess]=useState(null),[error,setError]=useState(''),[message,setMessage]=useState(''),[busy,setBusy]=useState(false),[mode,setMode]=useState(()=>resumeTarget(window.location)?'signin':'welcome');
  const [email,setEmail]=useState(''),[name,setName]=useState(''),[password,setPassword]=useState(''),[currentPassword,setCurrentPassword]=useState(''),[code,setCode]=useState(''),[accepted,setAccepted]=useState(false),[recovery,setRecovery]=useState(''),[saved,setSaved]=useState(false),[link,setLink]=useState(null);
  const emailChanged=useCallback(verified=>setAccess(a=>a?.account&&a.account.emailVerified!==verified?{...a,account:{...a.account,emailVerified:verified}}:a),[]);
  const clearSecrets=()=>{setPassword('');setCurrentPassword('');setCode('');setRecovery('');setSaved(false);};
@@ -19,10 +20,10 @@ export default function Access(){
  }
  useEffect(()=>{
   let active=true;
-  const readLink=()=>{setHasResume(!!resumeTarget(window.location));const hash=window.location.hash;if(hash.startsWith('#verify-email=')||hash.startsWith('#reset-password=')){window.history.replaceState(null,'',window.location.pathname+window.location.search);openLink(hash);}};
+  const readLink=()=>{const resume=!!resumeTarget(window.location);setHasResume(resume);if(resume)setMode(current=>current==='welcome'?'signin':current);const hash=window.location.hash;if(hash.startsWith('#verify-email=')||hash.startsWith('#reset-password=')){window.history.replaceState(null,'',window.location.pathname+window.location.search);openLink(hash);}};
   readLink();window.addEventListener('hashchange',readLink);
   api('access').then(a=>active&&setAccess(a)).catch(e=>{if(!active)return;if(e.status===404)setAccess({hostedSandbox:false,authenticated:true});else setError('Relay is temporarily unavailable. Please try again.');});
-  const expired=()=>{clearSecrets();setMode('signin');setAccess(previous=>({...previous,hostedSandbox:true,authenticated:false,account:null}));};window.addEventListener('relay-session-expired',expired);
+  const expired=()=>{clearSecrets();setHasResume(!!resumeTarget(window.location));setMode('signin');setAccess(previous=>({...previous,hostedSandbox:true,authenticated:false,account:null}));};window.addEventListener('relay-session-expired',expired);
   return()=>{active=false;window.removeEventListener('hashchange',readLink);window.removeEventListener('relay-session-expired',expired);};
  },[]);
  async function action(route,data={}){
@@ -43,8 +44,9 @@ export default function Access(){
    if(result.recoveryCode){setRecovery(result.recoveryCode);setSaved(false);}else setMode(link?.purpose==='verify-email'?'confirmEmail':'signin');
   }catch(e){setError(e.message);}finally{setBusy(false);}
  }
- async function signout(preserveVerification=false){try{await api('logout',{});clearSecrets();if(!(preserveVerification===true&&link?.purpose==='verify-email'))setLink(null);setMode('signin');setAccess({...access,authenticated:false,account:null});setError('');setMessage('');}catch{setError('Sign-out could not be confirmed. Please retry.');}}
+ async function signout(preserveVerification=false){try{await api('logout',{});clearSecrets();setHasResume(!!resumeTarget(window.location));if(!(preserveVerification===true&&link?.purpose==='verify-email'))setLink(null);setMode('signin');setAccess({...access,authenticated:false,account:null});setError('');setMessage('');}catch{setError('Sign-out could not be confirmed. Please retry.');}}
  if(access?.authenticated&&!recovery&&!['security','confirmEmail','reset','forgot'].includes(mode))return <>{access.hostedSandbox&&<div className="sandbox-access-bar"><span>{access.account?`${access.account.name} · Your agent wallet account`:access.adminPaymentHealth?'Admin workspace · saved payment evidence':'Private tracking sandbox · simulated payments'}</span>{access.account&&<button onClick={()=>switchMode('security')}>{access.account.emailVerified?'Account security':'Account security · email unverified'}</button>}<button onClick={signout}>Sign out</button>{error&&<span role="alert">{error}</span>}</div>}<App/></>;
+ if(access&&!access.authenticated&&access.customerAccounts&&!recovery&&!link&&!hasResume&&mode==='welcome')return <FundingIntroduction onFund={()=>switchMode('signup')} onSignIn={()=>switchMode('signin')}/>;
  const customer=access?.customerAccounts,effectiveMode=customer?mode:'tester';
  const emailEnabled=access?.emailSendingEnabled,localEmail=access?.localEmailPreview;
  const title={security:'Account security',signup:'Create your Relay account',recover:'Use your recovery code',forgot:'Reset your password',reset:'Choose a new password',confirmEmail:'Verify your email'}[mode]??'Welcome to Relay';
@@ -85,5 +87,6 @@ export default function Access(){
  </form>
  {customer&&<div className="auth-links">{access.authenticated?<button type="button" className="text-button" disabled={busy} onClick={()=>{setLink(null);switchMode('signin');}}>Back to my wallets</button>:<><button type="button" className="text-button" disabled={busy} onClick={()=>switchMode(mode==='forgot'?'recover':'forgot')}>{mode==='forgot'?'Use a recovery code':'Forgot your password?'}</button><button type="button" className="text-button" disabled={busy} onClick={()=>{setLink(null);switchMode(mode==='tester'?'signin':'tester');}}>{mode==='tester'?'Use customer sign-in':'Existing tester access'}</button></>}</div>}
  </>}
+ {!access?.authenticated&&!hasResume&&!link&&!recovery&&access?.customerAccounts&&<button type="button" className="text-button funding-auth-back" disabled={busy} onClick={()=>switchMode('welcome')}>Back to Relay</button>}
  </section></main>;
 }

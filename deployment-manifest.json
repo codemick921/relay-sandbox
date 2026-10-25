@@ -141,7 +141,7 @@
   },
   {
     "path": "hosted/tracking-preview.mjs",
-    "sha256": "db0164d3b37bdc655e137a5f89d7d56a7a056b567cb8200b10600721644e7bb5"
+    "sha256": "0facc714b873eb4b86cf268286630b821139d5fb72cc3da1f6ba89cbe6cac951"
   },
   {
     "path": "hosted/tracking-sandbox.mjs",
@@ -237,7 +237,7 @@
   },
   {
     "path": "src/Access.jsx",
-    "sha256": "86e33c6934230cb13ade6f14ca177e9fc88b86a29bcd7c120819b33581fcbe56"
+    "sha256": "ac47a6d5a586c3ae15f7e0465d420ea1348cb85ab15d773b30c42c776fd50575"
   },
   {
     "path": "src/AccountEmail.jsx",
@@ -253,7 +253,7 @@
   },
   {
     "path": "src/App.jsx",
-    "sha256": "9aa083633e5a6aa3e2c49f7575bee135effc9c119fa58d82dbfd0945ae7c136f"
+    "sha256": "655d8e2b7aff18c410c8883eec7c8aa110fd76141e3e426f87a97725cd23221e"
   },
   {
     "path": "src/Funding.jsx",
@@ -264,12 +264,16 @@
     "sha256": "848f160126aa5e27e29145842a1547439f61f7f83232cfb195f21baf8bd57e40"
   },
   {
+    "path": "src/FundingHome.jsx",
+    "sha256": "b5f4c65036edb486bb931c1c3752ef41ac6812d83f7a969b46a9001ce653fa94"
+  },
+  {
     "path": "src/FundingInstructions.jsx",
     "sha256": "2c561ff09b1bdc2080649d9afea1e402ad889514fa5bb15ac93f1714da1ce3eb"
   },
   {
     "path": "src/LiveFunding.jsx",
-    "sha256": "4f8f14ef4b62e9b95c62a686f266e40ad2649d6d7da425c5d4448d6384b4bcfc"
+    "sha256": "0fb1dbf6cccf315f6507003796fa15c9bbdc3e3b6909cae504272eaa81eba663"
   },
   {
     "path": "src/LiveOrder.jsx",
@@ -309,15 +313,23 @@
   },
   {
     "path": "src/WalletEditor.jsx",
-    "sha256": "ce472767e278873a0b6f9493f3d6d98e3e7c9fc85f64ec844368c443ec0530e8"
+    "sha256": "60d01d40ab8db1913202216722b770348ac75bf3916424e58f456177c5f04831"
   },
   {
     "path": "src/api.js",
     "sha256": "354f7d5631edc9eb9826a82812813e49438abe64f54362b15d613023d74a6df3"
   },
   {
+    "path": "src/funding-entry.mjs",
+    "sha256": "cde9c02e767f840f746036fe738c3eedb5b92aa7c16c90ace5c6dc145314bae1"
+  },
+  {
     "path": "src/funding-history.css",
     "sha256": "de132e4c4d137cdc0ebb1a9a54b73ad4c814dbc1fe0320856ccc4f99ccdf17ba"
+  },
+  {
+    "path": "src/funding-home.css",
+    "sha256": "037aa3c380fd6767677f468fff4ce0333aadc69268db74719b80d3cb1ea4a014"
   },
   {
     "path": "src/main.jsx",
@@ -390,6 +402,10 @@
   {
     "path": "tests/fixtures/offline-guard.mjs",
     "sha256": "56e037b4548e9787e8c20f3d821bc029dc9c13ebe6c8cc6b7ae6df1dc4e4e8a9"
+  },
+  {
+    "path": "tests/funding-entry.test.mjs",
+    "sha256": "eb8241b8a61812c544ecf549791ce6277284b44e7b26fd2dd1c8be8e98a5f79b"
   },
   {
     "path": "tests/funding-history.test.mjs",
