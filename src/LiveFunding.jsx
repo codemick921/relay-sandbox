@@ -1,4 +1,5 @@
 import FundingCosts from './FundingCosts';
+import {peerMethods} from './funding-options.mjs';
 import {inputPence} from './funding-costs.mjs';
 import {activeFundingDraft} from './funding-entry.mjs';
 import PhoneResume from './PhoneResume';
@@ -10,21 +11,22 @@ import FundingInstructions from './FundingInstructions';
 
 export function LiveFunding({state,act,busy,error,onClose,open,selected,fundingPreset}){
  const live=state.liveFunding?.paymentsEnabled===true;
- const [agentId,setAgentId]=useState(selected??state.agents[0]?.id??''),[amount,setAmount]=useState(fundingPreset?.amount??'25'),[rail,setRail]=useState(fundingPreset?.rail??(live?'revolut':'wise')),[confirmed,setConfirmed]=useState(false),[requestId]=useState(()=>crypto.randomUUID());
+ const methods=peerMethods(state);
+ const [agentId,setAgentId]=useState(selected??state.agents[0]?.id??''),[amount,setAmount]=useState(fundingPreset?.amount??'25'),[rail,setRail]=useState(live?(methods.some(m=>m.id===fundingPreset?.rail)?fundingPreset.rail:methods[0]?.id??''):'wise'),[confirmed,setConfirmed]=useState(false),[requestId]=useState(()=>crypto.randomUUID());
  const agent=state.agents.find(a=>a.id===agentId),existing=activeFundingDraft(state);
  return <Modal title={live?'Fund your agent with GBP':'Prepare GBP funding'} onClose={busy?()=>{}:onClose}>
   <Notice>{live?'Choose your receiving wallet and payment app. You will review Peer’s current rate, fees and recipient before paying.':'Payments are disabled. Saving a draft sends nothing to Peer.'}</Notice>
   {fundingPreset&&<Notice>Previous amount filled in for convenience. This is a new request: review the current rate, fees and payment instructions before paying.</Notice>}
   {error&&<Notice error>{error}</Notice>}
-  {existing?<><p>You have an existing funding request. Open it to continue paying, cancel a draft or stop an unpaid request before choosing another amount.</p><Button className="full" onClick={()=>open('funding-draft',existing.id)}>Review existing request</Button></>:<form onSubmit={async e=>{e.preventDefault();const s=await act('funding/drafts',{requestId,agentId,amount,rail,confirm:confirmed});if(s)open('funding-draft',s.selectedFundingDraftId);}}>
+  {existing?<><p>You have an existing funding request. Open it to continue paying, cancel a draft or stop an unpaid request before choosing another amount.</p><Button className="full" onClick={()=>open('funding-draft',existing.id)}>Review existing request</Button></>:<form onSubmit={async e=>{e.preventDefault();if(live&&(!methods.some(m=>m.id===rail)||state.paymentsDisabled===true))return;const s=await act('funding/drafts',{requestId,agentId,amount,rail,confirm:confirmed});if(s)open('funding-draft',s.selectedFundingDraftId);}}>
    <Field label="Agent to fund"><select required disabled={busy} value={agentId} onChange={e=>{setAgentId(e.target.value);setConfirmed(false);}}><option value="" disabled>Choose an agent</option>{state.agents.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select></Field>
    {!state.agents.length&&<Button type="button" secondary onClick={()=>open('wallet')}>Add agent wallet</Button>}
-   {live&&<Field label="Pay GBP with"><select value={rail} disabled={busy} onChange={e=>{setRail(e.target.value);setConfirmed(false);}}><option value="revolut">Revolut account balance</option><option value="wise">Wise</option></select></Field>}
+   {live&&<Field label="Pay GBP with"><select value={rail} disabled={busy} onChange={e=>{setRail(e.target.value);setConfirmed(false);}}>{methods.length?methods.map(m=><option key={m.id} value={m.id}>{m.label}</option>):<option value="">No payment methods available</option>}</select></Field>}
    <Field label="GBP funding amount" hint={rail==='revolut'?'£0.01–£1,000. Available offers and provider limits apply.':'£2–£1,000. Available offers and provider limits apply.'}><div className="money-input"><span>£</span><input aria-label="GBP funding amount" required disabled={busy} inputMode="decimal" pattern="[0-9]+([.][0-9]{1,2})?" value={amount} onChange={e=>{setAmount(e.target.value);setConfirmed(false);}}/></div></Field>
    <p className="fine-print">Your wallet receives USDC on the Base network.</p><FundingCosts requestedPence={inputPence(amount)}/>
    {agent&&<><p>Receiving address</p><code className="checkout-address">{agent.address}</code></>}
    <Check checked={confirmed} onChange={e=>setConfirmed(e.target.checked)}>This is my receiving wallet. I have checked the full address and amount.</Check>
-   <Button className="full spaced" disabled={busy||!agent||!confirmed}>{busy?'Saving…':'Review funding request'}</Button>
+   <Button className="full spaced" disabled={busy||!agent||!confirmed||(live&&(!methods.some(m=>m.id===rail)||state.paymentsDisabled===true))}>{busy?'Saving…':'Review funding request'}</Button>
   </form>}
  </Modal>;
 }

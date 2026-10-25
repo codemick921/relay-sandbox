@@ -253,7 +253,7 @@
   },
   {
     "path": "src/App.jsx",
-    "sha256": "d1aea6e55bcd2eb7a07c042cfa66f0018b4b113d340bfbc3878a216236466c75"
+    "sha256": "0197d307f8971a04e32dda897c1ecc87d9877c35ab62fab78052b58590118acc"
   },
   {
     "path": "src/Funding.jsx",
@@ -269,11 +269,15 @@
   },
   {
     "path": "src/FundingHome.jsx",
-    "sha256": "c37c1cfc86408b8121b16c33e9bc7991d4a700febbb2fd2e7e125e248122e3f2"
+    "sha256": "02a5472549624306c26c75e9b13b533c1684ce8dec7796ea865e55622941197f"
   },
   {
     "path": "src/FundingInstructions.jsx",
     "sha256": "98a1c525a99343d3b622e8b6ea5f7670586ee42ccb34773245a560dbafa3eb79"
+  },
+  {
+    "path": "src/FundingOptions.jsx",
+    "sha256": "df0aca3f9302c5dcfe6026df0b4af1e2009c2f5b5b810bb4825613b3ddf14a30"
   },
   {
     "path": "src/FundingTerms.jsx",
@@ -281,7 +285,7 @@
   },
   {
     "path": "src/LiveFunding.jsx",
-    "sha256": "0a6fe567534dbd1bc23d0f6ae4120b3e978272bf2a4dd7d5f16aadf7cb86b2dc"
+    "sha256": "934da41ae3b64bd32f99496bf1fa257da59d03fb9d7385076eeacf8c2b2df1e4"
   },
   {
     "path": "src/LiveOrder.jsx",
@@ -301,7 +305,7 @@
   },
   {
     "path": "src/RampFunding.jsx",
-    "sha256": "508f56fbff67950fc5ad61357455f71d849b53929d6d2e2ae341ef3f2d7115ae"
+    "sha256": "f505c3ac7f3ae63632dd0265e0081b993613e11e913cb18e28ae0c870229616d"
   },
   {
     "path": "src/RevolutTest.jsx",
@@ -346,6 +350,14 @@
   {
     "path": "src/funding-home.css",
     "sha256": "037aa3c380fd6767677f468fff4ce0333aadc69268db74719b80d3cb1ea4a014"
+  },
+  {
+    "path": "src/funding-options.css",
+    "sha256": "1880e0dcaad34fa5a3c5e59a872fea3e39a4b7097a3cb0e658aa51d1214bed71"
+  },
+  {
+    "path": "src/funding-options.mjs",
+    "sha256": "1574138666f77772b56f045d0e0f7c1fb5dfaca1bb4f055ec5c55a60516b2b77"
   },
   {
     "path": "src/main.jsx",
@@ -434,6 +446,10 @@
   {
     "path": "tests/funding-journey.test.mjs",
     "sha256": "65f2dbe6150ddcbd4db97029332949ad167589cab4f1c8b6a78164936791380e"
+  },
+  {
+    "path": "tests/funding-options.test.mjs",
+    "sha256": "de02513dc7b6bd05d894d3aa3e3cb3b1a2dfb140461c63e63232f298e3c9dbf2"
   },
   {
     "path": "tests/hosted-live.test.mjs",

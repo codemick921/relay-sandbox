@@ -1,12 +1,6 @@
 import React,{useState} from 'react';
 import {Modal,Notice,Button,Field,Check} from './ui';
 import {gbp} from './api';
-export function FundingOptions({state,open,onClose,selected}){
- return <Modal title="Choose how to fund your agent" onClose={onClose}>
-  <h3>Peer Pay</h3><p>{state.liveFunding?.paymentsEnabled?'Pay GBP through Revolut or Wise. Review the current offer and payment instructions in Peer.':'Try the simulated Peer funding journey.'}</p><Button className="full" onClick={()=>open('peer-fund',selected)}>{state.liveFunding?.paymentsEnabled?'Continue with Peer':'Test Peer funding'}</Button>
-  <h3 className="spaced">Ramp Network · test preview</h3><p>Try a simulated GBP bank-payment journey into USDC on Base. Ramp is not connected yet; this preview sends nothing to Ramp.</p><Button secondary className="full" onClick={()=>open('ramp-fund',selected)}>Try Ramp preview</Button>
- </Modal>;
-}
 export function RampFunding({state,act,busy,error,open,onClose,selected}){
  const [agentId,setAgentId]=useState(selected??state.agents[0]?.id??''),[amount,setAmount]=useState('25'),[confirmed,setConfirmed]=useState(false),[requestId]=useState(()=>crypto.randomUUID());
  const agent=state.agents.find(a=>a.id===agentId);
