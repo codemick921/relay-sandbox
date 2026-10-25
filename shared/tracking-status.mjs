@@ -22,10 +22,10 @@ export function trackingState(order,now=Date.now()){
 }
 export const trackingMessages={
  review:'Payment details need review. Do not send another payment to resolve this status.',
- retrying:'The latest check could not complete. Relay has kept the last saved payment result and will retry. This does not mean your payment failed.',
+ retrying:'The latest check could not complete. Eupova has kept the last saved payment result and will retry. This does not mean your payment failed.',
  overdue:'The next tracking check is overdue. The payment result below may be out of date. If you have paid, keep your confirmation and do not pay again.',
- evidence_pending:'Relay is still waiting for payment or network records. It will check again. A delay does not mean the payment failed.',
+ evidence_pending:'Eupova is still waiting for payment or network records. It will check again. A delay does not mean the payment failed.',
  stale:'The last successful check is over 15 minutes old or its timestamp needs checking. If you have paid, keep your confirmation and do not pay again.',
- waiting:'Relay has not completed its first successful check. This does not confirm whether you have paid.'
+ waiting:'Eupova has not completed its first successful check. This does not confirm whether you have paid.'
 };
 export const attemptMessage=state=>(state==='quote_elapsed'?'The saved quote has expired.':'The previous payment attempt has expired.')+' Do not pay its old instructions. Expiry does not cancel the checkout, prove that a bank transfer failed or confirm a refund. If you already paid, keep tracking this request for late funds.';

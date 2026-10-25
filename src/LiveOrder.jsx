@@ -53,7 +53,7 @@ export default function LiveOrder({order,act,onClose,busy,error}) {
     <dl className="details"><div><dt>Payment</dt><dd>{gbp(order.quote.pence)} · {platformNames[order.quote.platform]}</dd></div><div><dt>Expected USDC</dt><dd>{order.quote.offers.find(o=>o.id===order.offerId)?.output} · Base</dd></div><div><dt>Provider fee</dt><dd>{order.quote.offers.find(o=>o.id===order.offerId)?.fee??'See reviewed quote'}</dd></div><div><dt>Agent</dt><dd>{order.agent.name}</dd></div></dl>
     <div className="destination-check"><p>Receiving wallet</p><code>{order.quote.recipient}</code><p className="fine-print">Buying wallet: {short(order.quote.payer)}</p></div>
     {order.status==='ready_to_reserve'&&<>
-      <Notice>Two wallet approvals may be needed: reserve this offer, then release USDC after payment verification. Your wallet shows network fees. Relay never holds your GBP or wallet keys.</Notice>
+      <Notice>Two wallet approvals may be needed: reserve this offer, then release USDC after payment verification. Your wallet shows network fees. Eupova never holds your GBP or wallet keys.</Notice>
       <Button secondary className="full spaced" disabled={pending} onClick={()=>run(connection)}>Connect buying wallet & Peer extension</Button>
       {info&&<p role="status">{info.state==='ready'?`Peer extension ready (${info.version}).`:'Install or update the Peer extension, then press Connect again.'}</p>}
       <Check checked={confirmed} onChange={e=>setConfirmed(e.target.checked)}>I have checked the amount, Base destination and provider fee. I will review each wallet transaction and pay only after reservation is confirmed.</Check>
@@ -72,7 +72,7 @@ export default function LiveOrder({order,act,onClose,busy,error}) {
       </section>}
       {prepared&&<><Notice>Payment verified by Peer. The wallet transfer is not yet confirmed.</Notice><Button className="full spaced" disabled={pending} onClick={()=>run(submitRelease)}>Approve USDC release in my wallet</Button></>}
     </>}
-    {unknown&&<><Notice>The wallet action may have been submitted. Check your wallet activity before continuing. Relay will not submit it again automatically.</Notice><Field label="Transaction hash from your buying wallet"><input value={recovery} placeholder="0x…" onChange={e=>setRecovery(e.target.value.trim())}/></Field><Button secondary disabled={pending} onClick={()=>run(async()=>{const h=recovery||localStorage.getItem('relay-peer-tx:'+order.id+':'+phase);if(!h)throw Error('No saved hash was found. Copy the transaction hash from your wallet.');await act('live-submitted',{id:order.id,phase,hash:h});})}>Recover transaction</Button></>}
+    {unknown&&<><Notice>The wallet action may have been submitted. Check your wallet activity before continuing. Eupova will not submit it again automatically.</Notice><Field label="Transaction hash from your buying wallet"><input value={recovery} placeholder="0x…" onChange={e=>setRecovery(e.target.value.trim())}/></Field><Button secondary disabled={pending} onClick={()=>run(async()=>{const h=recovery||localStorage.getItem('relay-peer-tx:'+order.id+':'+phase);if(!h)throw Error('No saved hash was found. Copy the transaction hash from your wallet.');await act('live-submitted',{id:order.id,phase,hash:h});})}>Recover transaction</Button></>}
     {order.status==='awaiting_payment'&&reservationExpired&&<Notice>The reservation deadline has passed. Do not send a payment. Check the order status; if you already paid, keep your receipt.</Notice>}
     {order.status==='expired_unresolved'&&<Notice>This timeout does not prove that your bank payment failed or was refunded. If you paid, keep your payment receipt and contact Peer support with this intent hash. Do not pay again.</Notice>}
     {order.status==='release_failed'&&<Notice>The bank payment may still have succeeded. Keep your receipt and contact Peer support with this intent hash; do not pay again.</Notice>}
@@ -81,6 +81,6 @@ export default function LiveOrder({order,act,onClose,busy,error}) {
     {active.includes(order.status)&&<Button secondary className="full spaced" disabled={pending} onClick={()=>act('live-refresh',{id:order.id})}>Check payment status</Button>}
     {order.intentHash&&<div className="destination-check"><p>Peer intent</p><code>{order.intentHash}</code></div>}
     {order.reservationTx&&<p><a href={`https://basescan.org/tx/${order.reservationTx}`} target="_blank" rel="noreferrer">Reservation transaction ↗</a></p>}
-    <p className="fine-print">Keep this browser session to resume. Tracking refreshes while Relay is open. Bank-app sign-in and wallet approvals stay in their own secure windows.</p>
+    <p className="fine-print">Keep this browser session to resume. Tracking refreshes while Eupova is open. Bank-app sign-in and wallet approvals stay in their own secure windows.</p>
   </Modal>;
 }

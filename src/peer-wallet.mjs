@@ -8,7 +8,7 @@ let extension;
 const peer=()=>extension??=createPeerExtensionSdk({window});
 export async function checkReadiness(){return {walletAvailable:!!window.ethereum?.request,peer:await extensionState()};}
 export async function connectWallet() {
-  if(!window.ethereum?.request)throw Error('Open Relay in a browser with an Ethereum wallet extension. The agent wallet can remain a separate receiving address.');
+  if(!window.ethereum?.request)throw Error('Open Eupova in a browser with an Ethereum wallet extension. The agent wallet can remain a separate receiving address.');
   const wallet=createWalletClient({chain:base,transport:custom(window.ethereum)});
   const [account]=await wallet.requestAddresses();
   if(!account)throw Error('No buying wallet was selected.');

@@ -1,7 +1,7 @@
 [
   {
     "path": "hosted/account-mail.mjs",
-    "sha256": "559a87cb666b36016876e5d2e43d86e2059b54cf9d342ab03a10f4d12dd2bc2b"
+    "sha256": "adb8682b57f59bfe658b8272e55ffb2b625e6aaa23e5f72dbb737ad1a09007f4"
   },
   {
     "path": "hosted/account-security.mjs",
@@ -17,7 +17,7 @@
   },
   {
     "path": "hosted/customer-funding.mjs",
-    "sha256": "fa018d4a9aa9a25f48c0d48e88d4462eacb2544e062818e18c6d9c6ddb7bf5bb"
+    "sha256": "478f7408360ce19a461cc50ebcb48834ce3824898672b7c96cfa8c9f4e23a530"
   },
   {
     "path": "hosted/customer-notifications.mjs",
@@ -37,7 +37,7 @@
   },
   {
     "path": "hosted/funding-drafts.mjs",
-    "sha256": "7999a4f88f68bf2e5a7084a97cac0abd8c54537eba55bb3ccaf8c75f87114b6e"
+    "sha256": "57a5d502ac0c91a217c546757bf2af9e4a99f10b3e091cdea34c48b7e6ba75e2"
   },
   {
     "path": "hosted/funding-drafts.sql",
@@ -45,7 +45,7 @@
   },
   {
     "path": "hosted/funding-history.mjs",
-    "sha256": "f3f395c278d0d842ccf65583bab90c01dfdcbee7b58fb6069a6a3b48cd7d5e25"
+    "sha256": "d1adefec86d9796bcb01f5283da0e249295500d6eada306145ab2254f12aa972"
   },
   {
     "path": "hosted/funding-journey.mjs",
@@ -77,11 +77,11 @@
   },
   {
     "path": "hosted/mail-transport.mjs",
-    "sha256": "28f161487134de4c3fae40bb8d652804a68cefe144c34f5f7d3bc5d3e24220a3"
+    "sha256": "92218c4c59d8f073bf9bfbc9266a2c319e2a664a1d3541be6db033ec7f02f8ae"
   },
   {
     "path": "hosted/payment-health.mjs",
-    "sha256": "5bc1e3cb5cae54ae36e54258a292eafd5d00b2bcd359dee029de9ee8c74b562b"
+    "sha256": "f2dd7235d825d2cb4b49a1eb49d36535b564feb40c0b21cb3677f4a164a5e122"
   },
   {
     "path": "hosted/payment-reconciliation.mjs",
@@ -89,7 +89,7 @@
   },
   {
     "path": "hosted/payment-records.mjs",
-    "sha256": "04361536f62cb6ea56fba6a33570f1b638aa18fe7f13298cec6dbaed1cfc4c52"
+    "sha256": "f29cc2d244007585a16949ba8963688283979ab4db626bd42037ed71e72d01e2"
   },
   {
     "path": "hosted/peer-connection.mjs",
@@ -133,7 +133,7 @@
   },
   {
     "path": "hosted/server.mjs",
-    "sha256": "606fc24dc388cc3f2e03e67dc74089e620979b131e1702d68f1cc2ff77e21826"
+    "sha256": "3f83a846f1a929762987bc5051b727c39b3f0a957dcf57bebcf50a1871f59651"
   },
   {
     "path": "hosted/startup.mjs",
@@ -165,7 +165,7 @@
   },
   {
     "path": "server/index.mjs",
-    "sha256": "dbf82a7b45fbc7e7e22ab75230cafe3f595cc0e4cde36d0d9149a5632de56de5"
+    "sha256": "3099d856b460d0e03a833671d97adc3c6d54d4a298567550fb7c3b41a0465188"
   },
   {
     "path": "server/live.mjs",
@@ -229,7 +229,7 @@
   },
   {
     "path": "server/webhook-ingress.mjs",
-    "sha256": "d465c1bb50f1b1bc68b163d307ca644763c1194eb23ab825f1dd5f9c91437499"
+    "sha256": "a6f10efe32d0fd8686dff14b5323c70b956a5c5d48f510222374ff2c014d753f"
   },
   {
     "path": "shared/payment.mjs",
@@ -237,31 +237,35 @@
   },
   {
     "path": "shared/tracking-status.mjs",
-    "sha256": "84849bfcdeb4e8e02e8fd61362cc46123c0dd0e666c1b057c25450d3971791c5"
+    "sha256": "c8812a73a64f13d6ce27181558b4d2911d95d007c8fc056aab30643bef5a3b38"
   },
   {
     "path": "src/Access.jsx",
-    "sha256": "ac47a6d5a586c3ae15f7e0465d420ea1348cb85ab15d773b30c42c776fd50575"
+    "sha256": "26d2682406e8661cdb22c59abb57b391007c3096134ae03a22efce6b076a1798"
   },
   {
     "path": "src/AccountEmail.jsx",
-    "sha256": "017f2690f35c55dce945977ca9f10e33d14fd242030cee9154ba42e783911750"
+    "sha256": "6631350cddc80dbf7e9216e9ab5a0a9b8572d52e7775bcb977509f52a73b0dc3"
   },
   {
     "path": "src/AccountSecurity.jsx",
-    "sha256": "4ff2ad58d6a6c6a68850424007fc70c1153ef052405331a7a3f80540e4b68f0b"
+    "sha256": "6cc3f2041cf783f36ea6e3b082950b076ef62dcb4261d769f9234d5f60cc557b"
   },
   {
     "path": "src/AdminPaymentHealth.jsx",
-    "sha256": "aaac2d4f4cc8db7e1626bf8cf8e0b8b3046be498fd6aa2dc9bb41395fdddaec6"
+    "sha256": "6c2b0d2e3d32e8a71e978419b26588a33f6cfeb5cd164285d40a96be5b76534f"
   },
   {
     "path": "src/App.jsx",
-    "sha256": "0197d307f8971a04e32dda897c1ecc87d9877c35ab62fab78052b58590118acc"
+    "sha256": "c95abf7bc49ac03618cede1d1a6ee2cf8392bedb8de0256ed4c65e8501a20475"
+  },
+  {
+    "path": "src/Brand.jsx",
+    "sha256": "355ec048c38191c9606302f3b1ea09f663372454a1737c29b60f4d9928115296"
   },
   {
     "path": "src/Funding.jsx",
-    "sha256": "a5cfdd3496211bcb6f22c85f89c52bccae37be031c4c76f9e4d337f9a6f10e23"
+    "sha256": "76e99d9eff57ce1a376a9d58f5763332b6e3eb1eaea5b1364bafd7a71019ef92"
   },
   {
     "path": "src/FundingCosts.jsx",
@@ -269,43 +273,43 @@
   },
   {
     "path": "src/FundingHistory.jsx",
-    "sha256": "b9686f12b50082dc985814f5493443514935e58113f66ce9d5b7d141c8fdcd89"
+    "sha256": "699f0aaec3672597001e7a802018bbeadeefec813a3fa1288f412a9d2e4bfcba"
   },
   {
     "path": "src/FundingHome.jsx",
-    "sha256": "02a5472549624306c26c75e9b13b533c1684ce8dec7796ea865e55622941197f"
+    "sha256": "cbca8729428f5ff3f43b4cdb65ab7cf214d023a17a219cbd8f759830c53d5e98"
   },
   {
     "path": "src/FundingInstructions.jsx",
-    "sha256": "98a1c525a99343d3b622e8b6ea5f7670586ee42ccb34773245a560dbafa3eb79"
+    "sha256": "80356700d522218a614096e62d6b0e37a57cf9d9730a5d012adfd2a1ced6a268"
   },
   {
     "path": "src/FundingOptions.jsx",
-    "sha256": "df0aca3f9302c5dcfe6026df0b4af1e2009c2f5b5b810bb4825613b3ddf14a30"
+    "sha256": "edd7f113c299840c1877f2ccb425183640f01a58bd4f208e1f9d0f41bc6782b8"
   },
   {
     "path": "src/FundingTerms.jsx",
-    "sha256": "13138ec93fe3cb5c33fc4c6cefdc099d1f60dcf5ea527c2c3983f89aed9fd73a"
+    "sha256": "4b9d7bdbc8f769ae36f9c37df0fa83db25b15526dcf3cb766b86bb36f55cd49e"
   },
   {
     "path": "src/LiveFunding.jsx",
-    "sha256": "16d5dab161fe458731b7939872488cfad795c59efe30b506002eaf15da3afe81"
+    "sha256": "b18cb0b7565b81aee72d649197efa250b12c49d22fea9425e9963e500f52ebce"
   },
   {
     "path": "src/LiveOrder.jsx",
-    "sha256": "f95bd8e4f58d732b8b7741c519248e8389399e0c7935fac79aedcaad508dbc59"
+    "sha256": "7396635df5e73d3fa979113a9ac270d65a5c44b280dd50fd58104951107031b5"
   },
   {
     "path": "src/Notifications.jsx",
-    "sha256": "ef3f72991ba79956b3372273450404c51a632782d7cdb4d0128c7dde7106f673"
+    "sha256": "ad8df85e05bbe795e32405b636ddc89982a2c7eba686786153c4f0e77e0c3171"
   },
   {
     "path": "src/PaymentRecovery.jsx",
-    "sha256": "c690ee5b81afaef201133ecba6440efab672c9747b849e0cce5714d2adffc85a"
+    "sha256": "55d8b0abb007818b9afe2d7df6002dcafa4c26b5c463e0c4879d12293970c948"
   },
   {
     "path": "src/PhoneResume.jsx",
-    "sha256": "dec0418f06d4b3b81284eb88287f4af640ac18d621d9f9cb22cf5a5e0e684d68"
+    "sha256": "174c5b13a8aade58695a5d28889425068de4f9d082f277e6dc622216c2def51d"
   },
   {
     "path": "src/RampFunding.jsx",
@@ -313,15 +317,15 @@
   },
   {
     "path": "src/RevolutTest.jsx",
-    "sha256": "0e1bd68e58ba95493fe58dc647809405f54a757f9ec929b3c36d49c43fe55d8c"
+    "sha256": "e234600858afeace488b49dfb2d1d88e9a944e71dd2028653226c62d51145be5"
   },
   {
     "path": "src/SimpleFunding.jsx",
-    "sha256": "c600fc7c26f693b3ee8936bcef0ac2bbaf69847687dbcea4fdad2e22cca4ab7d"
+    "sha256": "d452beda2a2e7f009e1364b06d27a5a430932b0a6a03731a0676f853cf973901"
   },
   {
     "path": "src/TestFunding.jsx",
-    "sha256": "877d9ea9027d064822832f8aad3c0d703a92427051f6ecd84609ae83c1773272"
+    "sha256": "4b6306852f69c14e68ce5de1152a24be3a9d359264bc19c11fcc25ea05bd41eb"
   },
   {
     "path": "src/TrackingNotice.jsx",
@@ -329,15 +333,19 @@
   },
   {
     "path": "src/WalletDashboard.jsx",
-    "sha256": "c24f445a9e3952afafe867492ff06b6bfeeb9427ea762a61e86781af6bd79f34"
+    "sha256": "feba8a99a0a764ee6f8dd7534df23aa24716ef73a8dea2d291867c1e45dd28b2"
   },
   {
     "path": "src/WalletEditor.jsx",
-    "sha256": "e26d587e104ad52fa7270b45cce6cd39da3adb884ad8e944d7b771b4ed4dd740"
+    "sha256": "510a276421d9e69b1247e4345ec44308c11a11d2d494218870ce747272d2791e"
   },
   {
     "path": "src/api.js",
     "sha256": "354f7d5631edc9eb9826a82812813e49438abe64f54362b15d613023d74a6df3"
+  },
+  {
+    "path": "src/assets/eupova-mark.png",
+    "sha256": "478246c10437be461e13651c59f6871c0e3c431ee9f2fddbcfa65e9ed1e81849"
   },
   {
     "path": "src/funding-costs.css",
@@ -345,7 +353,7 @@
   },
   {
     "path": "src/funding-costs.mjs",
-    "sha256": "48e1b22f574afcf58c5b1222592b13dc2f16ebf350200c9d5caedb7b08a57e86"
+    "sha256": "af62f194ce203ce2864bb5350767e72f18c8dde6d547fc80b21e3ccd6ca833b3"
   },
   {
     "path": "src/funding-entry.mjs",
@@ -385,15 +393,15 @@
   },
   {
     "path": "src/payment-resume.mjs",
-    "sha256": "54e2fafc4723ecbf5065f2f1f63e8bf9563b8214d61d49f8b95b9d6f71d4715e"
+    "sha256": "5a0319c593420ef75ff1147af092ae85b4e9d017a961f8bf1536e0756293e0b7"
   },
   {
     "path": "src/peer-wallet.mjs",
-    "sha256": "b0b6d8f80c0b7dc8f339644a542558cf502b25151ec85b9cc909f151edc19c98"
+    "sha256": "9162eb696aa92adfc345cfdd4c76926788285fea6b0cac1d845cdf250d66f0f7"
   },
   {
     "path": "src/styles.css",
-    "sha256": "9c8bbfc6aeddfad403a5d3efd773776c058dda46e434005b18ff731ae86a0f15"
+    "sha256": "3d5dca74f1a67bac6992d0c4aa3289f00398247b6eded0f6dd5b22da259c35d7"
   },
   {
     "path": "src/ui.jsx",
@@ -405,7 +413,7 @@
   },
   {
     "path": "tests/account-mail.test.mjs",
-    "sha256": "1da7da4b18aeb737258a108388d6196326e31806a2ea9b7fd59c103aa450a8c6"
+    "sha256": "77c7fd1f8a71f9100e12cfc170e9ab2d0740409058108bb5e6594fc1e8844bbb"
   },
   {
     "path": "tests/account-security.test.mjs",
@@ -414,6 +422,10 @@
   {
     "path": "tests/accounts.test.mjs",
     "sha256": "4642236f3e2c9f38bb737d3d6b1660c0e53804680e6e02debd52adc78f0dc950"
+  },
+  {
+    "path": "tests/brand-assets.test.mjs",
+    "sha256": "f6968752276ae9d6e1c0da3e3c7484224f07459487a7db18387ce61dc2d500ca"
   },
   {
     "path": "tests/customer-funding.test.mjs",
@@ -441,7 +453,7 @@
   },
   {
     "path": "tests/funding-costs.test.mjs",
-    "sha256": "478967ee3817a00f7846e635161db58edbe01be9c50ab3dc4f7af559b8faf185"
+    "sha256": "f1c44060ba5d730b825c300560ff3e8fc444529c879ae269c364106a8e7553e9"
   },
   {
     "path": "tests/funding-entry.test.mjs",
@@ -449,7 +461,7 @@
   },
   {
     "path": "tests/funding-history.test.mjs",
-    "sha256": "78a8a327791321b7da6afcf8618b3d6144fda996a599cb50277a28166f4eb261"
+    "sha256": "8b0db60b7c385fc723fdb913487c3ce4ca4664d9140b44cae2f4171dee83a807"
   },
   {
     "path": "tests/funding-journey.test.mjs",
@@ -485,7 +497,7 @@
   },
   {
     "path": "tests/order-cancellation.test.mjs",
-    "sha256": "644f92fab4f3acc1c752759d52ab1a0c70d24ba14ba8bb982a60bdb6b684b1f4"
+    "sha256": "b824d5c922001db3e95aa0a8e21e08fa110ca822cc95f1a6a1b0e5ec97e7b92c"
   },
   {
     "path": "tests/pay-funding-preflight.test.mjs",
@@ -497,7 +509,7 @@
   },
   {
     "path": "tests/pay-verification.test.mjs",
-    "sha256": "161c0dc0534b0e510598bf44430c88e3c441d4f2bd5393dab4272b78d5cc2a90"
+    "sha256": "6529685991da9ad540652128c1a28391b20acb701d1df9246cf95a064146f428"
   },
   {
     "path": "tests/pay.test.mjs",
@@ -513,7 +525,7 @@
   },
   {
     "path": "tests/payment-records.test.mjs",
-    "sha256": "a8e66e5178721848c3bc56274eb69355ab85fae3972f1affd3f955066467f6bf"
+    "sha256": "62bb782f238722e2fe50f21529e81ff038cc85e3a1c8b8d55432b56b379753bf"
   },
   {
     "path": "tests/payment-reliability.test.mjs",
@@ -521,7 +533,7 @@
   },
   {
     "path": "tests/payment-resume.test.mjs",
-    "sha256": "9e26475647ecf111c8fdc6736523f11e2db241dbcb08e2403d18164560decdeb"
+    "sha256": "f3bd8340f7d0a3a2885feebf7824704a600a4f7a8864aa3af4f7b9d4c71b5ed7"
   },
   {
     "path": "tests/peer.test.mjs",
@@ -561,7 +573,7 @@
   },
   {
     "path": "scripts/export-deployment.mjs",
-    "sha256": "e759a0c1f1752bdc19af9abff884132ea42338739cf1e043e46eb6e57a8474bd"
+    "sha256": "dd648573874955aaf8cc12cc58800e3d3e0a3a20c0e360dcd73481f904554e75"
   },
   {
     "path": "scripts/list-cancellation-requests.mjs",
@@ -605,7 +617,7 @@
   },
   {
     "path": "index.html",
-    "sha256": "23af4b86fabb8cfcd18448376994d262d4d35a6d5b6e2f39583bac20b65794d7"
+    "sha256": "79f89be0156f1f8019d6d86a627008af86e68318eb360f03bc70056bfa2e062a"
   },
   {
     "path": ".node-version",

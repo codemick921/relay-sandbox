@@ -34,7 +34,7 @@ test('a phone link cannot restore checkout controls for a stopped, expired, comp
  for(const update of [{status:'checkout_cancelled'},{status:'checkout_received'},{status:'checkout_review'},{status:'checkout_confirming'},{trackingError:'offline'},{reviewRequired:true},{chargebackStatus:'OPEN'}])assert.equal(canContinueCheckout(draft,{...order,...update},true),false);
  assert.equal(canContinueCheckout(draft,order,false),false);
 });
-test('local QR encoding retains the exact safe Relay URL as a byte segment',()=>{
+test('local QR encoding retains the exact safe Eupova URL as a byte segment',()=>{
  const link=resumeLink('https://relay-sandbox-uh1r.onrender.com',randomUUID()),qr=QRCode.create(link,{errorCorrectionLevel:'M'});
  assert.equal(Buffer.concat(qr.segments.map(s=>Buffer.from(s.data))).toString(),link);
  assert.ok(qr.modules.size>=21);assert.equal(qr.errorCorrectionLevel.bit,0);

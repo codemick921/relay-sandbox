@@ -100,8 +100,8 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
    }
    if(!url.pathname.startsWith('/api/')){
     if(req.method!=='GET')throw new InputError('Not found.',404);
-    const decoded=decodeURIComponent(url.pathname);if(decoded!=='/'&&!/^\/assets\/[a-zA-Z0-9_.-]+\.(js|css|svg)$/.test(decoded))throw new InputError('Not found.',404);
-    const file=path.join(staticRoot,decoded==='/'?'index.html':decoded.slice(1));const data=await readFile(file);res.setHeader('Content-Type',({'.html':'text/html','.css':'text/css','.js':'text/javascript','.svg':'image/svg+xml'})[path.extname(file)]);return res.end(data);
+    const decoded=decodeURIComponent(url.pathname);if(decoded!=='/'&&!/^\/assets\/[a-zA-Z0-9_.-]+\.(js|css|svg|png)$/.test(decoded))throw new InputError('Not found.',404);
+    const file=path.join(staticRoot,decoded==='/'?'index.html':decoded.slice(1));const data=await readFile(file);res.setHeader('Content-Type',({'.html':'text/html','.css':'text/css','.js':'text/javascript','.svg':'image/svg+xml','.png':'image/png'})[path.extname(file)]);return res.end(data);
    }
    const allowed=new Set(['/api/notifications','/api/notifications/sync','/api/notifications/read','/api/notifications/preferences','/api/notifications/reminder','/api/wallet-balances/preferences','/api/wallet-balances/refresh','/api/ramp-test/create','/api/ramp-test/advance','/api/revolut-test/checkout','/api/funding/drafts','/api/funding/cancel','/api/funding/stop','/api/funding/request-cancellation','/api/funding/checkout','/api/funding/resume','/api/funding/availability','/api/test-funding/quote','/api/test-funding/create','/api/test-funding/action','/api/agents/update','/api/account/security','/api/account/revokeSession','/api/account/rotateRecovery','/api/account/confirmRecovery','/api/account/signup','/api/account/login','/api/account/recover','/api/account/password','/api/account/requestVerification','/api/account/requestReset','/api/account/verifyEmail','/api/account/resetPassword','/api/account/emailPreview','/api/access','/api/login','/api/logout','/api/state','/api/agents','/api/checkouts','/api/checkout-resume','/api/checkout-refresh','/api/checkout-setup']);
    const historyRoute=url.pathname==='/api/funding-history'||url.pathname==='/api/funding-history/download'||/^\/api\/funding-history\/[a-f0-9-]{36}$/i.test(url.pathname);
@@ -166,7 +166,7 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
      if(!download)return send(res,200,data);
      const format=url.searchParams.get('format');if(!['html','csv'].includes(format))throw new InputError('Choose HTML or CSV.');
      res.setHeader('Content-Type',format==='html'?'text/html; charset=utf-8':'text/csv; charset=utf-8');
-     res.setHeader('Content-Disposition',`attachment; filename="relay-${options.source}-statement-${options.from||'all'}-${options.to||'latest'}.${format}"`);
+     res.setHeader('Content-Disposition',`attachment; filename="eupova-${options.source}-statement-${options.from||'all'}-${options.to||'latest'}.${format}"`);
      return res.end(renderStatement(data,format));
     }
     if(recordRoute){
@@ -179,7 +179,7 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
      const format=url.searchParams.get('format');
      if(!['html','csv'].includes(format))throw new InputError('Choose HTML or CSV.');
      res.setHeader('Content-Type',format==='html'?'text/html; charset=utf-8':'text/csv; charset=utf-8');
-     res.setHeader('Content-Disposition',`attachment; filename="relay-${record.simulated?'simulated-':''}${record.document}-${record.id}.${format}"`);
+     res.setHeader('Content-Disposition',`attachment; filename="eupova-${record.simulated?'simulated-':''}${record.document}-${record.id}.${format}"`);
      return res.end(renderRecord(record,format));
     }
 
@@ -273,7 +273,7 @@ if(process.argv[1]===fileURLToPath(import.meta.url)){
  const ramp=createRampSimulation(store);await ramp.migrate();
  const walletBalances=liveObservation?createWalletBalances(store,{rpc:createReceiptRpc(process.env.BASE_RPC_URL||'https://mainnet.base.org')}):null;
  if(walletBalances)await walletBalances.migrate();
- const server=createHostedServer({store,config,tracking,ramp,walletBalances,peerConnection,fundingDrafts,liveObservation,accountMail:configuredAccountMail(store),paymentsDisabled:true,pay:{readiness:async()=>({ready:false})}});server.listen(Number(process.env.PORT??10000),'0.0.0.0',()=>console.log('Relay hosted sandbox ready.'));
+ const server=createHostedServer({store,config,tracking,ramp,walletBalances,peerConnection,fundingDrafts,liveObservation,accountMail:configuredAccountMail(store),paymentsDisabled:true,pay:{readiness:async()=>({ready:false})}});server.listen(Number(process.env.PORT??10000),'0.0.0.0',()=>console.log('Eupova hosted sandbox ready.'));
  // One read at startup, no polling. Until verified, the receiver returns 503.
  if(peerConnection)void peerConnection.checkIdentity();
  if(liveObservation)void liveObservation.start();

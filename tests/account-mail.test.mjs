@@ -28,10 +28,10 @@ test('reset requests conceal account eligibility; reset rotates credentials and 
  const f=await fixture();try{const s=setup(f.store),u=await verified(s),other=await s.a.signup(signup('unverified@example.test'));
  const second=await s.a.login({email:u.account.email,password});const owner=(await s.a.session(u.token)).owner;await f.store.addAgent(owner,{id:randomUUID(),name:'Kept agent',address:'0x1111111111111111111111111111111111111111'});
  const known=await s.a.requestReset({email:u.account.email}),missing=await s.a.requestReset({email:'missing@example.test'}),unverified=await s.a.requestReset({email:other.account.email});assert.deepEqual(known,missing);assert.deepEqual(known,unverified);assert.equal(s.sent.length,1);
- await s.mail.tick();const reset=s.sent.find(x=>x.subject==='Reset your Relay password');assert.equal(reset.to,u.account.email);const t=token(reset);
+ await s.mail.tick();const reset=s.sent.find(x=>x.subject==='Reset your Eupova password');assert.equal(reset.to,u.account.email);const t=token(reset);
  const result=await s.a.resetPassword({linkToken:t,password:nextPassword});assert.ok(result.recovered);assert.notEqual(result.recoveryCode,u.recoveryCode);assert.equal(await s.a.session(u.token),null);assert.equal(await s.a.session(second.token),null);
  await assert.rejects(s.a.resetPassword({linkToken:t,password:nextPassword}),/invalid or has expired/);await assert.rejects(s.a.recover({email:u.account.email,recoveryCode:u.recoveryCode,password}),/not recognised/);await assert.rejects(s.a.login({email:u.account.email,password}),/not recognised/);
- const login=await s.a.login({email:u.account.email,password:nextPassword});assert.equal((await f.store.state((await s.a.session(login.token)).owner)).agents.length,1);await s.mail.tick();assert.ok(s.sent.some(x=>x.subject==='Your Relay password has changed'));
+ const login=await s.a.login({email:u.account.email,password:nextPassword});assert.equal((await f.store.state((await s.a.session(login.token)).owner)).agents.length,1);await s.mail.tick();assert.ok(s.sent.some(x=>x.subject==='Your Eupova password has changed'));
  }finally{await f.close();}
 });
 test('expired, replaced, disabled and version-stale links cannot change an account',async()=>{
@@ -49,11 +49,11 @@ test('disabled mail makes no calls, uncertain delivery is retained without retri
  }finally{await f.close();}
 });
 test('concurrent workers send once; simultaneous reset consumes once on PostgreSQL',{skip:!process.env.TEST_DATABASE_URL},async()=>{
- const f=await fixture();try{const s=setup(f.store),u=await verified(s);await s.a.requestReset({email:u.account.email});const other=createAccountMail(f.store,{enabled:true,origin:'https://relay.example',deliver:async m=>{s.sent.push(m);return {id:'second-'+m.id};}});await Promise.all([s.mail.tick(),other.tick()]);const resets=s.sent.filter(x=>x.subject==='Reset your Relay password');assert.equal(resets.length,1);const input={linkToken:token(resets[0]),password:nextPassword};const outcomes=await Promise.allSettled([s.a.resetPassword(input),s.a.resetPassword(input)]);assert.equal(outcomes.filter(x=>x.status==='fulfilled').length,1);assert.equal(outcomes.find(x=>x.status==='rejected').reason.status,400);
+ const f=await fixture();try{const s=setup(f.store),u=await verified(s);await s.a.requestReset({email:u.account.email});const other=createAccountMail(f.store,{enabled:true,origin:'https://relay.example',deliver:async m=>{s.sent.push(m);return {id:'second-'+m.id};}});await Promise.all([s.mail.tick(),other.tick()]);const resets=s.sent.filter(x=>x.subject==='Reset your Eupova password');assert.equal(resets.length,1);const input={linkToken:token(resets[0]),password:nextPassword};const outcomes=await Promise.allSettled([s.a.resetPassword(input),s.a.resetPassword(input)]);assert.equal(outcomes.filter(x=>x.status==='fulfilled').length,1);assert.equal(outcomes.find(x=>x.status==='rejected').reason.status,400);
  }finally{await f.close();}
 });
 test('optional transport requires explicit configuration and uses a fixed endpoint with idempotency',async()=>{
- const f=await fixture();try{assert.throws(()=>configuredAccountMail(f.store,{ACCOUNT_EMAIL_ENABLED:'true'}),/incomplete/);const env={ACCOUNT_EMAIL_ENABLED:'true',PUBLIC_ORIGIN:'https://relay.example',ACCOUNT_EMAIL_FROM:'Relay <account@example.test>',RESEND_API_KEY:'synthetic-test-key'};assert.throws(()=>configuredAccountMail(f.store,{...env,PUBLIC_ORIGIN:'https://relay.example/path'}),/origin/);
+ const f=await fixture();try{assert.throws(()=>configuredAccountMail(f.store,{ACCOUNT_EMAIL_ENABLED:'true'}),/incomplete/);const env={ACCOUNT_EMAIL_ENABLED:'true',PUBLIC_ORIGIN:'https://relay.example',ACCOUNT_EMAIL_FROM:'Eupova <account@example.test>',RESEND_API_KEY:'synthetic-test-key'};assert.throws(()=>configuredAccountMail(f.store,{...env,PUBLIC_ORIGIN:'https://relay.example/path'}),/origin/);
  const calls=[];const mail=configuredAccountMail(f.store,env,{fetchImpl:async(url,options)=>{calls.push({url,options});return {ok:true,json:async()=>({id:'accepted-test'})};}});const a=createAccounts(f.store,{mail});await a.signup(signup('transport@example.test'));assert.equal(calls.length,0);await mail.tick();assert.equal(calls.length,1);assert.equal(calls[0].url,'https://api.resend.com/emails');assert.equal(calls[0].options.redirect,'error');assert.ok(calls[0].options.headers['Idempotency-Key']);assert.equal(JSON.parse(calls[0].options.body).from,env.ACCOUNT_EMAIL_FROM);
  assert.throws(()=>createHostedServer({store:f.store,config:{origin:'https://relay.example',testers:[]},paymentsDisabled:true,accountMail:createAccountMail(f.store,{enabled:true,origin:'http://127.0.0.1:4323',preview:true,deliver:async()=>({id:'local'})})}),/local only/);
  }finally{await f.close();}
@@ -68,4 +68,15 @@ test('public email HTTP routes keep tokens private, preserve sign-in on verifica
  const verified=await request('/api/account/verifyEmail',{linkToken:t},u.cookie);assert.equal(verified.status,200);assert.equal(verified.cookie,undefined);assert.equal((await request('/api/access',null,u.cookie)).data.account.emailVerified,true);
  assert.equal((await request('/api/checkouts',{},u.cookie)).status,403);assert.equal((await request('/api/webhooks/peer/sandbox',{})).status,403);
  }finally{if(server)await new Promise(r=>server.close(r));await f.close();}
+});
+
+
+test('existing sender settings remain compatible after rebranding without changing the mailbox',async()=>{
+ const f=await fixture();try{
+  const calls=[];const env={ACCOUNT_EMAIL_ENABLED:'true',PUBLIC_ORIGIN:'https://relay.example',ACCOUNT_EMAIL_FROM:'Relay <account@example.test>',RESEND_API_KEY:'synthetic-test-key'};
+  const mail=configuredAccountMail(f.store,env,{fetchImpl:async(url,options)=>{calls.push(JSON.parse(options.body));return {ok:true,json:async()=>({id:'local-test'})};}});
+  await createAccounts(f.store,{mail}).signup(signup('legacy-sender@example.test'));await mail.tick();
+  assert.equal(calls.length,1);assert.equal(calls[0].from,'Eupova <account@example.test>');assert.equal(env.ACCOUNT_EMAIL_FROM,'Relay <account@example.test>');
+  assert.throws(()=>configuredAccountMail(f.store,{...env,ACCOUNT_EMAIL_FROM:'Eupova <account@example.test>\r\nBcc: stolen@example.test'}),/incomplete/);
+ }finally{await f.close();}
 });

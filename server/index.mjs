@@ -24,7 +24,7 @@ export function createApp({persistFile=null,offerService=(b)=>getOffers(b,{inclu
    if(!payment.intentHash)continue;
    const conflict=Object.values(sessions).some(session=>session.orders.some(other=>other.id!==order.id&&
     (other.intentHash?.toLowerCase()===payment.intentHash.toLowerCase()||other.verification?.payments?.some(p=>p.id===payment.id||p.intentHash?.toLowerCase()===payment.intentHash.toLowerCase()||p.transactionHash?.toLowerCase()===payment.transactionHash.toLowerCase()))));
-   if(conflict)throw new InputError('This payment receipt is already attached to another Relay order.',409);
+   if(conflict)throw new InputError('This payment receipt is already attached to another Eupova order.',409);
   }
   if(update.status!==order.status){order.events??=[];order.events.push({status:update.status,at:new Date(now()).toISOString()});}
   Object.assign(order,update,{trackingError:null,nextCheckAt:now()+(update.status==='checkout_received'?3600000:30000)});
@@ -176,4 +176,4 @@ export function createApp({persistFile=null,offerService=(b)=>getOffers(b,{inclu
  server.requestTimeout=20000;server.headersTimeout=15000;
  return server;
 }
-if(process.argv[1]===fileURLToPath(import.meta.url)){const server=createApp({persistFile:path.join(root,'.data','peer-sessions.json')});server.listen(Number(process.env.PORT??4319),'127.0.0.1',()=>console.log('Relay Peer running on loopback. User-approved Peer orders; server signing disabled.'));}
+if(process.argv[1]===fileURLToPath(import.meta.url)){const server=createApp({persistFile:path.join(root,'.data','peer-sessions.json')});server.listen(Number(process.env.PORT??4319),'127.0.0.1',()=>console.log('Eupova Peer running on loopback. User-approved Peer orders; server signing disabled.'));}

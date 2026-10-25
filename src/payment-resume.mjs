@@ -4,7 +4,7 @@ const uuid=/^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i;
 export function resumeLink(origin,id){
  if(typeof id!=='string'||!uuid.test(id))throw Error('Invalid request reference.');
  const url=new URL(origin);
- if(url.username||url.password||url.pathname!=='/'||url.search||url.hash||!(url.protocol==='https:'||(url.protocol==='http:'&&url.hostname==='127.0.0.1')))throw Error('Use Relay’s own secure address.');
+ if(url.username||url.password||url.pathname!=='/'||url.search||url.hash||!(url.protocol==='https:'||(url.protocol==='http:'&&url.hostname==='127.0.0.1')))throw Error('Use Eupova’s own secure address.');
  return `${url.origin}/#funding=${id}`;
 }
 export function resumeTarget(location){

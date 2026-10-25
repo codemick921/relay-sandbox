@@ -35,3 +35,6 @@
 .funding-terms{margin:14px 0;font-size:14px;line-height:1.55;text-align:left}.funding-terms summary{cursor:pointer;font-weight:650;color:var(--green,#244c3b)}.funding-terms dl{margin:12px 0}.funding-terms dl>div{margin:12px 0}.funding-terms dt{font-weight:650}.funding-terms dd{margin:4px 0 0;overflow-wrap:anywhere}
 
 .funding-start-content,.funding-public-hero>div:first-child{align-self:start}
+
+/* Eupova identity: one shared, responsive lockup. */
+.brand{gap:0;padding-left:8px;padding-right:8px}.brand-lockup{display:inline-flex;align-items:center;gap:9px;white-space:nowrap;color:var(--ink);line-height:1}.brand-symbol{display:block;width:44px;height:44px;object-fit:contain;flex-shrink:0}.brand-wordmark{font-size:28px;font-weight:750;letter-spacing:-1.1px}.sandbox-login .brand-lockup{margin-bottom:24px}.sandbox-login .brand-wordmark{font-size:30px}@media(max-width:1120px){.brand-wordmark{font-size:25px}.brand-symbol{width:39px;height:39px}}@media(max-width:650px){.brand{padding-left:0;padding-right:0}.brand-wordmark{font-size:26px}.brand-symbol{width:39px;height:39px}.sandbox-login .brand-wordmark{font-size:28px}}

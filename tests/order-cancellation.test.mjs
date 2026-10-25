@@ -37,7 +37,7 @@ test('cancellation request is durable and idempotent, blocks checkout and replac
  await request(f);const replacement=await f.next('30');assert.notEqual(replacement.id,f.id);assert.equal((await f.drafts.review(f.owner,replacement.id)).pence,3000);assert.ok(f.calls.every(x=>x==='GET'));
  }finally{await f.worker.stop();await f.close();}});
 
-test('dashboard cancellation without a Relay request also releases the draft; expiry and all attempts do not',async()=>{const f=await setup();try{
+test('dashboard cancellation without a Eupova request also releases the draft; expiry and all attempts do not',async()=>{const f=await setup();try{
  for(const status of ['CREATED','EXPIRED','FAILED','CANCELLED']){
   f.set('CREATED',[{...payment(),status}]);await assert.rejects(request(f),/cannot cancel/);await f.tracker.schedule(f.owner,f.id);await f.worker.tick();await assert.rejects(f.next('20'),/existing/);assert.equal((await f.drafts.list(f.owner))[0].status,'bound');
  }

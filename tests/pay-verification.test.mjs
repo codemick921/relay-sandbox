@@ -124,7 +124,7 @@ test('global receipt reuse fails even across sessions and stale webhook snapshot
  atomicJson(file,{a:{agents:[],orders:[a],lastQuote:null},b:{agents:[],orders:[b],lastQuote:null}});
  const server=createApp({persistFile:file,workerIntervalMs:0,payService:{refresh:o=>verifyPayDelivery(o,remote(),[payment()],{rpc:rpc()})}});
  await server.reconcileCheckouts();const data=JSON.parse(readFileSync(file,'utf8'));
- assert.equal(data.a.orders[0].status,'checkout_received');assert.equal(data.b.orders[0].status,'checkout_ready');assert.match(data.b.orders[0].trackingError,/another Relay order/);rmSync(dir,{recursive:true});
+ assert.equal(data.a.orders[0].status,'checkout_received');assert.equal(data.b.orders[0].status,'checkout_ready');assert.match(data.b.orders[0].trackingError,/another Eupova order/);rmSync(dir,{recursive:true});
 });
 
 test('out-of-order expiry notification only requests fresh reconciliation and never erases arrival',async()=>{

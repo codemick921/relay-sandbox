@@ -96,7 +96,7 @@ test('history HTTP requires customer session, refuses cross-origin and POST, and
   assert.equal((await req(path)).status,200);
   const list=await req('/api/funding-history?source=simulated');assert.equal(JSON.parse(list.body).total,1);assert.equal(list.headers['cache-control'],'no-store');
   const record=await req(`/api/payment-records/${o.id}/download?format=html`);assert.equal(record.status,200);assert.match(record.body,/12.000000/);
-  const exported=await req('/api/funding-history/download?source=simulated&format=csv');assert.equal(exported.status,200);assert.match(exported.headers['content-disposition'],/relay-simulated-statement/);assert.match(exported.body,/SIMULATED/);assert.equal(calls,0);
+  const exported=await req('/api/funding-history/download?source=simulated&format=csv');assert.equal(exported.status,200);assert.match(exported.headers['content-disposition'],/eupova-simulated-statement/);assert.match(exported.body,/SIMULATED/);assert.equal(calls,0);
   await accounts.logout(a.token);assert.equal((await req(path)).status,401);
  }finally{if(server)await new Promise(r=>server.close(r));await f.close();}
 });

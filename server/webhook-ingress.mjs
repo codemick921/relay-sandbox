@@ -1,4 +1,4 @@
-// Development tunnel origin. Only this server is exposed; never point a tunnel at Relay.
+// Development tunnel origin. Only this server is exposed; never point a tunnel at Eupova.
 import http from 'node:http';
 import {fileURLToPath} from 'node:url';
 export const sandboxPath='/api/webhooks/peer/sandbox';

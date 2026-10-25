@@ -1,3 +1,4 @@
+import {Brand} from './Brand.jsx';
 import {FundingIntroduction} from './FundingHome';
 import AccountSecurity from './AccountSecurity';
 import AccountEmail from './AccountEmail';
@@ -22,7 +23,7 @@ export default function Access(){
   let active=true;
   const readLink=()=>{const resume=!!resumeTarget(window.location);setHasResume(resume);if(resume)setMode(current=>current==='welcome'?'signin':current);const hash=window.location.hash;if(hash.startsWith('#verify-email=')||hash.startsWith('#reset-password=')){window.history.replaceState(null,'',window.location.pathname+window.location.search);openLink(hash);}};
   readLink();window.addEventListener('hashchange',readLink);
-  api('access').then(a=>active&&setAccess(a)).catch(e=>{if(!active)return;if(e.status===404)setAccess({hostedSandbox:false,authenticated:true});else setError('Relay is temporarily unavailable. Please try again.');});
+  api('access').then(a=>active&&setAccess(a)).catch(e=>{if(!active)return;if(e.status===404)setAccess({hostedSandbox:false,authenticated:true});else setError('Eupova is temporarily unavailable. Please try again.');});
   const expired=()=>{clearSecrets();setHasResume(!!resumeTarget(window.location));setMode('signin');setAccess(previous=>({...previous,hostedSandbox:true,authenticated:false,account:null}));};window.addEventListener('relay-session-expired',expired);
   return()=>{active=false;window.removeEventListener('hashchange',readLink);window.removeEventListener('relay-session-expired',expired);};
  },[]);
@@ -49,9 +50,9 @@ export default function Access(){
  if(access&&!access.authenticated&&access.customerAccounts&&!recovery&&!link&&!hasResume&&mode==='welcome')return <FundingIntroduction onFund={()=>switchMode('signup')} onSignIn={()=>switchMode('signin')}/>;
  const customer=access?.customerAccounts,effectiveMode=customer?mode:'tester';
  const emailEnabled=access?.emailSendingEnabled,localEmail=access?.localEmailPreview;
- const title={security:'Account security',signup:'Create your Relay account',recover:'Use your recovery code',forgot:'Reset your password',reset:'Choose a new password',confirmEmail:'Verify your email'}[mode]??'Welcome to Relay';
- return <main className="sandbox-login"><section className="panel"><span className="brand-mark">R</span><h1>{recovery?'Save your recovery code':title}</h1><p>Save your agent wallets and track your funding. Review the payment mode before creating a checkout.</p>
- {hasResume&&!access?.authenticated&&<Notice>Sign in to the same Relay account to resume your saved request. Opening this link does not create an order or send money.</Notice>}
+ const title={security:'Account security',signup:'Create your Eupova account',recover:'Use your recovery code',forgot:'Reset your password',reset:'Choose a new password',confirmEmail:'Verify your email'}[mode]??'Welcome to Eupova';
+ return <main className="sandbox-login"><section className="panel"><Brand/><h1>{recovery?'Save your recovery code':title}</h1><p>Save your agent wallets and track your funding. Review the payment mode before creating a checkout.</p>
+ {hasResume&&!access?.authenticated&&<Notice>Sign in to the same Eupova account to resume your saved request. Opening this link does not create an order or send money.</Notice>}
  {error&&<Notice error>{error}</Notice>}{message&&<Notice>{message}</Notice>}
  {localEmail&&<Notice>Local email preview: messages stay in this test app. Nothing is sent to an inbox.</Notice>}
  {!access?<><p>Opening your workspace…</p>{error&&<Button onClick={()=>location.reload()}>Retry</Button>}</>:recovery?<>
@@ -87,6 +88,6 @@ export default function Access(){
  </form>
  {customer&&<div className="auth-links">{access.authenticated?<button type="button" className="text-button" disabled={busy} onClick={()=>{setLink(null);switchMode('signin');}}>Back to my wallets</button>:<><button type="button" className="text-button" disabled={busy} onClick={()=>switchMode(mode==='forgot'?'recover':'forgot')}>{mode==='forgot'?'Use a recovery code':'Forgot your password?'}</button><button type="button" className="text-button" disabled={busy} onClick={()=>{setLink(null);switchMode(mode==='tester'?'signin':'tester');}}>{mode==='tester'?'Use customer sign-in':'Existing tester access'}</button></>}</div>}
  </>}
- {!access?.authenticated&&!hasResume&&!link&&!recovery&&access?.customerAccounts&&<button type="button" className="text-button funding-auth-back" disabled={busy} onClick={()=>switchMode('welcome')}>Back to Relay</button>}
+ {!access?.authenticated&&!hasResume&&!link&&!recovery&&access?.customerAccounts&&<button type="button" className="text-button funding-auth-back" disabled={busy} onClick={()=>switchMode('welcome')}>Back to Eupova</button>}
  </section></main>;
 }

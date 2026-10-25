@@ -40,7 +40,7 @@ export function TestOrder(props){
      <button className="text-button spaced" disabled={busy} onClick={()=>setCheckout(false)}>Return without paying</button>
     </>}
     <Button secondary className="full spaced" disabled={busy} onClick={()=>act('test-funding/action',{id:order.id,action:'cancel'})}>Cancel test checkout</Button>
-   </>:<><Notice>The test payment is recorded. Relay’s background checks now determine the simulated wallet result; returning here does not confirm arrival.</Notice>{order.testScenario==='partial'&&!order.remainderSent&&<Button disabled={busy} className="full" onClick={()=>act('test-funding/action',{id:order.id,action:'remainder'})}>Simulate the remaining payment</Button>}</>}
+   </>:<><Notice>The test payment is recorded. Eupova’s background checks now determine the simulated wallet result; returning here does not confirm arrival.</Notice>{order.testScenario==='partial'&&!order.remainderSent&&<Button disabled={busy} className="full" onClick={()=>act('test-funding/action',{id:order.id,action:'remainder'})}>Simulate the remaining payment</Button>}</>}
    {order.journeyQuote&&<p className="fine-print">Expected test receipt: {amount(order.journeyQuote.netUsdc)} USDC after an illustrative {amount(order.journeyQuote.feeUsdc)} USDC fee. Test checkout expires {new Date(order.checkoutExpiresAt).toLocaleTimeString('en-GB')} if no payment is recorded.</p>}
   </section>
  </CheckoutOrder>;

@@ -10,16 +10,16 @@ export default function FundingOptions({state,open,onClose,selected,fundingPrese
   {!options.customer?<Notice>Sign in to your customer account to see your funding options.</Notice>:<>
    {options.existing&&<Notice>You have an existing funding request. Review it before starting another. If you have already paid, keep following that request.</Notice>}
    <section className="funding-option" aria-labelledby="peer-option-title">
-    <div className="funding-option-heading"><h3 id="peer-option-title">Peer Pay</h3><span className="funding-option-status">{options.live?'Enabled in Relay':'Payments unavailable'}</span></div>
+    <div className="funding-option-heading"><h3 id="peer-option-title">Peer Pay</h3><span className="funding-option-status">{options.live?'Enabled in Eupova':'Payments unavailable'}</span></div>
     <p>{options.live?'Choose a GBP payment method, then review the offer in Peer’s checkout.':'Real Peer payments are currently unavailable in this account.'}</p>
     {options.live&&<><dl className="details"><div><dt>Payment methods</dt><dd>{options.methods.map(m=>m.label).join(' · ')}</dd></div><div><dt>Your wallet receives</dt><dd>USDC on Base</dd></div></dl><p className="fine-print">An enabled method does not guarantee an offer. Peer shows the current amount, fees and payment deadline. Follow its identity and payment-verification steps.</p></>}
-    {!options.live&&options.prepare&&!options.existing&&<p>You can save a draft in Relay. Preparing a draft does not create a Peer checkout or send money.</p>}
+    {!options.live&&options.prepare&&!options.existing&&<p>You can save a draft in Eupova. Preparing a draft does not create a Peer checkout or send money.</p>}
     {options.action&&<Button className="full" onClick={continueFunding}>{options.action.label}</Button>}
    </section>
    <section className="funding-option funding-option-unavailable" aria-labelledby="ramp-option-title">
     <div className="funding-option-heading"><h3 id="ramp-option-title">Ramp Network</h3><span className="funding-option-status">Not connected</span></div>
-    <p>Ramp cannot accept payments through Relay yet. There is no live Ramp checkout to open.</p>
-    <p className="fine-print">GBP support, payment methods, fees and wallet delivery still need to be confirmed for Relay before this option can be enabled.</p>
+    <p>Ramp cannot accept payments through Eupova yet. There is no live Ramp checkout to open.</p>
+    <p className="fine-print">GBP support, payment methods, fees and wallet delivery still need to be confirmed for Eupova before this option can be enabled.</p>
    </section>
    {(options.peerTest||options.rampTest)&&<details className="funding-option-tests"><summary>Test previews · no real funds</summary><p>These separate simulations use example payment data. They do not check provider availability or move money.</p>{options.peerTest&&<Button secondary className="full" onClick={()=>open('peer-fund',selected)}>Preview Peer test flow</Button>}{options.rampTest&&<Button secondary className="full spaced" onClick={()=>open('ramp-fund',selected)}>Preview Ramp test flow</Button>}</details>}
    <p className="fine-print">Viewing these options does not create a request or share your wallet address with a provider.</p>

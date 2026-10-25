@@ -4,7 +4,7 @@ import {Button,Notice} from './ui';
 import './funding-history.css';
 const initial={source:'live',status:'all',q:'',address:'',from:'',to:''};
 const dates=v=>v?new Date(v).toLocaleString('en-GB',{timeZone:'Europe/London'}):'Not available';
-const statuses=[['all','All statuses'],['draft','Saved drafts'],['awaiting','Waiting for payment'],['uncertain','Checkout needs attention'],['partial','Part payments'],['settled','Checking wallet arrival'],['confirming','Waiting for network confirmation'],['stopped','Stopped in Relay'],['ended','Cancelled or closed'],['review','Needs review'],['received','Wallet delivery confirmed'],['disputed','Disputed']];
+const statuses=[['all','All statuses'],['draft','Saved drafts'],['awaiting','Waiting for payment'],['uncertain','Checkout needs attention'],['partial','Part payments'],['settled','Checking wallet arrival'],['confirming','Waiting for network confirmation'],['stopped','Stopped in Eupova'],['ended','Cancelled or closed'],['review','Needs review'],['received','Wallet delivery confirmed'],['disputed','Disputed']];
 export default function FundingHistory({open}){
  const [form,setForm]=useState(initial),[filters,setFilters]=useState(initial),[page,setPage]=useState(1),[data,setData]=useState(null),[loading,setLoading]=useState(true),[error,setError]=useState(''),[downloading,setDownloading]=useState(false),[month,setMonth]=useState(''),[reload,setReload]=useState(0);
  const query=new URLSearchParams({...filters,page:String(page)}).toString();
@@ -14,7 +14,7 @@ export default function FundingHistory({open}){
  async function download(format){setDownloading(true);setError('');try{
   const qs=new URLSearchParams({...filters,format});const response=await fetch('/api/funding-history/download?'+qs);
   if(!response.ok){const d=await response.json();if(response.status===401)window.dispatchEvent(new Event('relay-session-expired'));throw Error(d.error??'The statement is unavailable.');}
-  const blob=await response.blob(),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=response.headers.get('content-disposition')?.match(/filename="([^"]+)"/)?.[1]??`relay-statement.${format}`;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  const blob=await response.blob(),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=response.headers.get('content-disposition')?.match(/filename="([^"]+)"/)?.[1]??`eupova-statement.${format}`;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
  }catch(e){setError(e.message);}finally{setDownloading(false);}}
  const dirty=JSON.stringify(form)!==JSON.stringify(filters),blocked=loading||downloading||dirty;
  return <section className="panel funding-history"><h2>Funding history and statements</h2><p className="muted">Search your saved requests, including older payments, and download a statement for the period you choose.</p>

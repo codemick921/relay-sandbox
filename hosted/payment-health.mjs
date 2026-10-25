@@ -4,7 +4,7 @@ import {paymentRecord} from './payment-records.mjs';
 import {InputError} from '../server/validation.mjs';
 
 const date=v=>v&&Number.isFinite(new Date(v).getTime())?new Date(v).toISOString():null;
-const events={bound:'Order linked to Relay',payin_observed:'Payment details saved',verified:'Verification result saved',review_required:'Evidence flagged for review',operator_review_resolved:'Earlier review resolved'};
+const events={bound:'Order linked to Eupova',payin_observed:'Payment details saved',verified:'Verification result saved',review_required:'Evidence flagged for review',operator_review_resolved:'Earlier review resolved'};
 const stages={checkout_ready:'awaiting payment',checkout_partial:'part payment recorded',checkout_settled:'settlement recorded',checkout_confirming:'transfer awaiting finality',checkout_received:'wallet receipt verified',checkout_cancelled:'provider order cancelled',checkout_review:'evidence review required'};
 export const healthFilters=['attention','all','review','retry','overdue','partial','stopped_funds'];
 export function healthOptions(params){

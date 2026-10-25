@@ -10,7 +10,7 @@ export default function AccountSecurity({onRecovery}){
  async function run(route,body){setBusy(true);setError('');setMessage('');try{const r=await api('account/'+route,body);setPassword('');setCode('');setPending(null);if(r.recoveryCode)onRecovery(r.recoveryCode);else{setMessage(r.message);await load();}}catch(e){setError(e.message);setPassword('');setCode('');}finally{setBusy(false);}}
  return <div className="account-security-tools">
   <h2>Recovery checklist</h2>
-  <p>Protect access to Relay and your saved destinations. Relay cannot recover keys or funds in your external wallet.</p>
+  <p>Protect access to Eupova and your saved destinations. Eupova cannot recover keys or funds in your external wallet.</p>
   {error&&<Notice error>{error}</Notice>}{message&&<p role="status">{message}</p>}
   {!data?<Button secondary disabled={busy} onClick={()=>load().catch(e=>setError(e.message))}>Load security details</Button>:<>
    <ul className="security-checklist">
@@ -18,7 +18,7 @@ export default function AccountSecurity({onRecovery}){
     <li><strong>Email recovery</strong><span>{data.emailRecoveryPreview?'Test recovery only. No email is sent.':data.emailRecoveryAvailable?'Available for your verified email.':data.emailVerification?.mode==='unavailable'?'Email sending is unavailable. Use your recovery code.':'Verify your email address to enable email recovery.'}</span></li>
     <li><strong>Wallet changes</strong><span>Your current password is required each time. Existing requests keep their original destination.</span></li>
    </ul>
-   <details className="security-section"><summary>Confirm my saved recovery code</summary><p>Enter the latest code from your password manager. Relay checks it without replacing it.</p><form onSubmit={e=>{e.preventDefault();run('confirmRecovery',{recoveryCode:code});}}><Field label="Saved recovery code"><input required type="password" autoComplete="off" minLength={64} maxLength={64} value={code} onChange={e=>setCode(e.target.value.trim())}/></Field><Button secondary disabled={busy}>Confirm saved code</Button></form></details>
+   <details className="security-section"><summary>Confirm my saved recovery code</summary><p>Enter the latest code from your password manager. Eupova checks it without replacing it.</p><form onSubmit={e=>{e.preventDefault();run('confirmRecovery',{recoveryCode:code});}}><Field label="Saved recovery code"><input required type="password" autoComplete="off" minLength={64} maxLength={64} value={code} onChange={e=>setCode(e.target.value.trim())}/></Field><Button secondary disabled={busy}>Confirm saved code</Button></form></details>
    <Button secondary disabled={busy} onClick={()=>{setPending({kind:'recovery'});setPassword('');setError('');}}>Replace recovery code</Button>
    <h2>Signed-in sessions</h2><Button secondary disabled={busy} onClick={()=>load().catch(e=>setError(e.message))}>Refresh sessions</Button><p>Browser labels are reported by the browser and may be approximate. Sessions end after two hours without activity or twelve hours from sign-in.</p>
    <div className="security-sessions">{data.sessions.map(s=><article key={s.id}><strong>{s.label}{s.current?' · This session':''}</strong><small>Signed in {date(s.createdAt)}<br/>Last active {date(s.lastSeenAt)}</small>{!s.current&&<Button secondary disabled={busy} onClick={()=>{setPending({kind:'session',id:s.id,label:s.label});setPassword('');setError('');}}>Sign out this session</Button>}</article>)}</div>

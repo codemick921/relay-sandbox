@@ -5,8 +5,8 @@ const date=value=>value?new Date(value).toLocaleString('en-GB',{timeZoneName:'sh
 const descriptions={
  unavailable:'Email sending is not connected yet. Keep your recovery code safe; you can use it to reset your password.',
  not_requested:'Verify your email to use email-based password recovery.',
- queued:'Your verification email is queued. This screen will update when Relay has checked its status.',
- sending:'Relay is requesting your verification email. Delivery has not been confirmed.',
+ queued:'Your verification email is queued. This screen will update when Eupova has checked its status.',
+ sending:'Eupova is requesting your verification email. Delivery has not been confirmed.',
  accepted:'The email service accepted your verification message. Check your inbox and spam folder, then open the link to verify your address.',
  unknown:'Email delivery could not be confirmed. If a message arrives, you can use its link. You can also request a new one.',
  expired:'Your verification request or link has expired. Request a new email to continue.',

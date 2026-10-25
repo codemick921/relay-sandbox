@@ -3,11 +3,11 @@ import {digest} from './db.mjs';
 
 export function accountMessage(purpose,origin,token){
  const link=purpose==='changed'?origin+'/':`${origin}/#${purpose==='verify'?'verify-email':'reset-password'}=${token}`;
- const subject={verify:'Verify your Relay email',reset:'Reset your Relay password',changed:'Your Relay password has changed'}[purpose];
+ const subject={verify:'Verify your Eupova email',reset:'Reset your Eupova password',changed:'Your Eupova password has changed'}[purpose];
  const text={
-  verify:`Confirm this email address for your Relay account. Sign in to the same account, then confirm using this link:\n\n${link}\n\nThis link expires in one hour and can be used once. If you did not request it, ignore this email.`,
-  reset:`Use this link to choose a new Relay password:\n\n${link}\n\nThis link expires in 20 minutes and can be used once. Resetting your password signs out all existing sessions. If you did not request it, ignore this email; your password has not changed.`,
-  changed:`Your Relay password has changed. Your previous sessions and recovery code no longer work.\n\nIf you did not make this change, open Relay and request a password reset:\n\n${link}`
+  verify:`Confirm this email address for your Eupova account. Sign in to the same account, then confirm using this link:\n\n${link}\n\nThis link expires in one hour and can be used once. If you did not request it, ignore this email.`,
+  reset:`Use this link to choose a new Eupova password:\n\n${link}\n\nThis link expires in 20 minutes and can be used once. Resetting your password signs out all existing sessions. If you did not request it, ignore this email; your password has not changed.`,
+  changed:`Your Eupova password has changed. Your previous sessions and recovery code no longer work.\n\nIf you did not make this change, open Eupova and request a password reset:\n\n${link}`
  }[purpose];
  if(!subject)throw Error('Unsupported account email.');
  return {subject,text,link};

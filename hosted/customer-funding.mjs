@@ -9,7 +9,7 @@ export function createCustomerFunding({drafts,tracker,reader,connection,origin,f
  const authorise=async intent=>/^customer:/.test(intent.owner??'')&&['wise','revolut'].includes(intent.quote?.platform)&&intent.agent?.network==='Base'&&intent.agent?.token==='USDC';
  const flows=Object.fromEntries(['wise','revolut'].map(rail=>[rail,createLiveFunding({drafts,tracker,reader,merchantId:connection.merchantId,origin,authorise,
   writer:createLiveCheckoutWriter({apiKey:connection.apiKey,merchantId:connection.merchantId,rail,maxPence:100000,fetcher,authorise:()=>true})})]));
- async function flow(owner,id){const row=await drafts.review(owner,id);if(row.stopped_at)throw new InputError('This request was stopped in Relay. Start a new funding request.',409);if(row.superseded_by)throw new InputError('This checkout was replaced. Open its replacement from your activity.',409);return flows[row.rail];}
+ async function flow(owner,id){const row=await drafts.review(owner,id);if(row.stopped_at)throw new InputError('This request was stopped in Eupova. Start a new funding request.',409);if(row.superseded_by)throw new InputError('This checkout was replaced. Open its replacement from your activity.',409);return flows[row.rail];}
  return Object.freeze({enabled:true,
   async stop(owner,input){
    if(input.confirmNoPayment!==true||Object.keys(input).some(k=>!['id','confirmNoPayment'].includes(k)))throw new InputError('Confirm you have not sent or scheduled any payment and will not use the old checkout.');

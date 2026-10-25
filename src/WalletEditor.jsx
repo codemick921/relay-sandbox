@@ -5,7 +5,7 @@ export default function WalletEditor({state,agent,act,busy,error,onClose,onSaved
  const [name,setName]=useState(agent?.name??'Research assistant'),[address,setAddress]=useState(agent?.address??''),[own,setOwn]=useState(false),[password,setPassword]=useState('');
  const customer=!!state.account,edited=!!agent;
  return <Modal title={edited?'Edit saved wallet':'Add your agent wallet'} onClose={busy?()=>{}:onClose}>
-  <Notice>{edited?'Changes apply to future requests only. Existing drafts, payments and receipts keep their original destination. Cancel an unsubmitted draft and review a new one to use the updated wallet.':'Save the address that should receive USDC on the Base network. Relay does not verify who owns it and cannot spend from it.'}</Notice>
+  <Notice>{edited?'Changes apply to future requests only. Existing drafts, payments and receipts keep their original destination. Cancel an unsubmitted draft and review a new one to use the updated wallet.':'Save the address that should receive USDC on the Base network. Eupova does not verify who owns it and cannot spend from it.'}</Notice>
   <FundingTerms/>
   {error&&<Notice error>{error}</Notice>}
   <form onSubmit={async e=>{e.preventDefault();const result=await act(edited?'agents/update':'agents',{name,address,own,network:'base',...customer?{currentPassword:password}:{},...edited?{id:agent.id,expectedAddress:agent.address,expectedName:agent.name}:{}});setPassword('');if(result){if(onSaved)onSaved(result);else onClose();}}}>
@@ -15,7 +15,7 @@ export default function WalletEditor({state,agent,act,busy,error,onClose,onSaved
    <Field label={edited?'New receiving address':'Wallet address'}><input className="mono" required disabled={busy} pattern="0x[0-9a-fA-F]{40}" placeholder="0x…" value={address} onChange={e=>{setAddress(e.target.value.trim());setOwn(false);}}/></Field>
    {!customer&&<button type="button" className="text-button" onClick={()=>setAddress('0x1111111111111111111111111111111111111111')}>Use a practice address</button>}
    <Check checked={own} disabled={busy} onChange={e=>setOwn(e.target.checked)} required>I have checked the full address. This is my receiving wallet for USDC on Base.</Check>
-   {customer&&<Field label="Current Relay password" hint="Required for this change. This does not verify ownership of the wallet."><input required type="password" autoComplete="current-password" maxLength={128} disabled={busy} value={password} onChange={e=>setPassword(e.target.value)}/></Field>}
+   {customer&&<Field label="Current Eupova password" hint="Required for this change. This does not verify ownership of the wallet."><input required type="password" autoComplete="current-password" maxLength={128} disabled={busy} value={password} onChange={e=>setPassword(e.target.value)}/></Field>}
    <Button className="full" disabled={busy||!own}>{busy?'Saving…':edited?'Save wallet changes':'Save agent wallet'}</Button>
   </form>
  </Modal>;
