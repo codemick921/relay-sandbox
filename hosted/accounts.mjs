@@ -1,3 +1,4 @@
+import {createTestInvites} from './test-invites.mjs';
 import {randomUUID,randomBytes,scrypt as scryptCallback,timingSafeEqual} from 'node:crypto';
 import {promisify} from 'node:util';
 import {digest} from './db.mjs';
@@ -62,6 +63,7 @@ export function createAccounts(store,{mail=createAccountMail(store)}={}){
    try{
     return await store.tx(async c=>{
      const row=(await c.query('INSERT INTO relay_customers(id,email,name,password_hash,recovery_hash) VALUES($1,$2,$3,$4,$5) RETURNING *',[id,email,name,password,digest(code)])).rows[0];
+     if(input.inviteCode)await createTestInvites(store).claimIn(c,owner(id),input.inviteCode);
      const token=randomBytes(32).toString('hex');
      await c.query('INSERT INTO relay_customer_sessions(token_hash,customer_id,version,client_label) VALUES($1,$2,1,$3)',[digest(token),id,sessionLabel(context?.userAgent)]);
      await mail.enqueue(c,row,'verify');

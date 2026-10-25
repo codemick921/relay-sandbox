@@ -4,6 +4,8 @@ export function activeFundingDraft(state) {
 }
 export function fundingEntry(state) {
  if (!state?.account) return null;
+ if(state.testAccess?.revoked)return {kind:null,label:'Testing access revoked',disabled:true};
+ if(state.testAccess?.mode==='simulation')return state.fundingJourneyEnabled?(state.agents?.length?{kind:'peer-fund',label:'Try test funding'}:{kind:'wallet',label:'Try test funding',needsWallet:true}):{kind:null,label:'Simulation unavailable',disabled:true};
  const draft = activeFundingDraft(state);
  if (draft) return {kind:'funding-draft',id:draft.id,label:'Review existing request',existing:true};
  const order = state.orders?.find(o => o.kind==='checkout' && o.source==='live' && !o.fixture && !o.journey && !o.stoppedInRelay && !['checkout_received','checkout_cancelled'].includes(o.status));

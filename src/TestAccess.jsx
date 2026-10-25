@@ -1,0 +1,33 @@
+import React,{useEffect,useState} from 'react';
+import {api} from './api';
+import {Button,Field,Notice,Check} from './ui';
+export function TestAccess({state,act,busy,error}){
+ const [code,setCode]=useState(''),[confirmed,setConfirmed]=useState(false),access=state.testAccess;
+ return <section className="panel" aria-label="Friend testing"><h2>Try Eupova with an invitation</h2>
+ {!access?<><p>Use the invitation code shared with you to join the test. You keep your own login, saved wallets and payment history.</p><form onSubmit={async e=>{e.preventDefault();if(await act('test-access/claim',{code}))setCode('');}}><Field label="Invitation code"><input autoComplete="off" spellCheck="false" maxLength={36} required value={code} onChange={e=>setCode(e.target.value)}/></Field><Button disabled={busy}>Join testing</Button></form></>:access.revoked?<Notice>Testing access has been revoked. You can still view your saved records and track existing payments. A checkout already opened elsewhere may remain payable; revocation does not cancel it.</Notice>:<>
+ <Notice>{access.mode==='simulation'?'Simulation mode · No real money moves. Test receipts do not confirm funds in your wallet.':'Real funding mode · Payments use your own money. Review the provider’s amount, fees and recipient before paying.'}</Notice>
+ <p>{access.allowLive?'Your invitation includes simulation and real funding. You choose which mode to use.':'Your invitation allows simulations only. Real checkout access is blocked for this account.'}</p>
+ <div className="test-access-actions"><Button secondary disabled={busy||access.mode==='simulation'} onClick={async()=>{await act('test-access/mode',{mode:'simulation'});setConfirmed(false);}}>Use simulation</Button>
+ {access.allowLive&&access.mode!=='live'&&<><Check checked={confirmed} onChange={e=>setConfirmed(e.target.checked)}>I understand that real funding uses my money and may include fees.</Check><Button disabled={busy||!confirmed||!access.realFundingAvailable} onClick={async()=>{await act('test-access/mode',{mode:'live',confirmRealMoney:true});setConfirmed(false);}}>Switch to real funding</Button>{!access.realFundingAvailable&&<p>Real payments are currently unavailable. You can continue with simulations.</p>}</>}
+ </div><p className="fine-print">Switching modes does not cancel existing checkouts or move funds. An action already started may still finish. Their saved records remain available in Funding history. Your mode applies on every device signed into this account.</p>
+ </>}{error&&<Notice error>{error}</Notice>}</section>;
+}
+export function TestInvites(){
+ const [data,setData]=useState(null),[label,setLabel]=useState(''),[allowLive,setAllowLive]=useState(false),[days,setDays]=useState('7'),[confirm,setConfirm]=useState(false),[issued,setIssued]=useState(null),[error,setError]=useState(''),[busy,setBusy]=useState(false),[selected,setSelected]=useState(null);
+ async function load(){try{setData(await api('operator/test-invites'));}catch(e){setError(e.message);}}
+ useEffect(()=>{load();},[]);
+ async function run(path,input){setBusy(true);setError('');try{const r=await api('operator/test-invites/'+path,input);if(path==='create'){setIssued(r);setLabel('');setConfirm(false);}setSelected(null);await load();}catch(e){setError(e.message);}finally{setBusy(false);}}
+ return <section className="panel" aria-label="Testing invitations"><h2>Invite friends to test Eupova</h2><p>Create one invitation per person. Each code can be used once. Your friends create their own customer login; they never use your owner code.</p>
+ {error&&<Notice error>{error}</Notice>}
+ {issued&&<section className="notice"><div><h3>Invitation ready</h3><p>Save this code now. It will not be shown again after you leave this screen.</p><Field label="New invitation code"><input readOnly autoComplete="off" value={issued.code} onFocus={e=>e.target.select()}/></Field><p>Share the app address and this code privately. Your friend chooses Create account, enters the code, then saves their recovery code. Existing customers can enter it under Friend testing.</p><p>Redeem by {new Date(issued.expiresAt).toLocaleString('en-GB')}. Do not share your owner login or password.</p><Button secondary onClick={()=>setIssued(null)}>I have saved the code</Button></div></section>}
+ <form onSubmit={e=>{e.preventDefault();run('create',{label,allowLive,days:Number(days),confirmRealAccess:confirm});}}>
+ <Field label="Invitation label" hint="A label for your reference, such as Friend 1."><input required minLength={2} maxLength={60} value={label} onChange={e=>setLabel(e.target.value)}/></Field>
+ <Field label="Testing access"><select value={allowLive?'both':'simulation'} onChange={e=>{setAllowLive(e.target.value==='both');setConfirm(false);}}><option value="simulation">Simulation only</option><option value="both">Simulation and real funding</option></select></Field>
+ <Field label="Code expiry"><select value={days} onChange={e=>setDays(e.target.value)}><option value="1">1 day</option><option value="7">7 days</option><option value="30">30 days</option></select></Field>
+ <p>Everyone starts in simulation mode. Code expiry only limits when someone can join; revoke the invitation to end their testing access after they join.</p>
+ {allowLive&&<Check checked={confirm} onChange={e=>setConfirm(e.target.checked)}>Allow this person to choose real funding when live payments are available.</Check>}
+ <Button disabled={busy||!!issued||allowLive&&!confirm}>{busy?'Saving…':'Create invitation'}</Button></form>
+ <h3>Saved invitations</h3><Button secondary disabled={busy} onClick={load}>Reload invitations</Button>
+ {!data?<p>Loading invitations…</p>:!data.invites.length?<p>No invitations yet.</p>:data.invites.map(i=><section className="spaced" key={i.id}><strong>{i.label}</strong><p>{i.revoked_at?'Revoked':i.claimed_at?'Joined · '+(i.mode==='live'?'Real funding selected':'Simulation selected'):Date.parse(i.expires_at)<=Date.now()?'Expired':'Waiting to join'} · {i.allow_live?'Simulation and real funding':'Simulation only'}</p><p className="fine-print">Code expires {new Date(i.expires_at).toLocaleString('en-GB')}</p>{!i.revoked_at&&(selected===i.id?<><Notice>Revoking stops new test payments and opening real checkouts through Eupova. An action already started may still finish. Existing payments keep tracking. Revocation cannot cancel a checkout already opened with a provider.</Notice><Button disabled={busy} onClick={()=>run('revoke',{id:i.id})}>Confirm revocation</Button> <Button secondary disabled={busy} onClick={()=>setSelected(null)}>Keep access</Button></>:<Button secondary disabled={busy} onClick={()=>setSelected(i.id)}>Revoke invitation</Button>)}</section>)}
+ </section>;
+}

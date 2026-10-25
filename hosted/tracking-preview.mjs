@@ -61,7 +61,7 @@ const worker=createLiveWorker({store:journey.workerStore(),maxBatch:cases.length
 await worker.tick();
 // Leave examples stable until an authenticated user explicitly requests a refresh.
 await tracking.query("UPDATE relay_live_orders SET next_check_at=now()+interval '1 day'");
-const origin=`http://127.0.0.1:${port}`,config={origin,host:new URL(origin).host,paymentHealthAdmins:['admin'],testers:['alice','bob','admin'].map(label=>({label,sha256hex:digest('relay-preview-'+label)}))};
+const origin=`http://127.0.0.1:${port}`,config={origin,host:new URL(origin).host,testInviteAdmins:['admin'],paymentHealthAdmins:['admin'],testers:['alice','bob','admin'].map(label=>({label,sha256hex:digest('relay-preview-'+label)}))};
 const mail=process.env.RELAY_PREVIEW_EMAIL_DISABLED==='true'?createAccountMail(store):createAccountMail(store,{enabled:true,preview:true,origin,deliver:async message=>({id:'local-'+message.id})});
 const fundingDrafts=createFundingDrafts(store);await fundingDrafts.migrate();
 // Optional funding-first QA: synthetic empty customer and an existing saved request.

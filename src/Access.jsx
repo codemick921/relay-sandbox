@@ -10,9 +10,10 @@ import {Button,Field,Notice,Check} from './ui';
 export default function Access(){
  const [hasResume,setHasResume]=useState(()=>!!resumeTarget(window.location));
  const [access,setAccess]=useState(null),[error,setError]=useState(''),[message,setMessage]=useState(''),[busy,setBusy]=useState(false),[mode,setMode]=useState(()=>resumeTarget(window.location)?'signin':'welcome');
+ const [inviteCode,setInviteCode]=useState('');
  const [email,setEmail]=useState(''),[name,setName]=useState(''),[password,setPassword]=useState(''),[currentPassword,setCurrentPassword]=useState(''),[code,setCode]=useState(''),[accepted,setAccepted]=useState(false),[recovery,setRecovery]=useState(''),[saved,setSaved]=useState(false),[link,setLink]=useState(null);
  const emailChanged=useCallback(verified=>setAccess(a=>a?.account&&a.account.emailVerified!==verified?{...a,account:{...a.account,emailVerified:verified}}:a),[]);
- const clearSecrets=()=>{setPassword('');setCurrentPassword('');setCode('');setRecovery('');setSaved(false);};
+ const clearSecrets=()=>{setInviteCode('');setPassword('');setCurrentPassword('');setCode('');setRecovery('');setSaved(false);};
  const switchMode=next=>{clearSecrets();setError('');setMessage('');setAccepted(false);setMode(next);};
  function openLink(value){
   const match=/^#(verify-email|reset-password)=([a-f0-9]{64})$/.exec(value);
@@ -39,7 +40,7 @@ export default function Access(){
     const result=await api('account/requestReset',{email});setMessage(result.message);return;
    }
    const route=selected==='tester'?'login':`account/${({signin:'login',signup:'signup',recover:'recover',security:'password',reset:'resetPassword'})[selected]}`;
-   const result=await api(route,{email,name,password,currentPassword,code,recoveryCode:code,acceptSandbox:accepted,linkToken:selected==='reset'?link?.token:undefined});
+   const result=await api(route,{email,name,password,currentPassword,code,recoveryCode:code,acceptSandbox:accepted,...selected==='signup'?{inviteCode:inviteCode.trim()}:{} ,linkToken:selected==='reset'?link?.token:undefined});
    clearSecrets();setAccess({...access,...result,account:result.account??null,recoveryCode:undefined});
    if(['reset','recover','security'].includes(selected))setLink(null);
    if(result.recoveryCode){setRecovery(result.recoveryCode);setSaved(false);}else setMode(link?.purpose==='verify-email'?'confirmEmail':'signin');
@@ -78,6 +79,7 @@ export default function Access(){
  {mode==='security'&&<Field label="Current password"><input type="password" autoComplete="current-password" required maxLength={128} value={currentPassword} onChange={e=>setCurrentPassword(e.target.value)}/></Field>}
  {mode==='recover'&&<Field label="Recovery code"><input autoComplete="off" type="password" required minLength={64} maxLength={64} value={code} onChange={e=>setCode(e.target.value.trim())}/></Field>}
  {mode!=='forgot'&&<Field label={['recover','security','reset'].includes(mode)?'New password':'Password'} hint={mode==='signin'?undefined:'Use 15 to 128 characters. A password manager can generate one for you.'}><input type="password" autoComplete={mode==='signin'?'current-password':'new-password'} required minLength={mode==='signin'?1:15} maxLength={128} value={password} onChange={e=>setPassword(e.target.value)}/></Field>}
+ {mode==='signup'&&<Field label="Invitation code (optional)" hint="Invited to test? Enter your code to start in simulation mode."><input autoComplete="off" spellCheck="false" maxLength={36} value={inviteCode} onChange={e=>setInviteCode(e.target.value)}/></Field>}
  {mode==='signup'&&<><p className="fine-print">{emailEnabled?'After signing up, save your recovery code and verify your email.':'Email sending is not connected yet. Save the recovery code shown after sign-up to protect your access.'}</p><Check required checked={accepted} onChange={e=>setAccepted(e.target.checked)}>I understand that saving a wallet does not verify ownership. I must review each checkout before making a payment.</Check></>}
  {mode==='forgot'&&<Notice>{emailEnabled?(localEmail?'Test password recovery is available after test verification. View reset previews from Account security while signed in. If you cannot sign in, use your saved recovery code.':'Email recovery is available for accounts with a verified email address. If you have not verified yours, use your saved recovery code.'):'Email sending is not connected yet. You can reset your password using your saved recovery code.'}</Notice>}
  {mode==='recover'&&<Notice>Use your saved recovery code. Recovery signs you out on every device.</Notice>}
