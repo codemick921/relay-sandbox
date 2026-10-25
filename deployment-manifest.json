@@ -37,7 +37,7 @@
   },
   {
     "path": "hosted/funding-drafts.mjs",
-    "sha256": "c1e04e7f56572f1bbe795ffb644f1642b924967e6ca5617d3266efe115645286"
+    "sha256": "7999a4f88f68bf2e5a7084a97cac0abd8c54537eba55bb3ccaf8c75f87114b6e"
   },
   {
     "path": "hosted/funding-drafts.sql",
@@ -69,7 +69,7 @@
   },
   {
     "path": "hosted/live-store.mjs",
-    "sha256": "2e003e7e1ff8b42b634b4b8c16bb0ca80ed5808d3e7d8cdc3f9f93204c91b948"
+    "sha256": "28f3eb403e0b6b98c006ead2870183258ece787814a7e699f2d4d70f4eec275f"
   },
   {
     "path": "hosted/live-worker.mjs",
@@ -81,7 +81,7 @@
   },
   {
     "path": "hosted/payment-health.mjs",
-    "sha256": "f5207fbc35da0ad09a4568b31bb3601ffc50364b35024385fe67de042ff52a19"
+    "sha256": "5bc1e3cb5cae54ae36e54258a292eafd5d00b2bcd359dee029de9ee8c74b562b"
   },
   {
     "path": "hosted/payment-reconciliation.mjs",
@@ -89,7 +89,7 @@
   },
   {
     "path": "hosted/payment-records.mjs",
-    "sha256": "387f73ca8e466822a4907b599741ebd764f2d0de00bf3157937a8706e0afb2b6"
+    "sha256": "04361536f62cb6ea56fba6a33570f1b638aa18fe7f13298cec6dbaed1cfc4c52"
   },
   {
     "path": "hosted/peer-connection.mjs",
@@ -193,7 +193,7 @@
   },
   {
     "path": "server/pay-readonly.mjs",
-    "sha256": "94039e6b55d5465cbb0df14e1df78abe3ce1a6254cbd6381dcbe3e6fe9bd7f3d"
+    "sha256": "76cefc9b03259c4097fffb73239024ee4ca0c58186688e168a805dd18378bedb"
   },
   {
     "path": "server/pay-sandbox.mjs",
@@ -236,6 +236,10 @@
     "sha256": "2c60f3a4ecd7d0b87e86af7dcfbb3c29dbdca0932729e958c218f74d52de84be"
   },
   {
+    "path": "shared/tracking-status.mjs",
+    "sha256": "84849bfcdeb4e8e02e8fd61362cc46123c0dd0e666c1b057c25450d3971791c5"
+  },
+  {
     "path": "src/Access.jsx",
     "sha256": "ac47a6d5a586c3ae15f7e0465d420ea1348cb85ab15d773b30c42c776fd50575"
   },
@@ -249,7 +253,7 @@
   },
   {
     "path": "src/AdminPaymentHealth.jsx",
-    "sha256": "2eb44d916afafcd21e1cd81b9f7d3eaa4262bd06b13796603703c15fc1224c35"
+    "sha256": "aaac2d4f4cc8db7e1626bf8cf8e0b8b3046be498fd6aa2dc9bb41395fdddaec6"
   },
   {
     "path": "src/App.jsx",
@@ -261,7 +265,7 @@
   },
   {
     "path": "src/FundingCosts.jsx",
-    "sha256": "f7db10f7e7985a3a4d485b950c6e1e1ee53222cbbc41de3cc2acfe51e2ad0629"
+    "sha256": "715b0ed3e408b10e1ccd1352f522ce920e44ef9346ca1ed3aaa1dbfa408b0166"
   },
   {
     "path": "src/FundingHistory.jsx",
@@ -285,7 +289,7 @@
   },
   {
     "path": "src/LiveFunding.jsx",
-    "sha256": "934da41ae3b64bd32f99496bf1fa257da59d03fb9d7385076eeacf8c2b2df1e4"
+    "sha256": "16d5dab161fe458731b7939872488cfad795c59efe30b506002eaf15da3afe81"
   },
   {
     "path": "src/LiveOrder.jsx",
@@ -297,7 +301,7 @@
   },
   {
     "path": "src/PaymentRecovery.jsx",
-    "sha256": "43e4ac518715c3096a8df247006e38ea5112e89145a09ebaf5f7707da3697927"
+    "sha256": "c690ee5b81afaef201133ecba6440efab672c9747b849e0cce5714d2adffc85a"
   },
   {
     "path": "src/PhoneResume.jsx",
@@ -313,11 +317,15 @@
   },
   {
     "path": "src/SimpleFunding.jsx",
-    "sha256": "c1e85cc582a35967e5fb12e45a04eb3f3b99d238633ffee77fd0767417bab9e3"
+    "sha256": "c600fc7c26f693b3ee8936bcef0ac2bbaf69847687dbcea4fdad2e22cca4ab7d"
   },
   {
     "path": "src/TestFunding.jsx",
     "sha256": "877d9ea9027d064822832f8aad3c0d703a92427051f6ecd84609ae83c1773272"
+  },
+  {
+    "path": "src/TrackingNotice.jsx",
+    "sha256": "ac97cc513bd891afa1bd9a7e7bfe5c4a918e03c99474341d14d94cd0758533e5"
   },
   {
     "path": "src/WalletDashboard.jsx",
@@ -377,7 +385,7 @@
   },
   {
     "path": "src/payment-resume.mjs",
-    "sha256": "6db6e6af740516b0432b3b62b282029083aff79ed220e0c1ef310153b0ac826c"
+    "sha256": "54e2fafc4723ecbf5065f2f1f63e8bf9563b8214d61d49f8b95b9d6f71d4715e"
   },
   {
     "path": "src/peer-wallet.mjs",
@@ -508,6 +516,10 @@
     "sha256": "a8e66e5178721848c3bc56274eb69355ab85fae3972f1affd3f955066467f6bf"
   },
   {
+    "path": "tests/payment-reliability.test.mjs",
+    "sha256": "9c9c2f227321dafb2682293aba5aa17d7eb7162ba77c1ae077f6ac2cecbdd6b7"
+  },
+  {
     "path": "tests/payment-resume.test.mjs",
     "sha256": "9e26475647ecf111c8fdc6736523f11e2db241dbcb08e2403d18164560decdeb"
   },
@@ -605,7 +617,7 @@
   },
   {
     "path": "DEPLOYMENT.md",
-    "sha256": "fe08fcd553963f28353a32cf1104594c8f8e41b5c12f38018f42d5a339882c95"
+    "sha256": "544b4881bb47780876d30ff37a81b6da46eef25fc36c96df8b842d63e293bfbd"
   },
   {
     "path": ".github/workflows/verify.yml",

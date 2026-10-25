@@ -9,7 +9,7 @@ export default function FundingCosts(props){
  return <section className="funding-costs" aria-label="Funding amount and fees">
   <h3>{costs.simulated?'Example amounts and fees':'Your funding amount and fees'}</h3>
   {costs.simulated&&<p className="costs-status">Simulation only. These figures do not represent a real quote, payment or wallet arrival.</p>}
-  <p className="costs-status">{costs.message}</p>
+  <p className="costs-status">{props.expiry?(props.expiry==='quote_elapsed'?'The quote has expired. These are saved figures for reference.':'The payment attempt has expired. These are saved figures for reference.'):props.reviewNoticeShown&&props.review?'Amounts need review. Use these saved figures for reference only.':costs.message}</p>
   {costs.trackingUnavailable&&<p className="costs-status">The latest check is unavailable. These are the last saved figures.</p>}
   <dl className="costs-rows">{costs.rows.map(row=><div key={row.label}><dt>{row.label}<small>{row.note}</small></dt><dd>{row.value}</dd></div>)}</dl>
   {costs.adjustments.map((text,i)=><p className="fine-print" key={i}>{text}</p>)}

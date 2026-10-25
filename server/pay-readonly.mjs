@@ -38,8 +38,11 @@ export function createLiveReadService({apiKey,merchantId,rpc,fetcher=fetch}){
     const payIn=observePeerPayIn(order,aggregate,history.payments,{consistent:payInSnapshotKey(aggregate)===payInSnapshotKey(latest)});
     if(payInSnapshotKey(aggregate)===payInSnapshotKey(latest)&&aggregate.currentPayment?.rail==='revolut'&&aggregate.currentPayment.status==='CREATED')payIn.recipientHash=recipientHash(aggregate.currentPayment.payTo);
     const result=await verifyPayDelivery(order,aggregate.order,history.payments,{rpc});
+    const selected=aggregate.currentPayment;
+    if(selected&&selected.quoteExpiresAt!==history.payments.find(p=>p.id===selected.id)?.quoteExpiresAt)throw new EvidencePendingError('Payment expiry reads have not converged.');
+    const currentAttempt=selected?{id:selected.id,status:selected.status,quoteExpiresAt:typeof selected.quoteExpiresAt==='string'&&Number.isFinite(Date.parse(selected.quoteExpiresAt))?new Date(selected.quoteExpiresAt).toISOString():null}:null;
     if(!['NONE','PARTIALLY_CHARGEBACKED','CHARGEBACKED'].includes(aggregate.order.chargebackStatus))throw new TrackingReviewError('Unknown dispute state.');
-    return {...result,verification:{...result.verification,payIn},checkedAt:result.verification.checkedAt,providerStatus:aggregate.order.status,chargebackStatus:aggregate.order.chargebackStatus};
+    return {...result,verification:{...result.verification,payIn,currentAttempt},checkedAt:result.verification.checkedAt,providerStatus:aggregate.order.status,chargebackStatus:aggregate.order.chargebackStatus};
    }catch(e){
     if(e instanceof TrackingReviewError||e instanceof EvidencePendingError)throw e;
     if(e instanceof InputError)throw new TrackingReviewError('Payment or receipt evidence conflicts with the saved order.');

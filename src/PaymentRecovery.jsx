@@ -1,3 +1,4 @@
+import TrackingNotice from './TrackingNotice';
 import React,{useEffect,useState} from 'react';
 import {api} from './api';
 import {Button,Notice,Modal,Icon} from './ui';
@@ -15,10 +16,10 @@ export default function PaymentRecovery({state,open,onClose,selectedId}){
  const record=records.find(r=>r.id===selected),shown=records.filter(r=>filter==='all'||filter==='attention'&&!['received','draft','ended'].includes(r.code)||filter==='received'&&r.deliveryConfirmed);
  const detail=r=><article className="recovery-detail" aria-label="Funding recovery details">
   <div className="recovery-heading"><span className="status-pill">{r.simulated?'Simulation · no real funds':'Live funding record'}</span><h3>{r.title}</h3><p>{r.agentName} · {value(r.requestedGbp,'GBP')} requested</p></div>
+  <TrackingNotice tracking={r.tracking}/>
   {r.simulated&&<Notice>These are example payment and wallet records. They do not confirm real funds.</Notice>}
   <section className="recovery-next"><h4>What to do next</h4><p>{r.next}</p></section>
   {r.stopped&&r.code!=='stopped'&&<Notice>This request was stopped in Relay. Its Peer checkout was not cancelled by that action. Do not pay the old checkout; late transfers remain tracked.</Notice>}
-  {(r.stale||r.trackingUnavailable)&&<Notice>Tracking is not up to date. The details below are from the last successful check. An unavailable check does not mean your payment failed.</Notice>}
   <dl className="details recovery-facts">
    <div><dt>Last successful check</dt><dd>{when(r.checkedAt)}</dd></div>
    <div><dt>Payment verification</dt><dd>{r.providerFulfilled?'Peer marked the payment complete':'Full payment not confirmed'}</dd></div>

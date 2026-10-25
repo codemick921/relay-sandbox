@@ -152,3 +152,13 @@ The authenticated app synchronises on opening, returning to a visible tab, and e
 Arrival notices require the same verified delivery evidence as customer receipts. Disputes/review/unavailable checks receive attention notices. Simulation notices are off by default and explicitly labelled when enabled; the local preview opts in for synthetic testing. Low-balance notices require fresh, successful evidence for the currently saved wallet address and an enabled wallet alert. Unknown/stale checks do not reset a low-balance episode or treat an unknown amount as zero.
 
 No new environment variable, provider credential, webhook, live-payment flag or worker change is required. Do not alter live settings when deploying this feature. All new APIs use the existing authenticated same-origin protections; PostgreSQL tests are included in `test:postgres` and `test:offline`.
+
+## Payment reliability update — local build, 25 October 2026
+
+No environment or live-payment setting changes are required. This release projects saved current-payment status and quote expiry without introducing an EXPIRED checkout-order status. Expiry hides stale payment links/instructions but does not cancel the provider checkout or release a funding request automatically. Existing stop-unpaid checks and late settlement tracking remain in force. Older saved evidence without a current attempt only projects expiry when all saved attempts are EXPIRED.
+
+Customers see tracking outages, pending evidence, overdue scheduled checks (five minutes), and stale non-terminal evidence (15 minutes) separately from the payment result. Successful verification clears the transient tracking-pending/failure markers. Existing review holds, immutable receipts, worker schedules and live payment access remain unchanged.
+
+Payment health adds the latest 25 saved unmatched/unprocessed notification diagnostics scoped to the pinned merchant, using existing operator permissions. It exposes friendly event descriptions, timestamps and an existing Relay request link only; no payload, notification identifier, credential, replay action or provider call. More than 25 is explicitly flagged. No schema migration or admin access expansion is needed.
+
+Validated locally against disposable PostgreSQL with offline transports: 255 tests pass (nine new reliability cases) and production build passes. Browser QA used synthetic local examples only. Production/provider outcomes remain unverified for this release.

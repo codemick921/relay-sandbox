@@ -1,3 +1,4 @@
+import {paymentAttemptState} from '../shared/tracking-status.mjs';
 const uuid=/^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i;
 // The fragment is only a reference. It never carries a session or provider token.
 export function resumeLink(origin,id){
@@ -22,5 +23,5 @@ export function resolveResume(target,state){
  return {kind:'resume-unavailable'};
 }
 export function canContinueCheckout(draft,order,live){
- return !!(live&&draft?.status==='bound'&&!draft.stoppedAt&&!draft.supersededBy&&draft.cancellationState!=='requested'&&order&&!order.reviewRequired&&!order.trackingError&&['checkout_ready','checkout_partial'].includes(order.status)&&(!order.chargebackStatus||order.chargebackStatus==='NONE'));
+ return !!(live&&draft?.status==='bound'&&!draft.stoppedAt&&!draft.supersededBy&&draft.cancellationState!=='requested'&&order&&!paymentAttemptState(order)&&!order.reviewRequired&&!order.trackingError&&['checkout_ready','checkout_partial'].includes(order.status)&&(!order.chargebackStatus||order.chargebackStatus==='NONE'));
 }

@@ -11,7 +11,7 @@ const identifier=v=>typeof v==='string'&&/^[a-zA-Z0-9_-]{1,128}$/.test(v);
 const uint=v=>typeof v==='string'&&/^\d{1,16}$/.test(v);
 const states=new Set(['checkout_ready','checkout_partial','checkout_settled','checkout_confirming','checkout_received','checkout_cancelled','checkout_review']);
 const check=(ok,message)=>{if(!ok)throw new TrackingReviewError(message);};
-export const liveOrderView=row=>({...row.request,...row.result,id:row.id,createdAt:row.created_at,status:row.status,reviewRequired:row.review_required,source:'live'});
+export const liveOrderView=row=>({...row.request,...row.result,id:row.id,createdAt:row.created_at,status:row.status,reviewRequired:row.review_required,source:'live',trackingSchedule:{nextCheckAt:row.next_check_at,failedChecks:row.attempts}});
 
 function immutableIntent(input){
  if(input?.source!=='live'||input.kind!=='checkout'||!uuid(input.id)||!identifier(input.providerOrderId)||!identifier(input.merchantId)||
@@ -28,6 +28,7 @@ function checkedResult(order,update){
  check(['CREATED','PARTIALLY_FULFILLED','FULFILLED','CANCELLED'].includes(update.providerStatus)&&['NONE','PARTIALLY_CHARGEBACKED','CHARGEBACKED'].includes(update.chargebackStatus),'Unsupported provider state.');
  check(v.providerFulfilled===(update.providerStatus==='FULFILLED')&&Number.isFinite(Date.parse(update.checkedAt)),'Invalid verification timestamp or fulfilment state.');
  if(update.status==='checkout_cancelled'||update.providerStatus==='CANCELLED')check(update.status==='checkout_cancelled'&&update.providerStatus==='CANCELLED'&&v.payments.length===0&&v.providerRemainingRaw===String(microUsdc(order.requestedUsdcAmount))&&update.chargebackStatus==='NONE','Cancellation requires an unpaid, cancelled provider order.');
+ if(v.currentAttempt!=null)check(v.payments.some(p=>p.id===v.currentAttempt.id&&p.status===v.currentAttempt.status)&&['CREATED','EXPIRED','FAILED','CANCELLED','SETTLED'].includes(v.currentAttempt.status)&&(v.currentAttempt.quoteExpiresAt===null||typeof v.currentAttempt.quoteExpiresAt==='string'&&Number.isFinite(Date.parse(v.currentAttempt.quoteExpiresAt))),'Current attempt does not match saved payment evidence.');
  const settled=v.payments.filter(p=>p.status==='SETTLED'),ids=new Set(),intents=new Set(),transactions=new Set();
  for(const p of v.payments){check(identifier(p.id)&&!ids.has(p.id),'Duplicate payment evidence.');ids.add(p.id);}
  let total=0n,arrived=0n;
@@ -48,7 +49,7 @@ function checkedResult(order,update){
   check(d?.finalized===true&&d.chainId===8453&&same(d.tokenAddress,TOKEN)&&same(d.recipient,order.agent.address)&&d.amountRaw===String(arrived)&&
    JSON.stringify(d.receipts)===JSON.stringify(settled.map(p=>p.receipt)),'Delivery summary does not match receipts.');
  }else check(update.delivery===null,'Unverified order cannot have a delivery receipt.');
- return {status:update.status,providerStatus:update.providerStatus,checkedAt:update.checkedAt,verification:v,delivery:update.delivery,chargebackStatus:update.chargebackStatus,trackingError:null};
+ return {status:update.status,providerStatus:update.providerStatus,checkedAt:update.checkedAt,verification:v,delivery:update.delivery,chargebackStatus:update.chargebackStatus,trackingError:null,trackingPending:false};
 }
 
 export function createLiveStore(pool,{merchantId}={}){
@@ -127,9 +128,9 @@ export function createLiveStore(pool,{merchantId}={}){
    const row=await current(c,claim);if(!row)return false;
    // Keep the last verified result and any existing security review. A normal
    // settlement/finality delay is neither a provider outage nor a new review.
-   if(pending&&!review){await c.query(`UPDATE relay_live_orders SET result=result||jsonb_build_object('trackingError',NULL,'trackingAttemptedAt',now()),generation=generation+1,lease_token=NULL,lease_until=NULL,attempts=0,next_check_at=now()+interval '15 seconds',updated_at=now() WHERE id=$1`,[row.id]);return true;}
+   if(pending&&!review){await c.query(`UPDATE relay_live_orders SET result=result||jsonb_build_object('trackingError',NULL,'trackingPending',true,'trackingAttemptedAt',now()),generation=generation+1,lease_token=NULL,lease_until=NULL,attempts=0,next_check_at=now()+interval '15 seconds',updated_at=now() WHERE id=$1`,[row.id]);return true;}
    const message=review?'Payment evidence needs operator review. Do not send another payment.':'Verification is temporarily unavailable. Your last verified result is retained.';
-   await c.query(`UPDATE relay_live_orders SET result=result||jsonb_build_object('trackingError',$2::text,'trackingAttemptedAt',now()),status=CASE WHEN $3 THEN 'checkout_review' ELSE status END,review_required=review_required OR $3,generation=generation+1,lease_token=NULL,lease_until=NULL,attempts=attempts+1,next_check_at=now()+least(3600,30*power(2,least(attempts,7)))*interval '1 second',updated_at=now() WHERE id=$1`,[row.id,message,review]);
+   await c.query(`UPDATE relay_live_orders SET result=result||jsonb_build_object('trackingError',$2::text,'trackingPending',false,'trackingAttemptedAt',now()),status=CASE WHEN $3 THEN 'checkout_review' ELSE status END,review_required=review_required OR $3,generation=generation+1,lease_token=NULL,lease_until=NULL,attempts=attempts+1,next_check_at=now()+least(3600,30*power(2,least(attempts,7)))*interval '1 second',updated_at=now() WHERE id=$1`,[row.id,message,review]);
    if(review&&!row.review_required)await c.query("INSERT INTO relay_live_audit(order_id,event) VALUES($1,'review_required')",[row.id]);return true;
   });},
   async accept(event,{client,matchedOnly=false}={}){

@@ -34,8 +34,14 @@ export function createPaymentHealthReader(pool,merchantId){
    const rows=(await c.query(base+` SELECT * FROM records WHERE ${where} ORDER BY created_at DESC,id DESC LIMIT 25 OFFSET $2`,[merchantId,(page-1)*25])).rows;
    const worker=(await c.query('SELECT max(beat_at) AS last FROM relay_live_workers WHERE merchant_id=$1',[merchantId])).rows[0];
    const inbox=(await c.query('SELECT count(*) AS total,count(*) FILTER(WHERE processed_at IS NULL) AS pending,count(*) FILTER(WHERE unmatched) AS unmatched,min(received_at) FILTER(WHERE processed_at IS NULL) AS oldest,max(received_at) AS last FROM relay_live_webhooks WHERE merchant_id=$1',[merchantId])).rows[0];
+   const notificationRows=(await c.query(`SELECT n.received_at,n.processed_at,n.event_type,n.unmatched,n.provider_id IS NULL AS missing_reference,o.id AS relay_id
+    FROM relay_live_webhooks n LEFT JOIN relay_live_orders o ON o.merchant_id=n.merchant_id AND o.provider_id=n.provider_id
+    WHERE n.merchant_id=$1 AND (n.unmatched OR n.processed_at IS NULL) ORDER BY n.received_at DESC,n.event_id DESC LIMIT 26`,[merchantId])).rows;
+   const notificationTypes={ORDER_CREATED:'Checkout created',ORDER_FULFILLED:'Checkout fulfilled',ORDER_CANCELLED:'Checkout cancelled',PAYMENT_CREATED:'Payment attempt created',PAYMENT_EXPIRED:'Payment attempt expired',PAYMENT_SETTLED:'Payment settled',PAYMENT_FAILED:'Payment attempt failed',PAYMENT_CANCELLED:'Payment attempt cancelled',PAYMENT_CHARGEBACKED:'Payment disputed'};
+   const diagnostics=notificationRows.slice(0,25).map(n=>({receivedAt:date(n.received_at),processedAt:date(n.processed_at),event:notificationTypes[n.event_type]??'Other notification',relayOrderId:n.relay_id??null,
+    reason:n.missing_reference?'no_order_reference':!n.relay_id?'no_saved_order':n.unmatched?'linked_since_receipt':'queued'}));
    const project=row=>{
-    const r=paymentRecord({...row.request,...row.result,id:row.id,createdAt:row.created_at,status:row.status,reviewRequired:row.review_required,source:simulated?'fixture':'live',fixture:simulated,stoppedInRelay:!!row.stopped_at},null,now);
+    const r=paymentRecord({...row.request,...row.result,id:row.id,createdAt:row.created_at,status:row.status,reviewRequired:row.review_required,source:simulated?'fixture':'live',fixture:simulated,trackingSchedule:{nextCheckAt:row.next_check_at},stoppedInRelay:!!row.stopped_at},null,now);
     return {record:r,flags:healthFilters.filter(x=>!['all','attention'].includes(x)&&row[x]),updatedAt:date(row.updated_at),nextCheckAt:date(row.next_check_at),lastAttemptAt:date(row.result.trackingAttemptedAt),failedChecks:row.attempts,stoppedAt:date(row.stopped_at)};
    };
    let detail=null;
@@ -49,7 +55,7 @@ export function createPaymentHealthReader(pool,merchantId){
    }
    await c.query('COMMIT');
    const heartbeatAt=date(worker.last),age=heartbeatAt?(now-Date.parse(heartbeatAt))/1000:null;
-   return {available:true,savedOnly:true,simulated,generatedAt:new Date(now).toISOString(),filter,page,pageSize:25,counts:Object.fromEntries(Object.entries(counts).map(([k,v])=>[k,Number(v)])),worker:{heartbeatAt,status:age===null?'unknown':age>=0&&age<90?'recent':'stale'},notifications:{total:Number(inbox.total),pending:Number(inbox.pending),unmatched:Number(inbox.unmatched),oldestPendingAt:date(inbox.oldest),lastReceivedAt:date(inbox.last)},records:rows.map(project),detail};
+   return {available:true,savedOnly:true,simulated,generatedAt:new Date(now).toISOString(),filter,page,pageSize:25,counts:Object.fromEntries(Object.entries(counts).map(([k,v])=>[k,Number(v)])),worker:{heartbeatAt,status:age===null?'unknown':age>=0&&age<90?'recent':'stale'},notifications:{total:Number(inbox.total),pending:Number(inbox.pending),unmatched:Number(inbox.unmatched),oldestPendingAt:date(inbox.oldest),lastReceivedAt:date(inbox.last),diagnostics,diagnosticsTruncated:notificationRows.length>25},records:rows.map(project),detail};
   }catch(e){await c.query('ROLLBACK').catch(()=>{});throw e;}finally{c.release();}
  };
 }
