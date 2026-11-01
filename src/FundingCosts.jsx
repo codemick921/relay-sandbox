@@ -6,6 +6,12 @@ export default function FundingCosts(props){
  const [now,setNow]=useState(Date.now());
  useEffect(()=>{const timer=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(timer);},[]);
  const costs=fundingCosts({...props,now});
+ // Compact presentation is only for a new request, never for tracked or simulated funds.
+ if(props.setupOnly&&!props.verification&&!props.simulated&&!props.expiry&&!props.stopped&&!props.ended&&!props.review&&!props.trackingError)return <section className="funding-costs funding-costs--compact" aria-label="Funding summary">
+  <h3>Funding summary</h3>
+  <dl className="costs-request"><dt>Requested funding</dt><dd>{costs.rows[0].value}</dd></dl>
+  <p className="costs-guidance">Review Peer’s offer and fees before paying. Your bank or payment app may charge separately.</p>
+ </section>;
  return <section className="funding-costs" aria-label="Funding amount and fees">
   <h3>{costs.simulated?'Example amounts and fees':'Your funding amount and fees'}</h3>
   {costs.simulated&&<p className="costs-status">Simulation only. These figures do not represent a real quote, payment or wallet arrival.</p>}

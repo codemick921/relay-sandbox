@@ -51,7 +51,7 @@ export function LiveFunding({state,act,busy,error,onClose,open,selected,fundingP
     </div>
     <aside className="fund-review-panel" aria-label="Destination and cost review">
      <section className="fund-destination"><div className="fund-destination-title"><span className="fund-screen-icon"><Icon name="wallet" size={22}/></span><div><span>Receiving wallet</span><h3>{agent?.name??'Choose a wallet'}</h3></div></div><span className="fund-network-label">USDC on Base</span>{agent?<><p>Check the full receiving address</p><code className="checkout-address">{agent.address}</code><small>Saved address. Ownership and spending access are not verified.</small></>:<p>Select the saved agentic wallet that should receive the funds.</p>}</section>
-     <FundingCosts requestedPence={inputPence(amount)} currency={currency}/>
+     <FundingCosts setupOnly requestedPence={inputPence(amount)} currency={currency}/>
     </aside>
    </div>
    <section className="fund-route-review" aria-label="Route review">
@@ -80,7 +80,7 @@ export function FundingDraft({state,draft,act,busy,error,onClose,open}){
   {(error||localError)&&<Notice error>{error||localError}</Notice>}
   <dl className="details"><div><dt>Requested funding</dt><dd>{formatFiat(draft.pence,draft.currency)}</dd></div><div><dt>Pay with</dt><dd>{methodLabel(draft.rail)} · {draft.currency??'GBP'}</dd></div><div><dt>Agent</dt><dd>{draft.agent.name}</dd></div><div><dt>Receives</dt><dd>USDC on Base</dd></div></dl>
   {draftOnly&&<FundingCompatibility agent={draft.agent} rail={draft.rail} currency={draft.currency} amountMinor={draft.pence} walletCurrent={draft.walletCurrent}/>}
-  <FundingCosts currency={draft.currency} expiry={paymentAttemptState(tracked)} reviewNoticeShown requestedPence={draft.pence} verification={tracked?.verification} simulated={!!tracked?.fixture||!!tracked?.journey} stopped={!!draft.stoppedAt} ended={cancelled||closed} review={!!tracked?.reviewRequired||tracked?.status==='checkout_review'} trackingError={!!tracked?.trackingError}/>
+  <FundingCosts setupOnly={draftOnly&&!tracked&&!draft.stoppedAt} currency={draft.currency} expiry={paymentAttemptState(tracked)} reviewNoticeShown requestedPence={draft.pence} verification={tracked?.verification} simulated={!!tracked?.fixture||!!tracked?.journey} stopped={!!draft.stoppedAt} ended={cancelled||closed} review={!!tracked?.reviewRequired||tracked?.status==='checkout_review'} trackingError={!!tracked?.trackingError}/>
   <p>Receiving address</p><code className="checkout-address">{draft.agent.address}</code>
   {!draft.walletCurrent&&draftOnly&&<Notice error>The saved wallet has changed. Cancel this draft and review the updated address.</Notice>}
   {!draft.supersededBy&&<FundingInstructions currency={draft.currency} preview={!live||draftOnly} rail={draft.rail} requestedPence={draft.pence} stage={draft.stoppedAt?'stopped':closed||cancelled?'closed':draftOnly?'ready':tracked?.status==='checkout_partial'?'partial':ready?'ready':'tracking'}/>}
