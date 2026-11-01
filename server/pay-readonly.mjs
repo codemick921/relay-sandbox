@@ -1,3 +1,4 @@
+import {merchantFeeKey} from './pay-net-estimate.mjs';
 import {InputError} from './validation.mjs';
 import {validateCheckout,sameUsdc} from './pay-contract.mjs';
 import {verifyPayDelivery,EvidencePendingError} from './pay-delivery.mjs';
@@ -35,7 +36,10 @@ export function createLiveReadService({apiKey,merchantId,rpc,fetcher=fetch}){
     if(aggregate.currentPayment&&!history.payments.some(p=>p.id===aggregate.currentPayment.id&&p.status===aggregate.currentPayment.status))throw new EvidencePendingError('Payment reads have not converged.');
     const latest=await read('/orders/'+encodeURIComponent(order.providerOrderId));
     if(payInSnapshotKey(aggregate)!==payInSnapshotKey(latest))throw new EvidencePendingError('Payment changed during verification.');
-    const payIn=observePeerPayIn(order,aggregate,history.payments,{consistent:payInSnapshotKey(aggregate)===payInSnapshotKey(latest)});
+    // Recheck fee configuration around active quote reads; a changed profile withholds only the estimate.
+    const feeProfile=aggregate.currentPayment?.status==='CREATED'&&merchant.merchantConfig?await read('/merchants/me'):null;
+    const verifiedFeeProfile=feeProfile&&merchantFeeKey(merchant)===merchantFeeKey(feeProfile)?merchant:null;
+    const payIn=observePeerPayIn(order,aggregate,history.payments,{consistent:payInSnapshotKey(aggregate)===payInSnapshotKey(latest),merchant:verifiedFeeProfile});
     if(payInSnapshotKey(aggregate)===payInSnapshotKey(latest)&&aggregate.currentPayment?.rail==='revolut'&&aggregate.currentPayment.status==='CREATED')payIn.recipientHash=recipientHash(aggregate.currentPayment.payTo);
     const result=await verifyPayDelivery(order,aggregate.order,history.payments,{rpc});
     const selected=aggregate.currentPayment;

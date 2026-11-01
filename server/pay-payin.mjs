@@ -1,3 +1,4 @@
+import {selectedNetEstimate} from './pay-net-estimate.mjs';
 import {checkoutRails,currencyCode,supportsFunding,knownCurrency,minimumMinor,methodLabel} from '../shared/fiat.mjs';
 import {settlementAdjustments} from './pay-delivery.mjs';
 import {createHash} from 'node:crypto';
@@ -19,9 +20,10 @@ export function payInProjection(evidence,now=Date.now()){
   if(Date.parse(e.expiresAt)<=now)e.status='quote_expired';
   else if(!Number.isFinite(Date.parse(e.checkedAt))||now-Date.parse(e.checkedAt)>TTL||Date.parse(e.checkedAt)>now+5000)e.status='stale';
  }
+ if(e.status!=='within_peer_limit')e.receiveEstimate=null;
  return e;
 }
-export function observePeerPayIn(local,aggregate,history,{now=Date.now(),consistent=true}={}){
+export function observePeerPayIn(local,aggregate,history,{now=Date.now(),consistent=true,merchant=null}={}){
  const rail=local.quote.platform;
  const base={schema:local.quote.currency===undefined?(rail==='revolut'?'peer-revolut-gbp-v1':SCHEMA):'peer-fiat-v2',currency:currencyCode(local.quote.currency),rail,limitPence:local.quote.pence,
   checkedAt:new Date(now).toISOString(),providerOrderId:local.providerOrderId,paymentAuthorised:false,allInLimitVerified:false,
@@ -39,7 +41,7 @@ export function observePeerPayIn(local,aggregate,history,{now=Date.now(),consist
   if(!current||history.length!==1||current.id!==history[0].id||current.orderId!==order.id)return out('snapshot_changed');
   const payment=history[0],quote=payment.quote,signal=quote?.signalIntent;
   // Compare all pricing fields across independent provider reads; never use a webhook body here.
-  const fields=p=>[p.id,p.orderId,p.status,p.rail,p.currency,p.currencyPerUsdRate,p.paymentAmount,p.quoteExpiresAt,p.quote,p.netSettledUsdcAmount,p.totalUsdcFeeAmount];
+  const fields=p=>[p.id,p.orderId,p.status,p.rail,p.currency,p.currencyPerUsdRate,p.paymentAmount,p.quoteExpiresAt,p.quote,p.netSettledUsdcAmount,p.totalUsdcFeeAmount,p.penalties];
   if(fingerprint(fields(current))!==fingerprint(fields(payment)))return out('snapshot_changed');
   if(payment.orderId!==order.id||payment.rail!==rail||!knownCurrency(payment.currency)||!signal||signal.processorName!==rail||!same(signal.toAddress,local.agent.address))return out('unsupported_payment');
   const details={paymentId:payment.id,expiresAt:payment.quoteExpiresAt,sellerVerificationAvailable:quote.sellerAutomatedReleaseAvailable===true};
@@ -75,7 +77,7 @@ export function observePeerPayIn(local,aggregate,history,{now=Date.now(),consist
   if(prior?.paymentId&&prior.paymentId!==payment.id)return out('payment_changed',pricing);
   if(prior?.quoteFingerprint&&prior.quoteFingerprint!==quoteFingerprint)return out('quote_changed',pricing);
   if(ceiling>BigInt(base.limitPence))return out('over_limit',pricing);
-  return out('within_peer_limit',pricing);
+  return out('within_peer_limit',{...pricing,receiveEstimate:selectedNetEstimate(merchant,order,payment)});
  }catch{return out('malformed_amount');}
 }
 

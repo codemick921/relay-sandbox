@@ -5,7 +5,21 @@ import './funding-costs.css';
 export default function FundingCosts(props){
  const [now,setNow]=useState(Date.now());
  useEffect(()=>{const timer=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(timer);},[]);
- const costs=fundingCosts({...props,now});
+ const costs=fundingCosts({...props,ended:props.ended||!!props.expiry,now});
+ if(costs.reviewPair){const pair=costs.reviewPair,estimated=pair.kind==='estimate';return <section className="funding-costs funding-costs--review" aria-label="Payment and USDC review">
+  <h3>{estimated?'Review your funding':'Your funding receipt'}</h3>
+  <dl className="costs-pair"><div><dt>{estimated?'You pay':'Payment recorded'}</dt><dd>{pair.pay}</dd></div><div><dt>{estimated?'You receive (estimate)':pair.arrived?'Received in your wallet':'USDC after fees'}</dt><dd>{pair.receive}</dd></div></dl>
+  <p className="costs-guidance">{estimated?'USDC on Base, after the estimated Peer fee. Pay the exact amount and currency shown in Peer. Currency changes, underpayment or provider adjustments can reduce the final receipt.':pair.arrived?'Matching USDC arrival has been confirmed on Base.':'Peer has recorded this settlement. Wallet arrival is checked separately.'}</p>
+  {costs.trackingUnavailable&&<p className="costs-status">The latest check is unavailable. These are the last saved figures.</p>}
+  {!estimated&&(props.stopped||props.ended||props.expiry||props.review)&&<p className="costs-status">Saved receipt for reference. Do not pay this checkout again.</p>}
+  <details className="costs-breakdown"><summary>{estimated?'Quote details':'Payment details'}</summary>
+   {pair.fee&&<p>{estimated?'Estimated Peer fee':'Recorded Peer fee'}: {pair.fee}. Already deducted from the USDC shown above.</p>}
+   <p>Your bank or payment app may charge separately.</p>
+   {costs.adjustments.map((text,i)=><p key={i}>{text}</p>)}
+   {costs.checkedAt&&<p>Last checked: {new Date(costs.checkedAt).toLocaleString('en-GB')}.</p>}
+   {estimated&&costs.expiresAt&&<p>Offer expires: {new Date(costs.expiresAt).toLocaleString('en-GB')}.</p>}
+  </details>
+ </section>;}
  // Compact presentation is only for a new request, never for tracked or simulated funds.
  if(props.setupOnly&&!props.verification&&!props.simulated&&!props.expiry&&!props.stopped&&!props.ended&&!props.review&&!props.trackingError)return <section className="funding-costs funding-costs--compact" aria-label="Funding summary">
   <h3>Funding summary</h3>
