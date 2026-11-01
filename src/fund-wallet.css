@@ -82,3 +82,34 @@
 @media(max-width:800px){.fund-form-grid{grid-template-columns:minmax(0,1fr)}.fund-payment-pair{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.fund-review-panel{grid-template-columns:minmax(0,1fr)}.fund-confirm-action{align-items:stretch;flex-direction:column;gap:12px}.fund-confirm-action p{max-width:none}}
 @media(max-width:540px){.modal.fund-wallet-modal,.modal.fund-options-modal,.modal.fund-request-modal{width:calc(100vw - 20px);max-width:calc(100vw - 20px);max-height:calc(100dvh - 20px);border-radius:20px} :is(.fund-wallet-modal,.fund-options-modal,.fund-request-modal) .modal-head{padding:18px 16px} :is(.fund-wallet-modal,.fund-options-modal,.fund-request-modal) .modal-head h2{font-size:25px} :is(.fund-wallet-modal,.fund-options-modal,.fund-request-modal) .modal-body{padding:20px 16px max(24px,env(safe-area-inset-bottom))}.fund-screen-intro{gap:12px;margin-bottom:24px}.fund-screen-intro h3{font-size:21px}.fund-screen-intro p{font-size:13px}.fund-screen-icon{width:42px;height:42px;flex-basis:42px;border-radius:12px}.fund-form-section,.fund-destination,.fund-review-panel .funding-costs,.fund-route-review,.fund-confirm{padding:18px 16px;border-radius:14px}.fund-form-section legend{font-size:20px}.fund-payment-pair{grid-template-columns:1fr;gap:0}.fund-wallet-modal .costs-rows>div{grid-template-columns:1fr;gap:6px}.fund-wallet-modal .costs-rows dd{text-align:left}.fund-options-modal .funding-option{padding:20px 16px}.fund-options-modal .details>div,.fund-request-modal .details>div{display:grid;grid-template-columns:1fr;gap:6px}.fund-options-modal .details dd,.fund-request-modal .details dd{text-align:left}.fund-wallet-modal .field select{padding-left:10px}.fund-confirm-action .button{width:100%;padding:12px 10px}.fund-wallet-modal .funding-compatibility{padding:16px 12px}}
 @media(prefers-reduced-motion:reduce){:is(.fund-wallet-modal,.fund-options-modal,.fund-request-modal) *{transition:none!important;animation:none!important}}
+
+/* Three focused stages; the existing funding palette and receiving summary persist. */
+.fund-progress{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;list-style:none;padding:0;margin:0 0 28px}
+.fund-progress li{display:flex;align-items:center;gap:10px;border-bottom:3px solid #e4eae5;padding:0 0 14px;color:#607166;min-width:0;font-size:13px}
+.fund-progress li>span{display:grid;place-items:center;width:28px;height:28px;flex:0 0 28px;border-radius:50%;background:#edf4ef;color:#254f3b}
+.fund-progress li[aria-current=step]{border-color:#7655ad;color:#183d30}
+.fund-progress li[aria-current=step]>span{background:#7655ad;color:#fff}
+.fund-progress .is-complete{border-color:#254f3b;color:#254f3b}
+.fund-progress .is-complete>span{background:#e8edb3}
+.fund-wizard .fund-step-count{font-size:12px;margin:0 0 5px;color:#607166}
+.fund-wizard .fund-screen-intro h3:focus{outline:0}
+.fund-wizard fieldset[hidden]{display:none}
+.fund-wizard .fund-destination-title{flex-wrap:wrap}
+.fund-wizard .fund-destination-title .button{min-height:44px;font-size:12px;padding:8px 12px;margin-left:auto}
+.fund-review-title{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.fund-review-title h3{font-size:22px}
+.fund-review-title .button{min-height:44px}
+.fund-review-facts{margin:16px 0}
+.fund-review-facts>div{display:flex;justify-content:space-between;gap:18px;padding:14px 0;border-bottom:1px solid #dce5dd;font-size:14px}
+.fund-review-facts dd{text-align:right;font-weight:650;overflow-wrap:anywhere}
+.fund-review-facts dt{color:#53665b}
+.fund-wizard .fund-confirm .check+.check{margin-top:18px}
+.fund-check-panel{padding:0 18px;border:1px solid #dce5dd;border-radius:14px;background:#f8faf6}
+.fund-check-details p{font-size:13px;line-height:1.75}
+.fund-step-actions{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-top:24px;padding-top:22px;border-top:1px solid #dce5dd}
+.fund-step-actions p{max-width:40ch;font-size:12px;line-height:1.7}
+.fund-step-actions .button{min-height:52px;flex-shrink:0}
+@media(max-width:540px){.fund-progress{gap:8px;margin-bottom:22px}.fund-progress li{flex-direction:column;align-items:flex-start;gap:8px;font-size:12px;line-height:1.5}.fund-step-actions{flex-direction:column;align-items:stretch;gap:12px}.fund-step-actions p{max-width:none}.fund-step-actions .button{width:100%}.fund-review-facts>div{flex-direction:column;gap:5px}.fund-review-facts dd{text-align:left}.fund-wizard .fund-screen-intro{margin-bottom:20px}}
+.fund-final-review .fund-review-facts>div:first-child{background:#f4f0fa;border:0;border-radius:12px;padding:16px;margin-bottom:4px;align-items:center}
+.fund-final-review .fund-review-facts>div:first-child dd{font-family:EupovaDisplay,system-ui,sans-serif;font-size:26px;color:#183d30}
+.fund-wizard .fund-step-actions{position:sticky;bottom:0;z-index:2;background:#fff;box-shadow:0 -12px 18px rgba(255,255,255,.96);padding:16px 0 12px}

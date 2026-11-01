@@ -1,5 +1,6 @@
 import {peerHandoffUrl} from './peer-handoff.mjs';
-import {useDialogState} from './DialogNavigation';
+import {useDialogState,DialogNavigation} from './DialogNavigation';
+import {submitFundingJourney} from './funding-submit.mjs';
 import {hasRecordedPayment} from '../shared/paid-request.mjs';
 import FundingCompatibility,{fundingAssets} from './FundingCompatibility';
 import {fundingCompatibility} from '../shared/funding-compatibility.mjs';
@@ -12,7 +13,7 @@ import {inputPence} from './funding-costs.mjs';
 import {activeFundingDraft} from './funding-entry.mjs';
 import PhoneResume from './PhoneResume';
 import {canContinueCheckout} from './payment-resume.mjs';
-import React,{useState,useEffect,useRef} from 'react';
+import React,{useState,useEffect,useRef,useContext} from 'react';
 import {Button,Modal,Field,Check,Notice,Icon} from './ui';
 import {api,gbp} from './api';
 import FundingInstructions from './FundingInstructions';
@@ -29,43 +30,70 @@ export function LiveFunding({state,act,busy,error,onClose,open,selected,fundingP
  const validMethod=available.some(m=>m.id===rail);
  const agent=state.agents.find(a=>a.id===agentId),existing=activeFundingDraft(state);
  const compatibility=fundingCompatibility({agent,rail,currency,amountMinor:inputPence(amount),targetAsset,route});
- return <Modal title={live?'Fund a wallet':'Prepare funding'} className="fund-wallet-modal" wide onClose={busy?()=>{}:onClose}>
-  <div className="fund-screen-intro"><span className="fund-screen-icon"><Icon name="wallet" size={26}/></span><div><h3>Choose where your funds go.</h3><p>{live?'Choose your saved wallet and payment details. Review your request before creating a Peer checkout.':'Prepare your request in Eupova. Payments are disabled and saving a draft sends nothing to Peer.'}</p></div></div>
-  {fundingPreset&&<Notice>Previous amount filled in for convenience. This is a new request: review the current rate, fees and payment instructions before paying.</Notice>}
+ const [step,setStep]=useDialogState('fundingStep',1),[consent,setConsent]=useState(false),[opening,setOpening]=useState(false);
+ const navigation=useContext(DialogNavigation),heading=useRef(null),inFlight=useRef(false),mounted=useRef(true),latestState=useRef(state);
+ latestState.current=state;
+ useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;};},[]);
+ const locked=busy||opening;
+ const walletOK=compatibility.checks.filter(c=>['wallet','asset'].includes(c.id)).every(c=>c.status==='pass')&&route==='merchant';
+ const valid=walletOK&&compatibility.canSaveDraft&&validMethod;
+ const changeStep=next=>{if(locked||inFlight.current)return;setStep(next);setConsent(false);setConfirmed(false);};
+ useEffect(()=>{heading.current?.focus();heading.current?.closest('.modal')?.scrollTo({top:0});},[step]);
+ // Any externally refreshed destination invalidates the user's acknowledgement.
+ useEffect(()=>{setConsent(false);setConfirmed(false);},[agent?.address,agent?.network,agent?.token,live,state.paymentsDisabled]);
+ const submit=async e=>{
+  e.preventDefault();if(locked||inFlight.current||existing)return;
+  if(step===1){if(walletOK)changeStep(2);return;}
+  if(step===2){if(valid)changeStep(3);return;}
+  if(!valid||!confirmed||live&&(!consent||state.paymentsDisabled===true))return;
+  inFlight.current=true;setOpening(true);
+  try{
+   const result=await submitFundingJourney({selection:{requestId,agentId,amount,rail,currency,targetAsset,route,confirm:confirmed},agent,live,consent,act,resume:body=>api('funding/resume',body),isCurrent:()=>mounted.current});
+   if(!mounted.current)return;
+   if(result.url&&latestState.current.paymentsDisabled!==true&&canContinueCheckout(latestState.current.fundingDrafts?.find(d=>d.id===result.id),latestState.current.orders?.find(o=>o.id===result.id),latestState.current.liveFunding?.paymentsEnabled===true))window.location.assign(result.url);
+   else if(result.id)open('funding-draft',result.id);
+  }finally{inFlight.current=false;if(mounted.current)setOpening(false);}
+ };
+ const nav={...navigation,busy:locked,backLabel:step>1?'Back to '+(step===3?'amount and method':'choose wallet'):navigation?.backLabel??'Back',back:step>1?()=>changeStep(step-1):navigation?.back??onClose};
+ return <DialogNavigation.Provider value={nav}><Modal title={live?'Fund a wallet':'Prepare funding'} className="fund-wallet-modal fund-wizard" wide onClose={locked?()=>{}:onClose}>
   {error&&<Notice error>{error}</Notice>}
-  {existing?<section className="fund-existing"><span className="fund-screen-icon"><Icon name="clock"/></span><h3>Continue your saved request</h3><p>You have an existing funding request. Open it to continue paying, cancel a draft or stop an unpaid request before choosing another amount.</p><Button className="full" onClick={()=>open('funding-draft',existing.id)}>Review existing request<Icon name="arrow" size={18}/></Button></section>:<form onSubmit={async e=>{e.preventDefault();if(!compatibility.canSaveDraft||!validMethod||!supportsFunding(rail,currency)||live&&state.paymentsDisabled===true)return;const s=await act('funding/drafts',{requestId,agentId,amount,rail,currency,targetAsset,route,confirm:confirmed});if(s)open('funding-draft',s.selectedFundingDraftId);}}>
+  {existing&&!opening?<section className="fund-existing"><span className="fund-screen-icon"><Icon name="clock"/></span><h3>Continue your saved request</h3><p>Your request is saved. Open it to check the payment status and next step.</p><Button className="full" onClick={()=>open('funding-draft',existing.id)}>Review existing request<Icon name="arrow" size={18}/></Button></section>:<>
+  <ol className="fund-progress" aria-label="Funding steps">{['Choose wallet','Amount and method','Review and pay'].map((label,i)=><li key={label} aria-current={step===i+1?'step':undefined} className={step>i+1?'is-complete':''}><span>{step>i+1?<Icon name="check" size={17}/>:i+1}</span><strong>{label}</strong></li>)}</ol>
+  <div className="fund-screen-intro"><span className="fund-screen-icon"><Icon name={step===1?'wallet':step===2?'bank':'check'} size={26}/></span><div><p className="fund-step-count">Step {step} of 3</p><h3 ref={heading} tabIndex={-1}>{step===1?'Choose your receiving wallet.':step===2?'Choose how much to fund.':'Review your funding request.'}</h3><p>{step===1?'Use the receiving details from your agentic wallet.':step===2?'Choose your currency, payment method and amount.':live?'Check your details, then continue to Peer to review the offer and pay.':'Check your details before saving a draft. Payments are disabled.'}</p></div></div>
+  {fundingPreset&&<Notice>Previous amount filled in. Review the current offer before paying again.</Notice>}
+  <form onSubmit={submit}>
    <div className="fund-form-grid">
     <div className="fund-form-fields">
-     <fieldset className="fund-form-section"><legend><Icon name="wallet" size={20}/>Receiving wallet</legend><p className="fund-section-help">Use the receiving details supplied by your agentic wallet.</p>
-      <Field label="Agentic wallet"><select required disabled={busy} value={agentId} onChange={e=>{setAgentId(e.target.value);setConfirmed(false);}}><option value="" disabled>Choose a saved wallet</option>{state.agents.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select></Field>
+     <fieldset disabled={locked||step!==1} hidden={step!==1} className="fund-form-section"><legend><Icon name="wallet" size={20}/>Receiving wallet</legend><p className="fund-section-help">Use the receiving details supplied by your agentic wallet.</p>
+      <Field label="Agentic wallet"><select aria-label="Agentic wallet" required={step===1} disabled={locked} value={agentId} onChange={e=>{setAgentId(e.target.value);setConfirmed(false);}}><option value="" disabled>Choose a saved wallet</option>{state.agents.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select></Field>
       {!state.agents.length&&<Button type="button" secondary className="full" onClick={()=>open('wallet')}><Icon name="plus" size={18}/>Add agentic wallet</Button>}
-      <Field label="What asset does your agent need?"><select aria-label="Asset your agent needs" value={targetAsset} disabled={busy} onChange={e=>{setTargetAsset(e.target.value);setConfirmed(false);}}>{fundingAssets.map(asset=><option key={asset.id} value={asset.id}>{asset.label}</option>)}</select></Field>
-      <Field label="Funding route"><select aria-label="Funding route" value={route} disabled={busy} onChange={e=>{setRoute(e.target.value);setConfirmed(false);}}><option value="merchant">Peer merchant checkout</option><option value="p2p">Direct P2P · not connected here</option></select></Field>
+      <Field label="What asset does your agent need?"><select aria-label="Asset your agent needs" value={targetAsset} disabled={locked} onChange={e=>{setTargetAsset(e.target.value);setConfirmed(false);}}>{fundingAssets.map(asset=><option key={asset.id} value={asset.id}>{asset.label}</option>)}</select></Field>
+      <Field label="Funding route"><select aria-label="Funding route" value={route} disabled={locked} onChange={e=>{setRoute(e.target.value);setConfirmed(false);}}><option value="merchant">Peer merchant checkout</option><option value="p2p">Direct P2P · not connected here</option></select></Field>
      </fieldset>
-     <fieldset className="fund-form-section fund-form-section--payment"><legend><Icon name="bank" size={20}/>Your payment</legend>
+     <fieldset disabled={locked||step!==2} hidden={step!==2} className="fund-form-section fund-form-section--payment"><legend><Icon name="bank" size={20}/>Your payment</legend>
       <div className="fund-payment-pair">
-       <Field label="Payment currency"><select aria-label="Payment currency" value={currency} disabled={busy} onChange={e=>{const c=e.target.value;setCurrency(c);setConfirmed(false);if(!supportsFunding(rail,c))setRail(fundingCatalog.methods.find(m=>m.checkoutSupported&&m.currencies.includes(c)&&(!live||methods.some(x=>x.id===m.id)))?.id??'');}}>{fundingCatalog.currencies.map(c=><option key={c.code} value={c.code}>{c.code} · {c.name}</option>)}</select></Field>
-       <Field label="Pay with"><select aria-label="Pay with" value={rail} disabled={busy||!available.length} onChange={e=>{setRail(e.target.value);setConfirmed(false);}}>{!validMethod&&<option value="">Choose a payment method</option>}{choices.map(m=><option key={m.id} value={m.id} disabled={!available.some(a=>a.id===m.id)}>{m.label}{!m.checkoutSupported?' · Not connected to checkout':!available.some(a=>a.id===m.id)?' · Unavailable':''}</option>)}</select></Field>
+       <Field label="Payment currency"><select aria-label="Payment currency" value={currency} disabled={locked} onChange={e=>{const c=e.target.value;setCurrency(c);setConfirmed(false);if(!supportsFunding(rail,c))setRail(fundingCatalog.methods.find(m=>m.checkoutSupported&&m.currencies.includes(c)&&(!live||methods.some(x=>x.id===m.id)))?.id??'');}}>{fundingCatalog.currencies.map(c=><option key={c.code} value={c.code}>{c.code} · {c.name}</option>)}</select></Field>
+       <Field label="Pay with"><select aria-label="Pay with" value={rail} disabled={locked||!available.length} onChange={e=>{setRail(e.target.value);setConfirmed(false);}}>{!validMethod&&<option value="">Choose a payment method</option>}{choices.map(m=><option key={m.id} value={m.id} disabled={!available.some(a=>a.id===m.id)}>{m.label}{!m.checkoutSupported?' · Not connected to checkout':!available.some(a=>a.id===m.id)?' · Unavailable':''}</option>)}</select></Field>
       </div>
       {!available.length&&<Notice>No connected checkout method supports this currency yet. Choose another currency. No payment request will be created.</Notice>}
-      <Field label="Funding amount" hint={`${(minimumMinor(rail,currency)/100).toFixed(2)} to 1,000 ${currency} per request. Peer offers and limits also apply.`}><div className="money-input"><span>{currency}</span><input aria-label="Funding amount" required disabled={busy||!available.length} inputMode="decimal" pattern="[0-9]+([.][0-9]{1,2})?" value={amount} onChange={e=>{setAmount(e.target.value);setConfirmed(false);}}/></div></Field>
+      <Field label="Funding amount" hint={`${(minimumMinor(rail,currency)/100).toFixed(2)} to 1,000 ${currency} per request. Peer offers and limits also apply.`}><div className="money-input"><span>{currency}</span><input aria-label="Funding amount" required={step===2} disabled={locked||!available.length} inputMode="decimal" pattern="[0-9]+([.][0-9]{1,2})?" value={amount} onChange={e=>{setAmount(e.target.value);setConfirmed(false);}}/></div></Field>
       <p className="fine-print">Peer checks availability when you open checkout. The method may need identity, phone or extension verification. Review those steps before paying.</p>
      </fieldset>
+     {step===3&&<section className="fund-form-section fund-final-review"><div className="fund-review-title"><h3>Your payment details</h3><Button type="button" secondary disabled={locked} onClick={()=>changeStep(2)}>Edit</Button></div><dl className="fund-review-facts"><div><dt>Requested funding</dt><dd>{formatFiat(inputPence(amount),currency)}</dd></div><div><dt>Pay with</dt><dd>{methodLabel(rail)}</dd></div><div><dt>Funding route</dt><dd>Peer merchant checkout</dd></div></dl><p className="fine-print">The selected offer’s rate, fee and USDC estimate will appear in Peer. Check them before paying. Your bank or payment app may charge separately.</p><details className="fund-check-details"><summary>What happens after I continue?</summary><p>Peer shows the payment instructions and any verification steps. Return to Eupova to track the same request in Payments. Payment confirmation and wallet arrival are checked separately.</p></details></section>}
+     {((step===1&&!walletOK)||(step>1&&!valid))&&<Notice error>{step===1?compatibility.checks.find(c=>['wallet','asset'].includes(c.id)&&c.status!=='pass')?.detail??'Choose Peer merchant checkout to continue.':'Check your wallet, currency, method and amount before continuing.'}</Notice>}
+     {step===3&&<details className="fund-check-details fund-check-panel"><summary>Route checks and receiving asset</summary><FundingCompatibility requestSummary agent={agent} rail={rail} currency={currency} amountMinor={inputPence(amount)} targetAsset={targetAsset} route={route}/></details>}
     </div>
-    <aside className="fund-review-panel" aria-label="Destination and cost review">
-     <section className="fund-destination"><div className="fund-destination-title"><span className="fund-screen-icon"><Icon name="wallet" size={22}/></span><div><span>Receiving wallet</span><h3>{agent?.name??'Choose a wallet'}</h3></div></div><span className="fund-network-label">USDC on Base</span>{agent?<><p>Check the full receiving address</p><code className="checkout-address">{agent.address}</code><small>Saved address. Ownership and spending access are not verified.</small></>:<p>Select the saved agentic wallet that should receive the funds.</p>}</section>
-     <FundingCosts setupOnly requestedPence={inputPence(amount)} currency={currency}/>
+    <aside className="fund-review-panel" aria-label="Funding summary">
+     <section className="fund-destination"><div className="fund-destination-title"><span className="fund-screen-icon"><Icon name="wallet" size={22}/></span><div><span>Receiving wallet</span><h3>{agent?.name??'Choose a wallet'}</h3></div>{step>1&&<Button type="button" secondary disabled={locked} onClick={()=>changeStep(1)}>Edit wallet</Button>}</div><span className="fund-network-label">USDC on Base</span>{agent?<><p>Check the full receiving address</p><code className="checkout-address">{agent.address}</code><small>Confirm your receiving platform accepts USDC on Base. Saving an address does not verify ownership or wallet support.</small></>:<p>Select the saved agentic wallet that should receive the funds.</p>}</section>
+     {step===2&&<FundingCosts setupOnly requestedPence={inputPence(amount)} currency={currency}/>}
     </aside>
    </div>
-   <section className="fund-route-review" aria-label="Route review">
-    <div className="fund-review-heading"><Icon name="info" size={22}/><div><h3>Review the route</h3><p role="status">{compatibility.title}</p></div></div>
-    {!compatibility.canSaveDraft||rail==='wise'?<FundingCompatibility agent={agent} rail={rail} currency={currency} amountMinor={inputPence(amount)} targetAsset={targetAsset} route={route}/>:<details className="fund-check-details"><summary>View compatibility checks and limitations</summary><FundingCompatibility agent={agent} rail={rail} currency={currency} amountMinor={inputPence(amount)} targetAsset={targetAsset} route={route}/></details>}
-    <p className="fine-print">A matching saved address does not prove wallet support. Confirm that your receiving platform accepts USDC on Base.</p>
-   </section>
-   <div className="fund-confirm"><Check checked={confirmed} disabled={busy} onChange={e=>setConfirmed(e.target.checked)}>This is my receiving wallet. I have checked the full address and amount.</Check><div className="fund-confirm-action"><p>Next: review your saved request. This step does not create a checkout or send money.</p><Button disabled={busy||!compatibility.canSaveDraft||!agent||!confirmed||!validMethod||(live&&(!methods.some(m=>m.id===rail)||state.paymentsDisabled===true))}>{busy?'Saving…':'Review funding request'}<Icon name="arrow" size={18}/></Button></div></div>
-  </form>}
- </Modal>;
+   {step===3&&<div className="fund-confirm"><Check checked={confirmed} disabled={locked} onChange={e=>setConfirmed(e.target.checked)}>This is my receiving wallet. I have checked the full address and amount.</Check>{live&&<Check checked={consent} disabled={locked} onChange={e=>setConsent(e.target.checked)}>Create a real Peer checkout and share this amount, receiving address and order reference with Peer. I will review the final payment details before paying.</Check>}</div>}
+   <div className="fund-step-actions"><p>{step<3?'No request is created until the final step.':live?'You’ll continue in Peer to review the offer and pay.':'Saving this draft sends nothing to Peer.'}</p><Button type="submit" disabled={locked||(step===1?!walletOK:!valid)||(step===3&&(!confirmed||live&&(!consent||state.paymentsDisabled===true)))}>{opening?(live?'Opening Peer…':'Saving…'):step===1?'Continue to amount':step===2?'Review and pay':live?'Pay with Peer':'Save funding draft'}<Icon name="arrow" size={18}/></Button></div>
+  </form></>}
+ </Modal></DialogNavigation.Provider>;
 }
+
 export function FundingDraft({state,draft,act,busy,error,onClose,open}){
  const live=state.liveFunding?.paymentsEnabled===true;
  const handoffInFlight=useRef(false),active=useRef(null),currentCheckout=useRef(null);
