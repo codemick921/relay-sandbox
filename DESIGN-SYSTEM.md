@@ -41,7 +41,7 @@ Reusable patterns: branded header; clear page title and short explanation; prima
 
 ## Mobile header clearance
 
-Keep the home-page Sign in control comfortably below the top viewport edge. On screens up to 760px, add 24px of header clearance plus the browser-reported safe-area top inset, retaining a minimum 44px touch target. This addresses Mickel’s iPhone 15 Chrome feedback without redesigning the page. Check narrow and reduced-height viewports, then confirm on the physical phone: desktop emulation does not reproduce Chrome’s native toolbar.
+The earlier padding-only mobile Sign in adjustment did not resolve Mickel’s iPhone 15 Chrome complaint. On screens up to 760px, keep a full-width, high-contrast 52px Sign in button in its own header row below the logo, with safe-area-aware top clearance. Provide a second in-flow Sign in action beside Create account. Preserve the desktop layout. Check narrow and reduced-height viewports, both sign-in actions and no horizontal overflow. Physical iPhone Chrome confirmation remains required: emulation alone does not prove native toolbar visibility.
 
 ## Imagery and movement
 

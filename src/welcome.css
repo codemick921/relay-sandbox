@@ -20,3 +20,15 @@
 @keyframes welcome-scene-reveal{from{opacity:.5;transform:translateX(8px)}to{opacity:1;transform:translateX(0)}}
 .welcome-demo-body{animation:welcome-scene-reveal .25s ease-out}
 @media(prefers-reduced-motion:reduce){.welcome-demo-body{animation:none}}
+
+/* Mobile account access stays in the document flow, clear of browser chrome. */
+.welcome-hero-signin{display:none}
+@media(max-width:760px){
+ .welcome-header{display:grid;grid-template-columns:minmax(0,1fr);gap:18px;min-height:0;padding-top:calc(28px + env(safe-area-inset-top,0px));padding-bottom:20px}
+ .welcome-header nav{width:100%;min-width:0}
+ .welcome-header-signin{display:flex;align-items:center;justify-content:center;width:100%;min-height:52px;padding:14px 24px;border-radius:10px;background:var(--welcome-green);color:#fff;font-size:16px;line-height:1.4;white-space:nowrap}
+ .welcome-header-signin:hover{background:#163b2c}
+ .welcome-hero-signin{display:inline-flex;align-items:center;justify-content:center;min-height:50px;padding:13px 21px;background:#fff;color:var(--welcome-green);border:1px solid var(--welcome-green);border-radius:8px;font:inherit;font-size:14px;font-weight:700;cursor:pointer}
+ .welcome-hero-signin:hover{background:#e2ece5}
+ .welcome-actions{column-gap:12px}
+}
