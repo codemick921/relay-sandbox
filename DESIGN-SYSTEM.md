@@ -109,3 +109,6 @@ Mickel found the setup panel overbearing. Keep requested funding prominent and u
 
 ## Funding-request checklist: 1 November 2026
 In the saved funding-request popup, show the receiving wallet, required asset, payment route and request amount. Mickel asked to remove Payment-account rules, Verification on your device and Agent spending readiness from this popup. Apply this as a presentation change to the request summary only; preserve validation, checkout consent and the payment instructions. Do not label removed checks as passed.
+
+## Payment-account rules display: 1 November 2026
+Mickel also asked to remove the Payment-account rules row from the initial Fund a wallet popup, including the expanded Wise route review. Omit that display row throughout FundingCompatibility; keep compatibility calculations, payment method settings and checkout consent unchanged. The saved-request popup still omits verification and spending-readiness rows as previously requested.
