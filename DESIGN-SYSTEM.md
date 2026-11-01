@@ -141,3 +141,12 @@ Use one card per saved wallet, combining its existing balance snapshot and manag
 Reuse the forest actions, alternating mint/lavender card headings, lime icon tile and existing typography. Use two columns on wide screens and one on mobile, with touch controls at least 44px high. Keep Add wallet visible above the directory. Wallet editing and alert dialogs use the same mint header and rounded white surface.
 
 Funding buttons retain the shared funding-entry checks and existing-request review. Editing retains password and full-address confirmation. No wallet connection, ownership badge, deletion, automatic payment or new permissions are introduced. Balance refresh requests an existing check; it does not guarantee a new reading immediately.
+
+
+## Notifications (1 November 2026)
+
+Keep Inbox, Reminders and Preferences in separate button-selected sections. Reuse the forest actions, mint unread summary, white rounded cards, lime icon tiles and lavender preference guidance. Give each update a type, title, read state and explicit View payment or View wallets action. Keep Simulation separate from read state. Use a border as well as text to distinguish unread notices.
+
+Display saved message content unchanged; collapse timestamps and evidence in Update details. Label times as UK time and explain that saved notices can differ from current payment or balance status. Unknown balances remain unavailable. Keep server-filtered All/Unread and pagination; never show the previous filter or page under a newly selected label. A background refresh error retains the current valid list.
+
+Use native controls, visible focus, at least 44px touch targets and 16px mobile input text. Keep reminder schedules in per-wallet disclosures, disable dates when paused and retain unsaved preferences when switching sections. In-app reminders and notifications do not imply email, push delivery or automatic funding. Preserve existing APIs, scheduling anchors, permissions and customer data.
