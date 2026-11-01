@@ -102,15 +102,39 @@ test('resolving a dispute does not reannounce an arrival already present in the 
 
 test('deployed sample controls work without APIs, storage, mail or customer data',async()=>{
  const {createPaymentEmailSamples}=await import('../shared/payment-email-samples.mjs');const samples=createPaymentEmailSamples();
- assert.equal(samples.preview('arrival').message,null);
+ assert.ok(samples.preview('arrival').message);
  const second=createPaymentEmailSamples();second.save({arrival:true,attention:true});
  const arrival=second.preview('arrival');assert.equal(arrival.message.amount,'11.88125 USDC');assert.match(arrival.message.html,/Sample email. Not sent/);
- assert.equal(second.preview('arrival').message,null);assert.equal(second.preview('attention').message.paymentTitle,'Payment details need review');
- assert.equal(createPaymentEmailSamples().preview('arrival').message,null);
+ assert.strictEqual(second.preview('arrival').message,arrival.message);assert.equal(second.preview('attention').message.paymentTitle,'Payment details need review');
+ assert.ok(createPaymentEmailSamples().preview('arrival').message);
 });
 test('sample controls reject arbitrary events and do not take account recipients',async()=>{
  const {createPaymentEmailSamples}=await import('../shared/payment-email-samples.mjs'),s=createPaymentEmailSamples();
  assert.throws(()=>s.save({arrival:true,attention:true,email:'other@example.test'}));
  for(const kind of ['__proto__','toString','other'])assert.throws(()=>s.preview(kind));
  const source=await readFile(new URL('../shared/payment-email-samples.mjs',import.meta.url),'utf8');assert.doesNotMatch(source,/fetch\(|localStorage|sessionStorage|\/api\//);
+});
+
+test('both sample previews remain available regardless of sample preference state',async()=>{
+ const {createPaymentEmailSamples}=await import('../shared/payment-email-samples.mjs');const s=createPaymentEmailSamples();
+ for(const kind of ['arrival','attention']){
+  assert.ok(s.preview(kind).message);
+  s.save({arrival:true,attention:true});const first=s.preview(kind).message;assert.ok(first);
+  assert.strictEqual(s.preview(kind).message,first);assert.ok(first.html);assert.ok(first.text);
+  s.save({arrival:false,attention:false});assert.ok(s.preview(kind).message);
+  s.save({arrival:true,attention:true});assert.strictEqual(s.preview(kind).message,first);
+  s.save({arrival:false,attention:false});
+ }
+});
+
+test('every attention case has its own repeatable designed and plain-text sample',async()=>{
+ const {createPaymentEmailSamples,attentionSampleOptions}=await import('../shared/payment-email-samples.mjs');const s=createPaymentEmailSamples();
+ assert.deepEqual(attentionSampleOptions.map(o=>o.code).sort(),['disputed','partial','review','uncertain']);
+ const summaries=new Set(),ids=new Set();
+ for(const o of attentionSampleOptions){
+  const m=s.preview('attention',o.code).message;assert.ok(m.html.includes(m.summary));assert.ok(m.text.includes(m.summary));assert.equal(m.amount,null);assert.equal(m.paymentTitle,o.label);assert.strictEqual(s.preview('attention',o.code).message,m);summaries.add(m.summary);ids.add(m.requestId);
+ }
+ assert.equal(summaries.size,4);assert.equal(ids.size,4);
+ for(const invalid of ['unknown','__proto__',null])assert.throws(()=>s.preview('attention',invalid));
+ assert.ok(s.preview('arrival').message.amount);
 });
