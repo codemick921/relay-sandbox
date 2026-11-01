@@ -86,3 +86,10 @@ CREATE TABLE IF NOT EXISTS relay_security_events (
 );
 CREATE INDEX IF NOT EXISTS relay_security_events_customer ON relay_security_events(customer_id,created_at DESC);
 INSERT INTO relay_schema(version) VALUES(4) ON CONFLICT DO NOTHING;
+
+-- Optional profile image only; existing customer credentials and funding records are untouched.
+CREATE TABLE IF NOT EXISTS relay_customer_profiles (
+ customer_id uuid PRIMARY KEY REFERENCES relay_customers(id),
+ picture text CHECK(picture IS NULL OR length(picture)<=110000),
+ updated_at timestamptz NOT NULL DEFAULT now()
+);

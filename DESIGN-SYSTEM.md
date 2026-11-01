@@ -89,3 +89,9 @@ The mobile menu is an in-flow disclosure, not an overlay: Menu exposes every exi
 Preserve the fundingEntry helper: an unresolved request takes precedence, revoked/disabled actions remain disabled, and simulation labels remain distinct. Do not turn these presentation changes into new funding options or settlement claims. Recent activity is based on orders, not drafts; its empty text must not instruct users to select an action unavailable in their current mode.
 
 Local review only for this overview. Research, model provenance, screenshots, QA and change log are saved beside this release. Mobile viewport checks do not establish physical iPhone toolbar or WebKit validation.
+
+## Connector geometry and profile identity — 1 November 2026
+
+Mickel approved the staggered route-card connector positions but requested straight stems precisely aligned with their arrowheads. Use one SVG path in one viewBox per connector, with the same x-coordinate for the shaft and arrowhead tip. Avoid separate CSS pseudo-elements whose offsets can drift across breakpoints. Preserve the approved staggered placement.
+
+The signed-in avatar is now a labelled, keyboard-accessible profile-picture control with actual account initials as fallback. Keep it visible at320px. Pictures are optional: local selection, square crop/zoom preview, explicit Save, replace and explicit removal save. Distinguish Cancel for unsaved edits from Done after saving. Production stores the bounded crop on the authenticated account; local design previews use a temporary sample profile and say so. No third-party image hosting or external URL fetching.

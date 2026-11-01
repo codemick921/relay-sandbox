@@ -1,3 +1,4 @@
+import {createProfilePictures} from './profile-picture.mjs';
 import {createTestInvites} from './test-invites.mjs';
 import {checkoutRails,fundingCatalog} from '../shared/fiat.mjs';
 import {createCustomerNotifications} from './customer-notifications.mjs';
@@ -41,6 +42,7 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
  if(peerConnection&&(!paymentsDisabled||localPreview||!['receive_only','tracking_read_only'].includes(peerConnection.mode)))throw Error('Peer connection requires disabled payments and hosted receive-only mode.');
  if(liveObservation&&(!paymentsDisabled||localPreview||liveObservation.simulated!==false))throw Error('Live observation requires disabled payments and hosted reads.');
  const security=accounts&&createAccountSecurity(store,accounts,{mailEnabled:mail.enabled,mailPreview:!!mail.preview});
+ const profiles=createProfilePictures(store);
  const cookie=localPreview?'relay_local_preview':'__Host-relay_sandbox';
  const cookiePolicy=`${localPreview?'':'Secure; '}HttpOnly; SameSite=Strict; Path=/`;
  const getToken=req=>(req.headers.cookie??'').split(';').map(x=>x.trim()).find(x=>x.startsWith(cookie+'='))?.slice(cookie.length+1);
@@ -123,14 +125,14 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
     const decoded=decodeURIComponent(url.pathname);if(decoded!=='/'&&!/^\/assets\/[a-zA-Z0-9_.-]+\.(js|css|svg|png|webp|ttf|woff2)$/.test(decoded))throw new InputError('Not found.',404);
     const file=path.join(staticRoot,decoded==='/'?'index.html':decoded.slice(1));const data=await readFile(file);res.setHeader('Content-Type',({'.html':'text/html','.css':'text/css','.js':'text/javascript','.svg':'image/svg+xml','.png':'image/png','.webp':'image/webp','.ttf':'font/ttf','.woff2':'font/woff2'})[path.extname(file)]);return res.end(data);
    }
-   const allowed=new Set(['/api/operator/test-invites','/api/operator/test-invites/create','/api/operator/test-invites/revoke','/api/test-access/claim','/api/test-access/mode','/api/notifications','/api/notifications/sync','/api/notifications/read','/api/notifications/preferences','/api/notifications/reminder','/api/wallet-balances/preferences','/api/wallet-balances/refresh','/api/ramp-test/create','/api/ramp-test/advance','/api/revolut-test/checkout','/api/funding/drafts','/api/funding/cancel','/api/funding/stop','/api/funding/request-cancellation','/api/funding/checkout','/api/funding/resume','/api/funding/availability','/api/test-funding/quote','/api/test-funding/create','/api/test-funding/action','/api/agents/update','/api/account/security','/api/account/revokeSession','/api/account/rotateRecovery','/api/account/confirmRecovery','/api/account/signup','/api/account/login','/api/account/recover','/api/account/password','/api/account/requestVerification','/api/account/requestReset','/api/account/verifyEmail','/api/account/resetPassword','/api/account/emailPreview','/api/access','/api/login','/api/logout','/api/state','/api/agents','/api/checkouts','/api/checkout-resume','/api/checkout-refresh','/api/checkout-setup']);
+   const allowed=new Set(['/api/profile','/api/operator/test-invites','/api/operator/test-invites/create','/api/operator/test-invites/revoke','/api/test-access/claim','/api/test-access/mode','/api/notifications','/api/notifications/sync','/api/notifications/read','/api/notifications/preferences','/api/notifications/reminder','/api/wallet-balances/preferences','/api/wallet-balances/refresh','/api/ramp-test/create','/api/ramp-test/advance','/api/revolut-test/checkout','/api/funding/drafts','/api/funding/cancel','/api/funding/stop','/api/funding/request-cancellation','/api/funding/checkout','/api/funding/resume','/api/funding/availability','/api/test-funding/quote','/api/test-funding/create','/api/test-funding/action','/api/agents/update','/api/account/security','/api/account/revokeSession','/api/account/rotateRecovery','/api/account/confirmRecovery','/api/account/signup','/api/account/login','/api/account/recover','/api/account/password','/api/account/requestVerification','/api/account/requestReset','/api/account/verifyEmail','/api/account/resetPassword','/api/account/emailPreview','/api/access','/api/login','/api/logout','/api/state','/api/agents','/api/checkouts','/api/checkout-resume','/api/checkout-refresh','/api/checkout-setup']);
    const historyRoute=url.pathname==='/api/funding-history'||url.pathname==='/api/funding-history/download'||/^\/api\/funding-history\/[a-f0-9-]{36}$/i.test(url.pathname);
    const recordRoute=url.pathname==='/api/payment-records'||/^\/api\/payment-records\/[a-f0-9-]{36}\/download$/i.test(url.pathname);
    if(!allowed.has(url.pathname)&&!recordRoute&&!historyRoute)throw new InputError('Not found.',404);
    if(req.headers['sec-fetch-site']==='cross-site')throw new InputError('Cross-site access blocked.',403);
    if(req.method==='POST'&&(req.headers.origin!==config.origin||!String(req.headers['content-type']).startsWith('application/json')))throw new InputError('Same-origin JSON required.',403);
    if(!['GET','POST'].includes(req.method))throw new InputError('Method not allowed.',405);
-   let b={};if(req.method==='POST'){try{b=JSON.parse((await body(req)).toString());}catch(e){if(e instanceof InputError)throw e;throw new InputError('Invalid JSON.');}if(!b||typeof b!=='object'||Array.isArray(b))throw new InputError('Invalid request.');}
+   let b={};if(req.method==='POST'){try{b=JSON.parse((await body(req,url.pathname==='/api/profile'?131072:16384)).toString());}catch(e){if(e instanceof InputError)throw e;throw new InputError('Invalid JSON.');}if(!b||typeof b!=='object'||Array.isArray(b))throw new InputError('Invalid request.');}
    if(url.pathname.startsWith('/api/account/')){
     if(!accounts||req.method!=='POST')throw new InputError('Not found.',404);
     const action=url.pathname.split('/').at(-1);
@@ -163,6 +165,12 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
    const owner=customer?.owner??await store.session(getToken(req),config.testers);
    if(url.pathname==='/api/access'&&req.method==='GET')return send(res,200,{hostedSandbox:true,authenticated:!!owner,previewMode:!!tracking?.simulated,customerAccounts:!!accounts,emailSendingEnabled:mail.enabled,localEmailPreview:!!mail.preview,account:customer?.account??null,adminPaymentHealth:!customer&&isHealthAdmin(owner)});
    if(!owner)throw new InputError('Sign in to the private sandbox.',401);
+   if(url.pathname==='/api/profile'){
+    if(!customer)throw new InputError('Sign in to your customer account to update your picture.',403);
+    if(req.headers.origin&&req.headers.origin!==config.origin)throw new InputError('Same-origin access required.',403);
+    await store.rate('profile:'+req.method+':'+customer.account.id,req.method==='POST'?10:60,60);
+    return send(res,200,req.method==='GET'?await profiles.read(customer.account.id):await profiles.save(customer.account.id,b));
+   }
    if(url.pathname.startsWith('/api/operator/test-invites')){
     if(customer||!isInviteAdmin(owner))throw new InputError('Test invitation admin access required.',403);
     if(req.headers.origin&&req.headers.origin!==config.origin)throw new InputError('Same-origin access required.',403);

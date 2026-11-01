@@ -6,13 +6,14 @@ import './funding-home.css';
 
 export {default as FundingIntroduction} from './Welcome';
 
+function RouteArrow(){return <svg className="journey-arrow" viewBox="0 0 12 24" width="12" height="24" fill="none" aria-hidden="true"><path d="M6 0V22M2 18L6 22L10 18" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"/></svg>;}
 function FundingRoute({simulation=false,live=false}) {
  return <figure className="funding-journey" aria-labelledby="funding-route-heading">
   <div className="journey-heading"><h3 id="funding-route-heading">How funding works</h3><span>Route guide</span></div>
   <ol className="journey-nodes">
    <li className="journey-node journey-node--currency"><span className="journey-icon"><Icon name="bank" size={25}/></span><div><span>You choose</span><strong>Your currency</strong><small>The amount you want to pay</small></div></li>
-   <li className="journey-node journey-node--checkout"><span className="journey-icon"><Icon name="convert" size={25}/></span><div><span>You review</span><strong>Peer checkout</strong><small>Offer, fees and payment instructions</small></div></li>
-   <li className="journey-node journey-node--wallet"><span className="journey-icon"><Icon name="wallet" size={25}/></span><div><span>Destination</span><strong>USDC on Base</strong><small>Your agent’s receiving wallet</small></div></li>
+   <li className="journey-node journey-node--checkout"><RouteArrow/><span className="journey-icon"><Icon name="convert" size={25}/></span><div><span>You review</span><strong>Peer checkout</strong><small>Offer, fees and payment instructions</small></div></li>
+   <li className="journey-node journey-node--wallet"><RouteArrow/><span className="journey-icon"><Icon name="wallet" size={25}/></span><div><span>Destination</span><strong>USDC on Base</strong><small>Your agent’s receiving wallet</small></div></li>
   </ol>
   <figcaption>{simulation?'Test journeys use simulated funds. No real money moves.':live?'Review the current offer before paying. This guide is not a payment status.':'This shows the funding route. Real payments are currently unavailable.'}</figcaption>
  </figure>;
