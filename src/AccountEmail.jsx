@@ -1,7 +1,7 @@
 import React,{useEffect,useState} from 'react';
 import {api} from './api';
-import {Button,Notice} from './ui';
-const date=value=>value?new Date(value).toLocaleString('en-GB',{timeZoneName:'short'}):'';
+import {Button,Notice,Icon} from './ui';
+const date=value=>value?new Date(value).toLocaleString('en-GB',{timeZone:'Europe/London',timeZoneName:'short'}):'';
 const descriptions={
  unavailable:'Email sending is not connected yet. Keep your recovery code safe; you can use it to reset your password.',
  not_requested:'Verify your email to use email-based password recovery.',
@@ -14,22 +14,22 @@ const descriptions={
  verified:'Email verified. This confirms access to your email address; it does not verify wallet ownership.'
 };
 export default function AccountEmail({account,onVerified,openLink}){
- const [state,setState]=useState(null),[error,setError]=useState(''),[message,setMessage]=useState(''),[busy,setBusy]=useState(false),[emails,setEmails]=useState([]);
+ const [state,setState]=useState(null),[error,setError]=useState(''),[message,setMessage]=useState(''),[busy,setBusy]=useState(false),[emails,setEmails]=useState([]),[retry,setRetry]=useState(0);
  useEffect(()=>{
   let active=true,pending=false;
   async function refresh(){if(pending||document.hidden)return;pending=true;try{const data=await api('account/security',{});if(active){setState(data.emailVerification);onVerified(data.emailVerification.verified);setError('');}}catch(e){if(active)setError(e.message);}finally{pending=false;}}
   refresh();const timer=setInterval(refresh,15000);window.addEventListener('focus',refresh);document.addEventListener('visibilitychange',refresh);
   return()=>{active=false;clearInterval(timer);window.removeEventListener('focus',refresh);document.removeEventListener('visibilitychange',refresh);};
- },[account.id,onVerified]);
+ },[account.id,onVerified,retry]);
  async function run(route,body={}){
   setBusy(true);setError('');setMessage('');
   try{const result=await api('account/'+route,body);setMessage(result.message??'');if(result.emails)setEmails(result.emails);const data=await api('account/security',{});setState(data.emailVerification);onVerified(data.emailVerification.verified);}catch(e){setError(e.message);}finally{setBusy(false);}
  }
  const preview=state?.mode==='preview',canRequest=state&&state.mode!=='unavailable'&&!state.verified;
- return <section aria-label="Email verification">
-  <h2>Email address</h2><p>{account.email}</p>
+ return <section className="security-card security-email" id="security-email" tabIndex={-1} aria-label="Email verification">
+  <div className="security-card-heading"><span className="security-symbol"><Icon name="info" size={25}/></span><h2>Email address</h2></div><p className="security-email-address">{account.email}</p>
   {error&&<Notice error>{error}</Notice>}{message&&<p role="status">{message}</p>}
-  {!state?<p>Checking email verification…</p>:<>
+  {!state?<><p>{error?'Email verification details are unavailable.':'Checking email verification…'}</p>{error&&<Button secondary onClick={()=>{setError('');setRetry(n=>n+1);}}>Retry email status</Button>}</>:<>
    <Notice>{preview?(state.verified?'Test verification complete. No inbox ownership has been verified.':state.status==='accepted'?'Your local verification preview is ready. Open it below to test the flow.':'Local email test. No message will be sent to an inbox.'):descriptions[state.status]}</Notice>
    {state.verifiedAt&&<p className="fine-print">{preview?'Test confirmed':'Verified'} {date(state.verifiedAt)}</p>}
    {state.verified&&state.mode==='unavailable'&&<Notice>Email sending is currently unavailable. Use your recovery code if you need to reset your password.</Notice>}
