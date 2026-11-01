@@ -150,3 +150,11 @@ Keep Inbox, Reminders and Preferences in separate button-selected sections. Reus
 Display saved message content unchanged; collapse timestamps and evidence in Update details. Label times as UK time and explain that saved notices can differ from current payment or balance status. Unknown balances remain unavailable. Keep server-filtered All/Unread and pagination; never show the previous filter or page under a newly selected label. A background refresh error retains the current valid list.
 
 Use native controls, visible focus, at least 44px touch targets and 16px mobile input text. Keep reminder schedules in per-wallet disclosures, disable dates when paused and retain unsaved preferences when switching sections. In-app reminders and notifications do not imply email, push delivery or automatic funding. Preserve existing APIs, scheduling anchors, permissions and customer data.
+
+## Friend testing and invitations (1 November 2026)
+
+Keep customer testing access separate from the owner-only invitation manager. Use the shared mint introduction, lavender form/mode panel, lime icon tile, forest actions and white cards. Explain the current mode and permitted access before offering a change; preserve explicit real-money consent and global availability checks.
+
+For the owner, show searchable invitation labels and All/Waiting to join/Joined/Expired/Revoked filters with counts. A claimed code remains Joined after its redemption deadline. Keep dates and code-expiry explanations in expandable details, labelled UK time. Revocation uses a separate confirmation and retains existing payment tracking.
+
+Treat a newly issued code as a one-time disclosure: bring it into view, focus its selectable field, offer Copy code with a manual fallback, and require acknowledgement before another creation. Do not imply an email was sent or that saved codes can be retrieved. Keep valid list data on a refresh failure and distinguish initial loading, empty, filtered-empty and unavailable states. Preserve the existing API and permissions. On mobile, stack panels, use 16px inputs and 44px controls, and prevent the owner header badge overlapping the brand.
