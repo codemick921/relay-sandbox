@@ -16,8 +16,10 @@ export function config(env=process.env,{worker=false}={}){
   liveConnection=Object.freeze(Object.defineProperties({mode:'receive_only',environment:'LIVE',merchantId:env.PEER_PAY_LIVE_MERCHANT_ID},{apiKey:{value:env.PEER_PAY_LIVE_API_KEY},secret:{value:env.PEER_PAY_LIVE_WEBHOOK_SECRET}}));
  }
  if(livePayments&&!liveConnection)throw Error('Live payments require an existing verified live connection.');
- const origin=worker?null:new URL(env.PUBLIC_ORIGIN??env.RENDER_EXTERNAL_URL??'');
- if(origin&&(origin.protocol!=='https:'||origin.username||origin.password||origin.pathname!=='/'||origin.search||origin.hash))throw Error('An HTTPS public origin is required.');
+ const paymentOrigin=worker?null:new URL(env.PUBLIC_ORIGIN??env.RENDER_EXTERNAL_URL??'');
+ const origin=worker?null:new URL(env.APP_ORIGIN??paymentOrigin);
+ for(const u of [origin,paymentOrigin])if(u&&(u.protocol!=='https:'||u.username||u.password||u.pathname!=='/'||u.search||u.hash))throw Error('An HTTPS public origin is required.');
+ const legacyOrigin=origin&&paymentOrigin.origin!==origin.origin?paymentOrigin.origin:null;
  let testers;try{testers=JSON.parse(env.SANDBOX_TESTERS);}catch{throw Error('SANDBOX_TESTERS is required.');}
  if(!Array.isArray(testers)||!testers.length||testers.length>10||testers.some(p=>!/^[a-zA-Z0-9_-]{1,40}$/.test(p.label)||!/^[a-f0-9]{64}$/.test(p.sha256hex))||new Set(testers.map(p=>p.label)).size!==testers.length||new Set(testers.map(p=>p.sha256hex)).size!==testers.length)throw Error('Invalid tester configuration.');
  let paymentHealthAdmins=[];try{paymentHealthAdmins=JSON.parse(env.RELAY_PAYMENT_HEALTH_ADMINS??'[]');}catch{throw Error('Invalid payment-health admin configuration.');}
@@ -25,5 +27,5 @@ export function config(env=process.env,{worker=false}={}){
  let testInviteAdmins=[];try{testInviteAdmins=JSON.parse(env.RELAY_TEST_INVITE_ADMINS??'[]');}catch{throw Error('Invalid test invitation admin configuration.');}
  if(!Array.isArray(testInviteAdmins)||testInviteAdmins.length>10||new Set(testInviteAdmins).size!==testInviteAdmins.length||testInviteAdmins.some(label=>typeof label!=='string'||!testers.some(t=>t.label===label)))throw Error('Test invitation admins must name configured tester labels.');
  for(const k of ['DATABASE_URL'])if(!env[k])throw Error(`Missing ${k}.`);
- return {testInviteAdmins,paymentHealthAdmins,livePayments,trackingSandbox:true,paymentsDisabled:true,providerConnectionsEnabled:false,liveConnection,origin:origin?.origin,host:origin?.host,testers,webhook:{environment:'SANDBOX',merchantId:env.PEER_PAY_SANDBOX_MERCHANT_ID,secret:env.PEER_PAY_SANDBOX_WEBHOOK_SECRET}};
+ return {testInviteAdmins,paymentHealthAdmins,livePayments,trackingSandbox:true,paymentsDisabled:true,providerConnectionsEnabled:false,liveConnection,origin:origin?.origin,host:origin?.host,paymentOrigin:paymentOrigin?.origin,legacyOrigin,testers,webhook:{environment:'SANDBOX',merchantId:env.PEER_PAY_SANDBOX_MERCHANT_ID,secret:env.PEER_PAY_SANDBOX_WEBHOOK_SECRET}};
 }

@@ -67,7 +67,21 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
   try{
    // Health probes disclose no customer/provider state and require no proxy headers.
    if(req.url==='/healthz'&&req.method==='GET'){try{await store.query('SELECT 1');return send(res,200,{ok:true,mode:liveObservation?.funding?'live':'sandbox',paymentsDisabled:paymentsDisabled&&!liveObservation?.funding,realPaymentsEnabled:!!liveObservation?.funding,restrictedCheckoutMode:liveObservation?.funding?'customer':liveObservation?'operator_only':'disabled',providerConnectionsEnabled:!!liveObservation?.funding||!paymentsDisabled,liveConnectionMode:peerConnection?.mode??'disabled',tracking:tracking?'simulated':null,liveTracking:liveObservation?'enabled':'disabled',release:process.env.RENDER_GIT_COMMIT??null});}catch{return send(res,503,{ok:false});}}
-   if(req.headers.host!==config.host)return send(res,421,{error:'Unexpected host.'});
+   if(req.headers.host!==config.host){
+    const legacy=config.legacyOrigin&&new URL(config.legacyOrigin);
+    if(!legacy||req.headers.host!==legacy.host)return send(res,421,{error:'Unexpected host.'});
+    const previous=new URL(req.url,legacy);
+    if(previous.origin!==legacy.origin)return send(res,421,{error:'Unexpected host.'});
+    // Keep provider callbacks on their original URL; their existing signature and
+    // environment checks below are unchanged. Never redirect a request body.
+    const webhook=req.method==='POST'&&[liveWebhookPath,'/api/webhooks/peer/sandbox'].includes(previous.pathname);
+    if(!webhook){
+     if(req.method==='GET'&&!previous.pathname.startsWith('/api/')){
+      res.writeHead(307,{Location:config.origin+previous.pathname+previous.search});return res.end();
+     }
+     return send(res,409,{error:'Eupova has moved. Open the app and sign in again.',appUrl:config.origin});
+    }
+   }
    if(!allowHttpForTests&&!localPreview&&req.headers['x-forwarded-proto']!=='https'){
     if(req.method==='GET'){res.writeHead(308,{Location:config.origin+'/'});return res.end();}return send(res,400,{error:'HTTPS required.'});
    }
@@ -267,7 +281,7 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
      if(b.confirm!==true||b.consent!==true||!uuid(b.requestId)||!uuid(b.agentId))throw new InputError('Review the destination and confirm sharing it with Peer Pay.');
      const order=await store.createOrder(owner,{requestId:b.requestId,agentId:b.agentId,amount:pence(b.amount)});
      const claim=await store.claimCreate(owner,order.id);
-     if(claim){try{await store.apply(claim,await pay.create(orderView(claim),config.origin),{creation:true});}catch{await store.fail(claim,'Checkout creation needs recovery. Keep this order; an operator must reconcile it before another attempt.');}}
+     if(claim){try{await store.apply(claim,await pay.create(orderView(claim),config.paymentOrigin??config.origin),{creation:true});}catch{await store.fail(claim,'Checkout creation needs recovery. Keep this order; an operator must reconcile it before another attempt.');}}
      break;
     }
     case '/api/checkout-resume':case '/api/checkout-refresh':{
@@ -290,7 +304,7 @@ if(process.argv[1]===fileURLToPath(import.meta.url)){
  const config=readConfig(),pool=createPool(),store=createStore(pool);await migrateWhenReady(store);
  const tracking=await prepareTrackingSandbox(store,config.testers);
  const fundingDrafts=createFundingDrafts(store);await migrateWhenReady(fundingDrafts);
- const liveObservation=config.liveConnection?await prepareLiveObservation({pool,base:store,connection:config.liveConnection,drafts:fundingDrafts,livePayments:config.livePayments,origin:config.origin}):null;
+ const liveObservation=config.liveConnection?await prepareLiveObservation({pool,base:store,connection:config.liveConnection,drafts:fundingDrafts,livePayments:config.livePayments,origin:config.paymentOrigin??config.origin}):null;
  const peerConnection=config.liveConnection?createPeerConnection({connection:config.liveConnection,store,tracker:liveObservation?.store}):null;
  if(peerConnection)await migrateWhenReady(peerConnection);
  const ramp=createRampSimulation(store);await ramp.migrate();

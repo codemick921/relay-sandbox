@@ -61,7 +61,7 @@ test('expired attempt survives restart, outage and convergence, then late funds 
   f.setMode('outage');await s.schedule('alice',o.id);await worker.tick();o=(await s.state('alice')).orders[0];assert.equal(trackingState(o).code,'retrying');assert.equal(paymentAttemptState(o),'expired');assert.ok(!JSON.stringify(o).includes('PRIVATE'));
   f.setMode('converging');await s.schedule('alice',o.id);await worker.tick();o=(await s.state('alice')).orders[0];assert.equal(trackingState(o).code,'evidence_pending');assert.equal(o.reviewRequired,false);assert.equal(paymentAttemptState(o),'expired');
   f.setMode('ok');f.settle();await s.schedule('alice',o.id);await worker.tick();o=(await s.state('alice')).orders[0];assert.equal(o.status,'checkout_received');assert.equal(paymentAttemptState(o),null);assert.equal(trackingState(o).code,'current');assert.equal(paymentRecord(o).deliveryConfirmed,true);
-  await s.schedule('alice',o.id);await worker.tick();assert.equal((await s.query('SELECT count(*) FROM relay_live_payments')).rows[0].count,'1');
+  await s.schedule('alice',o.id);await worker.tick();assert.equal(Number((await s.query('SELECT count(*) FROM relay_live_payments')).rows[0].count),1);
   assert.match(renderRecord(paymentRecord(o),'html'),/Wallet delivery receipt/);await worker.stop();
  }finally{await f.close();}
 });
