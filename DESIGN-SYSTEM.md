@@ -39,6 +39,10 @@ Controls use roughly 8px corners; small floating panels 12px; large demonstratio
 
 Reusable patterns: branded header; clear page title and short explanation; primary action; white content panels; labelled progress; native expandable questions; explicit recovery action. Keep invitations, currency choice, saved records and existing navigation functional during migration.
 
+## Mobile header clearance
+
+Keep the home-page Sign in control comfortably below the top viewport edge. On screens up to 760px, add 24px of header clearance plus the browser-reported safe-area top inset, retaining a minimum 44px touch target. This addresses Mickel’s iPhone 15 Chrome feedback without redesigning the page. Check narrow and reduced-height viewports, then confirm on the physical phone: desktop emulation does not reproduce Chrome’s native toolbar.
+
 ## Imagery and movement
 
 Original jade/ivory 3D ribbon artwork is the public-page signature. Compressed responsive WebPs are in src/assets. Decorative artwork has empty alt text; route labels are real readable HTML. Avoid stock crypto coins, fabricated balances, unapproved partner badges and fake customer proof.
