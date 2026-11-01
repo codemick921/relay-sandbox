@@ -41,7 +41,7 @@ Reusable patterns: branded header; clear page title and short explanation; prima
 
 ## Mobile header clearance
 
-The earlier padding-only mobile Sign in adjustment did not resolve Mickel’s iPhone 15 Chrome complaint. On screens up to 760px, keep a full-width, high-contrast 52px Sign in button in its own header row below the logo, with safe-area-aware top clearance. Provide a second in-flow Sign in action beside Create account. Preserve the desktop layout. Check narrow and reduced-height viewports, both sign-in actions and no horizontal overflow. Physical iPhone Chrome confirmation remains required: emulation alone does not prove native toolbar visibility.
+Mickel confirmed on 1 November 2026 that Sign in beside Create account works well and requested removal of the pictured mobile logo-and-sign-in header. Hide the entire welcome header on screens up to 760px; retain the in-flow hero Sign in beside Create account and the existing desktop header. Give the hero safe-area-aware top padding. Check the remaining sign-in action opens the form, the removed header occupies no space, and narrow/short layouts do not overflow. Do not reintroduce the duplicate mobile header.
 
 ## Imagery and movement
 
