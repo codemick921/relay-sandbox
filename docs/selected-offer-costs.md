@@ -1,0 +1,15 @@
+# Selected-offer payment display
+
+The concise review uses the authenticated order's currentPayment, matching payment-history record and stable order snapshot. Current merchant configuration is read before and after the quote; its timestamp must predate the order. No quote availability result, default exchange rate, screenshot or saved requested amount substitutes for the selected offer.
+
+For the existing standard Pro, merchant-pays configuration (495 bps; no additional referrals, flat-all-in pricing, bridge or adjustments), the selected signalIntent.amount is the gross USDC after the offer rate/spread. Estimated net is gross × 9505 / 10000, rounded down to micro-USDC. The seller spread is never subtracted again. Actual fee rounding can differ by a micro-USDC. The selected quote.conversionRate is displayed as payment currency per USDC. You pay uses pinned @zkp2p/pay-shared 8.0.0 merchant-pays display semantics, preserving the market peg and minor-unit ceiling check.
+
+All currently enabled checkout methods use the same checks: Venmo, Revolut, Cash App, Wise, Zelle, Monzo and Chime, across 60 configured currency pairs. This does not activate disabled methods or establish live liquidity for every pair. Wise retains the seller-automation requirement. Venmo remains conditional: later purchase-protection adjustments are not known at quote time, and are reported from actual settlement fields when returned. No unsupported adjustment is guessed or assigned zero.
+
+The read-only currentSelection display snapshot can follow a replaced offer only when exactly one current attempt matches independent reads and every other attempt is terminal and unpaid. Historical quote-change/multiple-attempt flags remain intact for existing restricted-payment policies. This presentation snapshot cannot authorise a payment or weaken cancellation rules. Any settled, active, disputed, duplicate or foreign prior attempt suppresses replacement pricing. A null currentSelection clears the old estimate; cached v1 estimates cannot enter the new fee-and-spread review.
+
+Expiry, 30-second freshness, exact currency/rail/destination, amount limits, configuration changes, payout state, unknown adjustments and snapshot inconsistency all withhold estimates. Final settlement amounts supersede estimates. Wallet arrival still requires separate Base verification. External bank/payment-app charges are unknown and excluded from any all-in claim.
+
+Evidence: official https://docs.pay.peer.xyz/guides/fees-settlement-refunds and https://docs.pay.peer.xyz/api/payments, refreshed through https://docs.pay.peer.xyz/llms.txt on 1 November 2026. Read-only existing merchant data confirmed Pro/MERCHANT/495 bps/no referrals. Existing Wise and Revolut records confirmed decimal quote and market rates; no payment was created for verification.
+
+Tests include every configured method/currency, a 10-unit payment with 1.1 currency/USDC offer rate (9.090909 gross, 0.450000 fee, 8.640909 net), stale/replaced offers, conflicting histories and fee-profile changes. These are synthetic contracts, not live transaction tests.

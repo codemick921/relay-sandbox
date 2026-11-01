@@ -2,7 +2,7 @@ import {merchantFeeKey} from './pay-net-estimate.mjs';
 import {InputError} from './validation.mjs';
 import {validateCheckout,sameUsdc} from './pay-contract.mjs';
 import {verifyPayDelivery,EvidencePendingError} from './pay-delivery.mjs';
-import {observePeerPayIn,payInSnapshotKey} from './pay-payin.mjs';
+import {observePeerPayIn,observeCurrentSelection,payInSnapshotKey} from './pay-payin.mjs';
 import {recipientHash} from './revolut-replacement-read.mjs';
 
 const API='https://api.pay.peer.xyz/api/v1';
@@ -42,6 +42,7 @@ export function createLiveReadService({apiKey,merchantId,rpc,fetcher=fetch,corro
     const feeProfile=aggregate.currentPayment?.status==='CREATED'&&merchant.merchantConfig?await read('/merchants/me'):null;
     const verifiedFeeProfile=feeProfile&&merchantFeeKey(merchant)===merchantFeeKey(feeProfile)?merchant:null;
     const payIn=observePeerPayIn(order,aggregate,history.payments,{consistent:payInSnapshotKey(aggregate)===payInSnapshotKey(latest),merchant:verifiedFeeProfile});
+    payIn.currentSelection=observeCurrentSelection(order,aggregate,history.payments,{consistent:true,merchant:verifiedFeeProfile});
     if(payInSnapshotKey(aggregate)===payInSnapshotKey(latest)&&aggregate.currentPayment?.rail==='revolut'&&aggregate.currentPayment.status==='CREATED')payIn.recipientHash=recipientHash(aggregate.currentPayment.payTo);
     const result=await verifyPayDelivery(order,aggregate.order,history.payments,{rpc});
     // Optional public-index corroboration cannot grant or revoke chain verification.

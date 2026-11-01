@@ -21,6 +21,7 @@ export function payInProjection(evidence,now=Date.now()){
   else if(!Number.isFinite(Date.parse(e.checkedAt))||now-Date.parse(e.checkedAt)>TTL||Date.parse(e.checkedAt)>now+5000)e.status='stale';
  }
  if(e.status!=='within_peer_limit')e.receiveEstimate=null;
+ if(Object.hasOwn(e,'currentSelection'))e.currentSelection=e.currentSelection?payInProjection({...e.currentSelection,currentSelection:null},now):null;
  return e;
 }
 export function observePeerPayIn(local,aggregate,history,{now=Date.now(),consistent=true,merchant=null}={}){
@@ -41,7 +42,7 @@ export function observePeerPayIn(local,aggregate,history,{now=Date.now(),consist
   if(!current||history.length!==1||current.id!==history[0].id||current.orderId!==order.id)return out('snapshot_changed');
   const payment=history[0],quote=payment.quote,signal=quote?.signalIntent;
   // Compare all pricing fields across independent provider reads; never use a webhook body here.
-  const fields=p=>[p.id,p.orderId,p.status,p.rail,p.currency,p.currencyPerUsdRate,p.paymentAmount,p.quoteExpiresAt,p.quote,p.netSettledUsdcAmount,p.totalUsdcFeeAmount,p.penalties];
+  const fields=p=>[p.id,p.orderId,p.status,p.rail,p.currency,p.currencyPerUsdRate,p.paymentAmount,p.quoteExpiresAt,p.quote,p.netSettledUsdcAmount,p.totalUsdcFeeAmount,p.penalties,p.payout,p.chargebackStatus,p.fulfillTransaction];
   if(fingerprint(fields(current))!==fingerprint(fields(payment)))return out('snapshot_changed');
   if(payment.orderId!==order.id||payment.rail!==rail||!knownCurrency(payment.currency)||!signal||signal.processorName!==rail||!same(signal.toAddress,local.agent.address))return out('unsupported_payment');
   const details={paymentId:payment.id,expiresAt:payment.quoteExpiresAt,sellerVerificationAvailable:quote.sellerAutomatedReleaseAvailable===true};
@@ -83,3 +84,22 @@ export function observePeerPayIn(local,aggregate,history,{now=Date.now(),consist
 
 // Compare the documented pricing/binding fields only; no seller details are persisted.
 export const payInSnapshotKey=aggregate=>fingerprint([aggregate.merchant,aggregate.order,aggregate.currentPayment]);
+
+// Informational selected-offer view. Historical mismatch flags remain untouched
+// for restricted-payment policies. Only a single current unpaid attempt may supply
+// a fresh review; all other attempts must be terminal and unpaid.
+export function observeCurrentSelection(local,aggregate,history,options={}){
+ const selected=aggregate?.currentPayment;
+ if(!selected||selected.status!=='CREATED'||!Array.isArray(history)||history.length===0||history.length>=100)return null;
+ const ids=new Set();let matched=0;
+ for(const p of history){
+  if(!p?.id||ids.has(p.id)||p.orderId!==aggregate.order.id||p.chargebackStatus!=='NONE')return null;
+  ids.add(p.id);
+  if(p.id===selected.id){matched++;continue;}
+  if(!['EXPIRED','FAILED','CANCELLED'].includes(p.status)||p.netSettledUsdcAmount!=null||!/^0(?:\.0+)?$/.test(p.paymentAmount??'')||p.fulfillTransaction!=null)return null;
+ }
+ if(matched!==1)return null;
+ const previousFree={...local,verification:{...local.verification,payIn:null}};
+ const view=observePeerPayIn(previousFree,aggregate,[history.find(p=>p.id===selected.id)],options);
+ return view.status==='within_peer_limit'&&view.receiveEstimate?{...view,selectionSource:'peer_current_payment'}:null;
+}

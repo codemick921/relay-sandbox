@@ -9,11 +9,13 @@ export default function FundingCosts(props){
  if(costs.reviewPair){const pair=costs.reviewPair,estimated=pair.kind==='estimate';return <section className="funding-costs funding-costs--review" aria-label="Payment and USDC review">
   <h3>{estimated?'Review your funding':'Your funding receipt'}</h3>
   <dl className="costs-pair"><div><dt>{estimated?'You pay':'Payment recorded'}</dt><dd>{pair.pay}</dd></div><div><dt>{estimated?'You receive (estimate)':pair.arrived?'Received in your wallet':'USDC after fees'}</dt><dd>{pair.receive}</dd></div></dl>
-  <p className="costs-guidance">{estimated?'USDC on Base, after the estimated Peer fee. Pay the exact amount and currency shown in Peer. Currency changes, underpayment or provider adjustments can reduce the final receipt.':pair.arrived?'Matching USDC arrival has been confirmed on Base.':'Peer has recorded this settlement. Wallet arrival is checked separately.'}</p>
+  <p className="costs-guidance">{estimated?'USDC on Base, including the selected offer’s exchange rate and estimated Peer fee. Review the final amount in Peer before paying.':pair.arrived?'Matching USDC arrival has been confirmed on Base.':'Peer has recorded this settlement. Wallet arrival is checked separately.'}</p>
   {costs.trackingUnavailable&&<p className="costs-status">The latest check is unavailable. These are the last saved figures.</p>}
   {!estimated&&(props.stopped||props.ended||props.expiry||props.review)&&<p className="costs-status">Saved receipt for reference. Do not pay this checkout again.</p>}
   <details className="costs-breakdown"><summary>{estimated?'Quote details':'Payment details'}</summary>
    {pair.fee&&<p>{estimated?'Estimated Peer fee':'Recorded Peer fee'}: {pair.fee}. Already deducted from the USDC shown above.</p>}
+   {estimated&&pair.offerRate&&<p>Selected offer rate: {pair.offerRate}. Any seller spread is already reflected in the USDC estimate.</p>}
+   {estimated&&<p>Currency changes, underpayment or purchase protection can reduce the final amount. Any later payout hold affects when funds arrive.</p>}
    <p>Your bank or payment app may charge separately.</p>
    {costs.adjustments.map((text,i)=><p key={i}>{text}</p>)}
    {costs.checkedAt&&<p>Last checked: {new Date(costs.checkedAt).toLocaleString('en-GB')}.</p>}
