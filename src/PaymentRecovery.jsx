@@ -1,3 +1,4 @@
+import CostComparison from './CostComparison';
 import TrackingNotice from './TrackingNotice';
 import RecoveryGuide from './RecoveryGuide';
 import React,{useEffect,useState,useRef} from 'react';
@@ -25,12 +26,14 @@ export default function PaymentRecovery({state,open,onClose,selectedId,embedded=
   <section className="payment-current-status"><span className="payment-row-icon"><Icon name={r.deliveryConfirmed?'check':'clock'} size={28}/></span><div><h3>{r.title}</h3><p>{r.next}</p>{(state.orders?.some(o=>o.id===r.id)||state.fundingDrafts?.some(d=>d.id===r.id))&&<Button secondary onClick={()=>open(r.hasOrder?'order':'funding-draft',r.id)}>View existing request</Button>}<small>Last successful check: {when(r.checkedAt)}</small></div></section>
   <TrackingNotice tracking={r.tracking}/>
   {r.simulated&&<Notice>These are example payment and wallet records. They do not confirm real funds.</Notice>}
-  <dl className="payment-amounts"><div><dt>Requested funding</dt><dd>{value(r.requestedAmount,r.currency)}</dd></div><div><dt>Payment recorded by Peer</dt><dd>{r.recordedFiat??'Not available'}</dd></div><div><dt>{r.deliveryConfirmed?'USDC received':r.confirmedUsdc!==null?'USDC arrival recorded':'USDC received'}</dt><dd>{value(r.confirmedUsdc,'USDC')}</dd></div></dl>
+  <CostComparison comparison={r.costComparison} record={r}/>
+  {!r.costComparison?.offer&&<dl className="payment-amounts"><div><dt>Requested funding</dt><dd>{value(r.requestedAmount,r.currency)}</dd></div><div><dt>Payment recorded by Peer</dt><dd>{r.recordedFiat??'Not available'}</dd></div><div><dt>{r.deliveryConfirmed?'USDC received':r.confirmedUsdc!==null?'USDC arrival recorded':'USDC received'}</dt><dd>{value(r.confirmedUsdc,'USDC')}</dd></div></dl>}
   <div className="payment-detail-columns"><section className="payment-progress"><h3>Payment progress</h3><ol>{paymentMilestones(r).map((step,i)=><li key={step.label} className={step.confirmed?'is-confirmed':''}><span className="payment-step-marker">{step.confirmed?<Icon name="check" size={17}/>:<Icon name="clock" size={17}/>}</span><div><strong>{step.label}</strong><span>{i===0?when(step.detail):step.detail}</span></div></li>)}</ol><p className="fine-print">Payment confirmation and wallet delivery are checked separately.</p></section>
   <section className="payment-destination"><span className="payments-symbol"><Icon name="wallet"/></span><h3>Receiving wallet</h3><strong>{r.agentName}</strong><span className="status-pill">USDC on Base</span><code>{r.address??'Address unavailable'}</code><p className="fine-print">Saved destination for this request.</p></section></div>
   <details className="payment-help-panel"><summary><Icon name="help" size={20}/>Need help with this payment?</summary><RecoveryGuide key={r.id} record={r} showMilestones={false}/></details>
   {r.stopped&&r.code!=='stopped'&&<Notice>This request was stopped in Eupova. Its Peer checkout was not cancelled by that action. Do not pay the old checkout; late transfers remain tracked.</Notice>}
   <details className="payment-facts-panel"><summary>Payment details and references</summary><dl className="details recovery-facts">
+   <div><dt>Requested funding</dt><dd>{value(r.requestedAmount,r.currency)}</dd></div>
    <div><dt>Last successful check</dt><dd>{when(r.checkedAt)}</dd></div>
    <div><dt>Payment verification</dt><dd>{r.providerFulfilled?'Peer marked the payment complete':'Full payment not confirmed'}</dd></div>
    <div><dt>Wallet delivery</dt><dd>{r.deliveryConfirmed?'Funds arrived · confirmed on Base':r.confirmedUsdc!==null?'Arrival recorded · full confirmation pending':'Complete arrival not confirmed'}</dd></div>

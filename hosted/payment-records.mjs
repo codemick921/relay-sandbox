@@ -1,3 +1,4 @@
+import {costComparison,comparisonRows} from './cost-comparison.mjs';
 import {knownCurrency,currencyCode} from '../shared/fiat.mjs';
 import {paymentAttemptState,trackingState,trackingMessages,attemptMessage} from '../shared/tracking-status.mjs';
 // Read-only, allowlisted customer records. No provider calls or payment mutations.
@@ -28,7 +29,7 @@ function evidence(order){
  const complete=valid&&summaryMatches&&order.status==='checkout_received'&&!order.reviewRequired&&v.providerFulfilled===true&&receipts.length===payments.length&&expected===v.expectedNetRaw&&confirmed===v.receivedRaw&&order.delivery?.finalized===true&&order.delivery.chainId===8453&&same(order.delivery.tokenAddress,TOKEN)&&same(order.delivery.recipient,order.agent?.address)&&order.delivery.amountRaw===confirmed;
  return {complete,receipts:valid?receipts:[],net:units(expected),confirmed:valid?units(confirmed):null,fee:units(sum(payments.map(p=>p.feeRaw)))};
 }
-export function paymentRecord(order,draft,now=Date.now()){
+export function paymentRecord(order,draft,now=Date.now(),offerSnapshots=[]){
  const o=order??{},d=draft??{},v=o.verification??{},e=evidence(o),simulated=!!o.fixture||!!v.simulated||['fixture','simulation','practice','sandbox'].includes(o.source)||o.kind==='ramp';
  const stopped=!!(o.stoppedInRelay||d.stoppedAt),chargeback=(typeof o.chargebackStatus==='string'&&!['NONE',''].includes(o.chargebackStatus))||(Array.isArray(v.payments)&&v.payments.some(p=>p&&typeof p.chargebackStatus==='string'&&!['NONE',''].includes(p.chargebackStatus)));
  let code='awaiting',title='Waiting for payment verification',next='Open your existing request to review its current instructions. If you have already paid, do not pay again; keep your bank confirmation while Eupova checks the payment.';
@@ -47,10 +48,11 @@ export function paymentRecord(order,draft,now=Date.now()){
  const settlement=v.payIn?.settlement;
  const paid=settlement&&knownCurrency(settlement.currency)&&typeof settlement.paymentAmount==='string'&&/^\d{1,12}(\.\d{1,2})?$/.test(settlement.paymentAmount)?`${settlement.paymentAmount} ${settlement.currency}`:null;
  const amount=o.quote?.pence??d.pence,currency=currencyCode(o.quote?.currency??d.currency),requested=knownCurrency(currency)&&Number.isSafeInteger(amount)&&amount>=0?units(String(amount),2):null;
- return {id:o.id??d.id,provider:'Peer',providerOrderId:text(o.providerOrderId),agentName:text(o.agent?.name??d.agent?.name,60)??'Agent wallet',address:text(o.agent?.address??d.agent?.address,42),network:'Base',token:'USDC',tokenAddress:TOKEN,
+ const record={id:o.id??d.id,provider:'Peer',providerOrderId:text(o.providerOrderId),agentName:text(o.agent?.name??d.agent?.name,60)??'Agent wallet',address:text(o.agent?.address??d.agent?.address,42),network:'Base',token:'USDC',tokenAddress:TOKEN,
   createdAt:date(o.createdAt??d.createdAt),checkedAt,generatedAt:new Date(now).toISOString(),stale,trackingUnavailable:!!o.trackingError,simulated,stopped,chargeback,code,title,next,
   document:e.complete?'receipt':'summary',requestedAmount:requested,currency,requestedGbp:currency==='GBP'?requested:null,recordedFiat:paid,netUsdc:e.net,confirmedUsdc:e.confirmed,peerFeeUsdc:e.fee,receipts:e.receipts,
   tracking:order?trackingState(o,now):null,attemptExpiry:paymentAttemptState(o,now),hasOrder:!!order,hasDraft:!!draft,providerFulfilled:v.providerFulfilled===true,deliveryConfirmed:e.complete};
+ return {...record,costComparison:costComparison(o,record,offerSnapshots,now)};
 }
 export function paymentRecords(state,now=Date.now()){
  const drafts=new Map((state.fundingDrafts??[]).map(d=>[d.id,d])),seen=new Set(),out=[];
@@ -59,7 +61,7 @@ export function paymentRecords(state,now=Date.now()){
  return out.sort((a,b)=>(b.createdAt??'').localeCompare(a.createdAt??''));
 }
 export function recordRows(r){return [
- ['Document',`${r.simulated?'SIMULATED · ':''}${r.document==='receipt'?'Wallet delivery receipt':'Funding status summary'}`],['Request ID',r.id],['Peer order ID',r.providerOrderId],['Status',r.title],['Next step',r.next],['Agent',r.agentName],['Receiving address',r.address],['Network',r.network],['Token','USDC'],['Token contract',r.tokenAddress],[`Requested amount (${r.currency??'GBP'})`,r.requestedAmount??r.requestedGbp],['Payment recorded by Peer',r.recordedFiat],['USDC after Peer fees',r.netUsdc],['Arrival confirmed (USDC)',r.confirmedUsdc],['Peer fees (USDC)',r.peerFeeUsdc],['Other fees','Bank/payment-app fees and any markup in the seller’s exchange rate are not included.'],['Stopped in Eupova',r.stopped?'Yes · does not cancel Peer’s order':'No'],['Dispute recorded',r.chargeback?'Yes':'No'],['Created',r.createdAt],['Last successful check',r.checkedAt],['Tracking freshness',trackingMessages[r.tracking?.code]??'See last successful check'],['Downloaded',r.generatedAt],...r.receipts.flatMap((x,i)=>[[`Transfer ${i+1}`,x.transactionHash],[`Transfer ${i+1} USDC`,x.amountUsdc],[`Transfer ${i+1} Base block`,x.blockNumber]]),['Note',r.simulated?'Simulation only. No real payment or wallet arrival is confirmed.':'This is a saved funding record, not a bank receipt, tax invoice or current wallet balance.']
+ ['Document',`${r.simulated?'SIMULATED · ':''}${r.document==='receipt'?'Wallet delivery receipt':'Funding status summary'}`],['Request ID',r.id],['Peer order ID',r.providerOrderId],['Status',r.title],['Next step',r.next],['Agent',r.agentName],['Receiving address',r.address],['Network',r.network],['Token','USDC'],['Token contract',r.tokenAddress],[`Requested amount (${r.currency??'GBP'})`,r.requestedAmount??r.requestedGbp],['Payment recorded by Peer',r.recordedFiat],['USDC after Peer fees',r.netUsdc],['Arrival confirmed (USDC)',r.confirmedUsdc],['Peer fees (USDC)',r.peerFeeUsdc],...comparisonRows(r.costComparison),['Other fees','Bank/payment-app fees and any markup in the seller’s exchange rate are not included.'],['Stopped in Eupova',r.stopped?'Yes · does not cancel Peer’s order':'No'],['Dispute recorded',r.chargeback?'Yes':'No'],['Created',r.createdAt],['Last successful check',r.checkedAt],['Tracking freshness',trackingMessages[r.tracking?.code]??'See last successful check'],['Downloaded',r.generatedAt],...r.receipts.flatMap((x,i)=>[[`Transfer ${i+1}`,x.transactionHash],[`Transfer ${i+1} USDC`,x.amountUsdc],[`Transfer ${i+1} Base block`,x.blockNumber]]),['Note',r.simulated?'Simulation only. No real payment or wallet arrival is confirmed.':'This is a saved funding record, not a bank receipt, tax invoice or current wallet balance.']
  ].map(([key,value])=>[key,value??'Not available']);}
 const escape=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export function renderRecord(r,format){

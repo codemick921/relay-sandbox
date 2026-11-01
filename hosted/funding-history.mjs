@@ -37,7 +37,7 @@ export function createFundingHistoryReader(pool){
   try{
    await c.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
    const now=new Date((await c.query('SELECT now() AS at')).rows[0].at).getTime();
-   const tables=(await c.query("SELECT to_regclass('relay_live_orders') AS live,to_regclass('relay_funding_drafts') AS drafts,to_regclass('relay_ramp_simulations') AS ramp")).rows[0];
+   const tables=(await c.query("SELECT to_regclass('relay_live_orders') AS live,to_regclass('relay_funding_drafts') AS drafts,to_regclass('relay_ramp_simulations') AS ramp,to_regclass('relay_live_audit') AS audit")).rows[0];
    const args=[owner,...id?[id]:[]],idWhere=id?' AND id=$2':'';
    const pieces=[`SELECT id,created_at,'sandbox'::text AS source,request,result,status,NULL::text AS merchant_id,false AS review_required,NULL::jsonb AS draft FROM relay_orders WHERE owner=$1${idWhere}`];
    if(tables.live&&scopeMap.size){args.push([...scopeMap.keys()]);pieces.push(`SELECT id,created_at,'tracked'::text,request,result,status,merchant_id,review_required,NULL::jsonb FROM relay_live_orders WHERE owner=$1${idWhere} AND merchant_id=ANY($${args.length}::text[])`);}
@@ -63,7 +63,9 @@ export function createFundingHistoryReader(pool){
     for(const row of rows){
      const simulated=row.source==='sandbox'||row.source==='ramp'||row.source==='tracked'&&scopeMap.get(row.merchant_id)===true;
      const order=row.source==='draft'?null:{...row.request,...row.result,id:row.id,createdAt:row.created_at,status:row.status,reviewRequired:row.review_required,source:simulated?'simulation':'live',fixture:simulated};
-     const r=paymentRecord(order,row.linked_draft??row.draft,now);
+     // Detail/download only: scoped read of existing audit evidence, never a backfill.
+     const offerSnapshots=id&&row.source==='tracked'&&!simulated&&tables.audit?(await c.query(`SELECT a.data FROM relay_live_audit a JOIN relay_live_orders o ON o.id=a.order_id WHERE o.id=$1 AND o.owner=$2 AND o.merchant_id=$3 AND a.event='payin_observed' ORDER BY a.id DESC LIMIT 101`,[row.id,owner,row.merchant_id])).rows.map(x=>x.data):[];
+     const r=paymentRecord(order,row.linked_draft??row.draft,now,offerSnapshots);
      if(row.source==='ramp'){r.provider='Ramp';r.code='awaiting';r.title='Ramp simulation · '+(row.status==='received'?'completed':'in progress');r.next='This is a saved Ramp test. It does not confirm a real payment or wallet arrival.';r.document='summary';r.deliveryConfirmed=false;r.receipts=[];r.netUsdc=null;r.confirmedUsdc=null;r.peerFeeUsdc=null;}
      r.source=row.source==='draft'?'draft':simulated?'simulated':'live';r.agentId=row.request?.agent?.id??row.draft?.agent?.id??null;
      if(!id&&(opts.source!=='all'&&(opts.source==='simulated')!==r.simulated||!matchesPaymentStatus(r,opts.status)||opts.address&&r.address?.toLowerCase()!==opts.address||opts.q&&![r.agentName,r.id,r.providerOrderId,r.address].some(v=>v?.toLowerCase().includes(opts.q.toLowerCase()))))continue;

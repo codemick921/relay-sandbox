@@ -123,3 +123,22 @@ test('Payments in-progress filter applies across pages without changing any save
   assert.deepEqual(await snapshot(),before);
  }finally{await f.close();}
 });
+
+
+test('owned payment detail and receipt read archived offers without mutating any saved rows',async()=>{
+ const {offer}=await import('./fixtures/cost-comparison.mjs');
+ const f=await setup();try{
+  const o=await insert(f,{received:true}),otherOrder=await insert(f,{who:other,received:true});
+  const at=new Date(Date.now()-60000).toISOString(),expires=new Date(Date.now()+60000).toISOString();
+  const e=offer(o,{checkedAt:at,expiresAt:expires});
+  await f.store.query("INSERT INTO relay_live_audit(order_id,event,data) VALUES($1,'payin_observed',$2)",[o.id,{...e,private:'SECRET-AUDIT',checkoutUrl:'SECRET-CHECKOUT'}]);
+  await f.store.query("INSERT INTO relay_live_audit(order_id,event,data) VALUES($1,'payin_observed',$2)",[otherOrder.id,{...e,providerOrderId:otherOrder.providerOrderId,totalPence:999}]);
+  const snapshot=async()=>({orders:(await f.store.query('SELECT * FROM relay_live_orders ORDER BY id')).rows,audit:(await f.store.query('SELECT * FROM relay_live_audit ORDER BY id')).rows});
+  const before=await snapshot(),data=await f.store.fundingHistory(owner,{},f.scopes,{id:o.id}),r=data.records[0];
+  assert.equal(r.costComparison.status,'different');assert.equal(r.costComparison.offer.pay,'25.00 GBP');assert.equal(r.costComparison.differenceUsdc,'0.118750');
+  const {renderRecord}=await import('../hosted/payment-records.mjs');
+  for(const output of [JSON.stringify(data),renderRecord(r,'html'),renderRecord(r,'csv')]){assert.ok(!output.includes('SECRET-AUDIT'));assert.ok(!output.includes('SECRET-CHECKOUT'));assert.ok(!output.includes(otherOrder.id));}
+  await assert.rejects(()=>f.store.fundingHistory(other,{},f.scopes,{id:o.id}),e=>e.status===404);
+  assert.deepEqual(await snapshot(),before);
+ }finally{await f.close();}
+});
