@@ -112,3 +112,7 @@ In the saved funding-request popup, show the receiving wallet, required asset, p
 
 ## Payment-account rules display: 1 November 2026
 Mickel also asked to remove the Payment-account rules row from the initial Fund a wallet popup, including the expanded Wise route review. Omit that display row throughout FundingCompatibility; keep compatibility calculations, payment method settings and checkout consent unchanged. The saved-request popup still omits verification and spending-readiness rows as previously requested.
+
+## Dialog navigation — 1 November 2026
+
+Provide a visible Back button alongside Close in the sticky pop-up header. Back returns to the previous in-app dialog, or to the underlying page at the start of a flow; Close exits the entire dialog flow. Use a native SVG arrow, clear text, 44px touch targets and a two-row header on small screens. Navigation alone must never create, cancel or refund a request. Preserve non-secret funding selections in session memory while going back and forward; reset consent on re-entry and never retain passwords or stale quotes. Read saved request details from current app state so payment tracking remains current. Clear dialog navigation and form memory on Close or deep-link reset.

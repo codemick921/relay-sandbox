@@ -38,3 +38,12 @@
 
 /* Eupova identity: one shared, responsive lockup. */
 .brand{gap:0;padding-left:8px;padding-right:8px}.brand-lockup{display:inline-flex;align-items:center;gap:9px;white-space:nowrap;color:var(--ink);line-height:1}.brand-symbol{display:block;width:44px;height:44px;object-fit:contain;flex-shrink:0}.brand-wordmark{font-size:28px;font-weight:750;letter-spacing:-1.1px}.sandbox-login .brand-lockup{margin-bottom:24px}.sandbox-login .brand-wordmark{font-size:30px}@media(max-width:1120px){.brand-wordmark{font-size:25px}.brand-symbol{width:39px;height:39px}}@media(max-width:650px){.brand{padding-left:0;padding-right:0}.brand-wordmark{font-size:26px}.brand-symbol{width:39px;height:39px}.sandbox-login .brand-wordmark{font-size:28px}}
+
+/* Keep navigation visible while reviewing long funding dialogs. */
+.modal-head--navigation{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:14px}
+.modal-head--navigation h2{min-width:0;overflow-wrap:anywhere}
+.modal-back{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:10px 12px;border:1px solid #b5cbbd;border-radius:10px;background:#fff;color:#204f3b;font-weight:650;white-space:nowrap}
+.modal-back svg{flex-shrink:0}
+.modal-back:hover:not(:disabled){background:#f1f6ef}
+.modal-head--navigation>.icon-button{min-width:44px;min-height:44px}
+@media(max-width:540px){.modal-head.modal-head--navigation{grid-template-columns:1fr auto;gap:10px}.modal-head--navigation>.modal-back{grid-column:1;grid-row:1;justify-self:start}.modal-head--navigation>.icon-button{grid-column:2;grid-row:1}.modal-head--navigation>h2{grid-column:1/-1;grid-row:2}}

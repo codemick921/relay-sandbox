@@ -1,3 +1,4 @@
+import {useDialogState} from './DialogNavigation';
 import {hasRecordedPayment} from '../shared/paid-request.mjs';
 import FundingCompatibility,{fundingAssets} from './FundingCompatibility';
 import {fundingCompatibility} from '../shared/funding-compatibility.mjs';
@@ -19,11 +20,11 @@ import './fund-wallet.css';
 export function LiveFunding({state,act,busy,error,onClose,open,selected,fundingPreset}){
  const live=state.liveFunding?.paymentsEnabled===true;
  const methods=peerMethods(state);
- const [currency,setCurrency]=useState(fundingPreset?.currency??'GBP');
+ const [currency,setCurrency]=useDialogState('currency',fundingPreset?.currency??'GBP');
  const choices=fundingCatalog.methods.filter(m=>m.currencies.includes(currency));
  const available=choices.filter(m=>m.checkoutSupported&&(!live||methods.some(x=>x.id===m.id)));
- const [agentId,setAgentId]=useState(selected??state.agents[0]?.id??''),[amount,setAmount]=useState(fundingPreset?.amount??'25'),[rail,setRail]=useState(live?(available.some(m=>m.id===fundingPreset?.rail)?fundingPreset.rail:available[0]?.id??''):'wise'),[confirmed,setConfirmed]=useState(false),[requestId]=useState(()=>crypto.randomUUID());
- const [targetAsset,setTargetAsset]=useState('base-usdc'),[route,setRoute]=useState('merchant');
+ const [agentId,setAgentId]=useDialogState('agentId',selected??state.agents[0]?.id??''),[amount,setAmount]=useDialogState('amount',fundingPreset?.amount??'25'),[rail,setRail]=useDialogState('rail',live?(available.some(m=>m.id===fundingPreset?.rail)?fundingPreset.rail:available[0]?.id??''):'wise'),[confirmed,setConfirmed]=useState(false),[requestId]=useDialogState('requestId',()=>crypto.randomUUID());
+ const [targetAsset,setTargetAsset]=useDialogState('targetAsset','base-usdc'),[route,setRoute]=useDialogState('route','merchant');
  const validMethod=available.some(m=>m.id===rail);
  const agent=state.agents.find(a=>a.id===agentId),existing=activeFundingDraft(state);
  const compatibility=fundingCompatibility({agent,rail,currency,amountMinor:inputPence(amount),targetAsset,route});
