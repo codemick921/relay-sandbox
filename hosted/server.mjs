@@ -22,7 +22,7 @@ import {readFile} from 'node:fs/promises';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {randomUUID,randomBytes,timingSafeEqual} from 'node:crypto';
-import {InputError,address,pence} from '../server/validation.mjs';
+import {InputError,address,walletAddress,pence} from '../server/validation.mjs';
 import {createSandboxPayService} from '../server/pay-sandbox.mjs';
 import {verifyWebhook} from '../server/pay-webhooks.mjs';
 import {createPool,createStore,digest,orderView} from './db.mjs';
@@ -282,7 +282,7 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
      if(customer){await security.saveWallet(b,getToken(req),{update:url.pathname.endsWith('/update')});break;}
      if(url.pathname.endsWith('/update'))throw new InputError('Customer sign-in required.',403);
      const name=typeof b.name==='string'?b.name.trim():'';if(name.length<2||name.length>60||b.own!==true||b.network!=='base')throw new InputError('Enter a name and confirm your own Base wallet.');
-     await store.addAgent(owner,{id:randomUUID(),name,address:address(b.address),network:'Base',token:'USDC',ownership:'self_declared_unverified'});break;
+     await store.addAgent(owner,{id:randomUUID(),name,address:walletAddress(b.address),network:'Base',token:'USDC',ownership:'self_declared_unverified'});break;
     }
     case '/api/checkouts':{
      if(paymentsDisabled||await invites.status(owner))throw new InputError('Payments are disabled. No checkout was created.',403);

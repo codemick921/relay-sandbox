@@ -2,7 +2,7 @@ import {emailVerificationState} from './email-verification.mjs';
 import {randomBytes,randomUUID} from 'node:crypto';
 import {digest} from './db.mjs';
 import {verifyPassword} from './accounts.mjs';
-import {InputError,address} from '../server/validation.mjs';
+import {InputError,walletAddress} from '../server/validation.mjs';
 const uuid=v=>typeof v==='string'&&/^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(v);
 const audit=(c,id,event,details={})=>c.query('INSERT INTO relay_security_events(customer_id,event,details) VALUES($1,$2,$3)',[id,event,details]);
 const fields=(input,names)=>{if(!input||Object.keys(input).some(k=>!names.includes(k)))throw new InputError('Unsupported security details.');};
@@ -61,7 +61,7 @@ export function createAccountSecurity(store,accounts,{mailEnabled=false,mailPrev
    fields(input,update?['id','name','address','expectedAddress','expectedName','own','network','currentPassword']:['name','address','own','network','currentPassword','owner']);
    const name=typeof input.name==='string'?input.name.trim():'';
    if(name.length<2||name.length>60||input.own!==true||input.network!=='base'||(update&&!uuid(input.id)))throw new InputError('Check the name and confirm your own Base USDC wallet.');
-   const receiving=address(input.address);
+   const receiving=walletAddress(input.address);
    return protectedChange(token,input.currentPassword,async(c,row)=>{
     const owner='customer:'+row.id;await c.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',[owner]);
     let before=null;const id=update?input.id:randomUUID();
