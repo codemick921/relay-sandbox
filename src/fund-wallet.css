@@ -1,0 +1,84 @@
+/* Fund Wallet: the approved Eupova palette, scoped to funding dialogs. */
+.modal.fund-wallet-modal,.modal.fund-options-modal,.modal.fund-request-modal{font-family:EupovaBody,system-ui,sans-serif;color:#183d30;background:#fff;border:1px solid #d8e4da;border-radius:24px;max-height:calc(100dvh - 40px);padding:0}
+.modal.fund-wallet-modal{width:1040px;max-width:calc(100vw - 40px)}
+.modal.fund-options-modal,.modal.fund-request-modal{width:660px;max-width:calc(100vw - 40px)}
+:is(.fund-wallet-modal,.fund-options-modal,.fund-request-modal) .modal-head{background:#edf4ef;border-bottom:1px solid #d8e4da;padding:24px 30px;gap:16px}
+:is(.fund-wallet-modal,.fund-options-modal,.fund-request-modal) .modal-head h2{font-family:EupovaDisplay,system-ui,sans-serif;font-size:28px;font-weight:500;letter-spacing:-.8px}
+:is(.fund-wallet-modal,.fund-options-modal,.fund-request-modal) .modal-body{padding:28px 30px}
+:is(.fund-wallet-modal,.fund-options-modal,.fund-request-modal) .icon-button{min-width:44px;min-height:44px;border-radius:12px;background:white;border:1px solid #cfddd2}
+:is(.fund-wallet-modal,.fund-options-modal,.fund-request-modal) :is(button,a,input,select,summary):focus-visible{outline:3px solid #7655ad;outline-offset:3px}
+:is(.fund-wallet-modal,.fund-options-modal,.fund-request-modal) :is(h3,legend){font-family:EupovaDisplay,system-ui,sans-serif;font-weight:500}
+:is(.fund-wallet-modal,.fund-options-modal,.fund-request-modal) :is(p,small){color:#53665b}
+:is(.fund-wallet-modal,.fund-options-modal,.fund-request-modal) .notice{line-height:1.7;font-size:13px;border-radius:12px}
+.fund-screen-intro{display:flex;align-items:flex-start;gap:16px;margin-bottom:28px}
+.fund-screen-icon{display:grid;place-items:center;width:48px;height:48px;flex:0 0 48px;border:1px solid #d3dfd4;border-radius:14px;background:#f1f4d8;color:#254f3b}
+.fund-screen-intro h3{font-size:24px;line-height:1.3;letter-spacing:-.5px;margin:0 0 8px}
+.fund-screen-intro p{font-size:14px;line-height:1.75;max-width:66ch}
+.fund-form-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:24px;align-items:start}
+.fund-form-fields{display:grid;gap:24px;min-width:0}
+.fund-form-section{border:1px solid #dce5dd;border-radius:18px;padding:22px;margin:0;min-width:0;background:#fff}
+.fund-form-section legend{padding:0 8px;display:flex;align-items:center;gap:10px;font-size:21px;color:#183d30}
+.fund-section-help{font-size:13px;margin:0 0 18px;line-height:1.7}
+.fund-form-section--payment{background:#f4f0fa;border-color:#e3daef}
+.fund-wallet-modal .field{margin:0 0 20px;font-size:14px;min-width:0}
+.fund-wallet-modal .field:last-child{margin-bottom:0}
+.fund-wallet-modal .field>span{font-weight:650}
+.fund-wallet-modal .field small{font-size:12px;line-height:1.65;margin-top:6px}
+.fund-wallet-modal .field select{background-color:white;font-size:16px;min-height:48px;max-width:100%;width:100%;color:#183d30;border-radius:10px;border-color:#acbeb2;padding:12px 32px 12px 12px}
+.fund-wallet-modal .money-input{border:1px solid #9eafa4;background:white;border-radius:12px;padding:8px 14px;display:flex;gap:14px;align-items:center;min-width:0}
+.fund-wallet-modal .money-input>span{position:static;inset:auto;transform:none;font-size:14px;color:#53665b;padding:0;flex-shrink:0}
+.fund-wallet-modal .money-input input{font-family:EupovaDisplay,system-ui,sans-serif;color:#183d30;font-size:32px;min-width:0;width:100%;border:0;background:transparent;padding:8px 0;line-height:1.3;border-radius:4px}
+.fund-payment-pair{margin-bottom:20px;display:grid;grid-template-columns:minmax(0,1fr);gap:0}
+.fund-review-panel{min-width:0;display:grid;gap:20px}
+.fund-destination{padding:22px;background:#edf4ef;border:1px solid #d8e4da;border-radius:18px;min-width:0}
+.fund-destination-title{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.fund-destination-title>div{min-width:0}
+.fund-destination-title span:not(.fund-screen-icon){font-size:12px;color:#53665b}
+.fund-destination h3{font-size:22px;overflow-wrap:anywhere;line-height:1.4;margin-top:3px}
+.fund-network-label{display:inline-block;color:#304e39;background:#e8edb3;border:1px solid #d7dfa7;border-radius:6px;padding:5px 9px;font-size:12px;font-weight:650;margin-bottom:18px}
+.fund-destination p,.fund-destination small{font-size:12px;line-height:1.7}
+.fund-destination .checkout-address{margin:10px 0 12px;padding:12px;background:white;border:1px solid #d2ded4;color:#183d30;font-size:13px;line-height:1.8;border-radius:9px;word-break:break-all;white-space:normal}
+.fund-review-panel .funding-costs{margin:0;padding:22px;border-radius:18px;background:#fff;border-color:#dce5dd}
+.fund-review-panel .funding-costs h3{font-size:21px;line-height:1.35}
+.fund-wallet-modal .costs-total{background:#f4f0fa;border-radius:12px;padding:16px;margin-top:16px}
+.fund-wallet-modal .costs-total>span{font-size:13px}
+.fund-wallet-modal .costs-total>strong{display:block;font-family:EupovaDisplay,system-ui,sans-serif;font-size:23px;margin:6px 0}
+.fund-wallet-modal .costs-total p{font-size:12px;line-height:1.7}
+.fund-wallet-modal .costs-rows>div{grid-template-columns:minmax(0,1fr) minmax(92px,.7fr);gap:12px;padding:13px 0;font-size:13px}
+.fund-wallet-modal .costs-status{font-size:13px}
+.fund-wallet-modal .fine-print{font-size:12px;line-height:1.75}
+.fund-route-review{margin-top:24px;border:1px solid #dce5dd;border-radius:18px;padding:22px;background:#f8faf6}
+.fund-review-heading{display:flex;gap:12px;align-items:flex-start}
+.fund-review-heading>svg{flex-shrink:0;margin-top:4px}
+.fund-review-heading h3{font-size:21px}
+.fund-review-heading p{font-size:14px;margin-top:6px}
+.fund-check-details summary{min-height:44px;padding:14px 0;font-size:14px;color:#254f3b;cursor:pointer;font-weight:650}
+.fund-route-review .funding-compatibility{margin:16px 0;border-radius:12px}
+.fund-route-review>.fine-print{margin-top:10px}
+.fund-confirm{padding:22px;margin-top:24px;border:1px solid #d8e4da;border-radius:18px;background:#edf4ef}
+.fund-confirm .check{margin:0;align-items:flex-start;font-size:14px;line-height:1.7;min-height:44px}
+.fund-confirm .check input{width:20px;height:20px;flex:0 0 20px;margin-top:3px;accent-color:#254f3b}
+.fund-confirm-action{display:flex;align-items:center;gap:20px;justify-content:space-between;border-top:1px solid #d8e4da;margin-top:16px;padding-top:20px}
+.fund-confirm-action p{font-size:12px;line-height:1.75;max-width:34ch}
+.fund-confirm-action .button{flex-shrink:0;min-height:52px}
+.fund-existing{display:grid;gap:18px;padding:24px;border:1px solid #ded5ec;border-radius:18px;background:#f4f0fa}
+.fund-existing h3{font-size:24px}
+.fund-options-modal .funding-option{padding:24px;border-radius:18px;border-color:#d8e4da;background:#edf4ef;margin:24px 0}
+.fund-options-modal .funding-option-heading{align-items:center;margin-bottom:12px}
+.fund-options-modal .funding-option-heading h3{font-size:25px}
+.fund-options-modal .funding-option-status{font-size:12px;background:white;border:1px solid #d8e4da}
+.fund-options-modal .funding-option>p{font-size:14px;line-height:1.75;margin:12px 0}
+.fund-options-modal .funding-option .details{font-size:13px}
+.fund-options-modal .funding-option .button{margin-top:12px;min-height:52px}
+.fund-options-modal .funding-option-unavailable{background:#f8f7fa;border-color:#e2dcea}
+.fund-options-modal .funding-option-tests{border-top:1px solid #dce5dd;padding-top:12px}
+.fund-options-modal summary{min-height:44px;padding:12px 0;font-size:14px;line-height:1.6}
+.fund-request-modal .details{border:1px solid #d8e4da;border-radius:16px;padding:8px 20px;background:#edf4ef;margin:24px 0}
+.fund-request-modal .details>div{padding:16px 0;gap:16px}
+.fund-request-modal .details>div:last-child{border-bottom:0}
+.fund-request-modal .checkout-address{padding:16px;background:#edf4ef;border:1px solid #d8e4da;border-radius:12px;line-height:1.8;word-break:break-all;white-space:normal}
+.fund-request-modal .funding-costs{background:#f4f0fa;border-color:#e3daef;border-radius:18px}
+.fund-request-modal>.modal-body>.text-button{display:inline-flex;min-height:44px;align-items:center;border:1px solid #728d7d;border-radius:10px;padding:10px 14px;text-decoration:none;margin-bottom:16px}
+@media(max-width:800px){.fund-form-grid{grid-template-columns:minmax(0,1fr)}.fund-payment-pair{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.fund-review-panel{grid-template-columns:minmax(0,1fr)}.fund-confirm-action{align-items:stretch;flex-direction:column;gap:12px}.fund-confirm-action p{max-width:none}}
+@media(max-width:540px){.modal.fund-wallet-modal,.modal.fund-options-modal,.modal.fund-request-modal{width:calc(100vw - 20px);max-width:calc(100vw - 20px);max-height:calc(100dvh - 20px);border-radius:20px} :is(.fund-wallet-modal,.fund-options-modal,.fund-request-modal) .modal-head{padding:18px 16px} :is(.fund-wallet-modal,.fund-options-modal,.fund-request-modal) .modal-head h2{font-size:25px} :is(.fund-wallet-modal,.fund-options-modal,.fund-request-modal) .modal-body{padding:20px 16px max(24px,env(safe-area-inset-bottom))}.fund-screen-intro{gap:12px;margin-bottom:24px}.fund-screen-intro h3{font-size:21px}.fund-screen-intro p{font-size:13px}.fund-screen-icon{width:42px;height:42px;flex-basis:42px;border-radius:12px}.fund-form-section,.fund-destination,.fund-review-panel .funding-costs,.fund-route-review,.fund-confirm{padding:18px 16px;border-radius:14px}.fund-form-section legend{font-size:20px}.fund-payment-pair{grid-template-columns:1fr;gap:0}.fund-wallet-modal .costs-rows>div{grid-template-columns:1fr;gap:6px}.fund-wallet-modal .costs-rows dd{text-align:left}.fund-options-modal .funding-option{padding:20px 16px}.fund-options-modal .details>div,.fund-request-modal .details>div{display:grid;grid-template-columns:1fr;gap:6px}.fund-options-modal .details dd,.fund-request-modal .details dd{text-align:left}.fund-wallet-modal .field select{padding-left:10px}.fund-confirm-action .button{width:100%;padding:12px 10px}.fund-wallet-modal .funding-compatibility{padding:16px 12px}}
+@media(prefers-reduced-motion:reduce){:is(.fund-wallet-modal,.fund-options-modal,.fund-request-modal) *{transition:none!important;animation:none!important}}

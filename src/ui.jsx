@@ -5,9 +5,9 @@ export function Icon({name,size=22,...props}){
 }
 export function Button({children,secondary=false,className='',...props}){return <button className={`${secondary?'button secondary':'button'} ${className}`} {...props}>{children}</button>;}
 export function Notice({children,error=false}){return <div className={`notice ${error?'error':''}`} role={error?'alert':undefined}><Icon name="info" size={19}/><span>{children}</span></div>;}
-export function Modal({title,onClose,children,wide=false}){
+export function Modal({title,onClose,children,wide=false,className=''}){
  const ref=useRef();useEffect(()=>{const d=ref.current;d.showModal();return()=>d.close();},[]);
- return <dialog ref={ref} className={wide?'modal wide':'modal'} onCancel={e=>{e.preventDefault();onClose();}} aria-labelledby="modal-title"><header className="modal-head"><h2 id="modal-title">{title}</h2><button className="icon-button" aria-label="Close dialog" onClick={onClose}><Icon name="close"/></button></header><div className="modal-body">{children}</div></dialog>;
+ return <dialog ref={ref} className={[(wide?'modal wide':'modal'),className].filter(Boolean).join(' ')} onCancel={e=>{e.preventDefault();onClose();}} aria-labelledby="modal-title"><header className="modal-head"><h2 id="modal-title">{title}</h2><button className="icon-button" aria-label="Close dialog" onClick={onClose}><Icon name="close"/></button></header><div className="modal-body">{children}</div></dialog>;
 }
 export function Field({label,hint,children}){return <label className="field"><span>{label}</span>{children}{hint&&<small>{hint}</small>}</label>;}
 export function Check({children,...props}){return <label className="check"><input type="checkbox" {...props}/><span>{children}</span></label>;}

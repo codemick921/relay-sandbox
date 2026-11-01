@@ -10,9 +10,10 @@ import {activeFundingDraft} from './funding-entry.mjs';
 import PhoneResume from './PhoneResume';
 import {canContinueCheckout} from './payment-resume.mjs';
 import React,{useState,useEffect} from 'react';
-import {Button,Modal,Field,Check,Notice} from './ui';
+import {Button,Modal,Field,Check,Notice,Icon} from './ui';
 import {api,gbp} from './api';
 import FundingInstructions from './FundingInstructions';
+import './fund-wallet.css';
 
 export function LiveFunding({state,act,busy,error,onClose,open,selected,fundingPreset}){
  const live=state.liveFunding?.paymentsEnabled===true;
@@ -25,24 +26,40 @@ export function LiveFunding({state,act,busy,error,onClose,open,selected,fundingP
  const validMethod=available.some(m=>m.id===rail);
  const agent=state.agents.find(a=>a.id===agentId),existing=activeFundingDraft(state);
  const compatibility=fundingCompatibility({agent,rail,currency,amountMinor:inputPence(amount),targetAsset,route});
- return <Modal title={live?'Fund your agent':'Prepare funding'} onClose={busy?()=>{}:onClose}>
-  <Notice>{live?'Choose your receiving wallet and payment app. You will review Peer’s current rate, fees and recipient before paying.':'Payments are disabled. Saving a draft sends nothing to Peer.'}</Notice>
+ return <Modal title={live?'Fund a wallet':'Prepare funding'} className="fund-wallet-modal" wide onClose={busy?()=>{}:onClose}>
+  <div className="fund-screen-intro"><span className="fund-screen-icon"><Icon name="wallet" size={26}/></span><div><h3>Choose where your funds go.</h3><p>{live?'Choose your saved wallet and payment details. Review your request before creating a Peer checkout.':'Prepare your request in Eupova. Payments are disabled and saving a draft sends nothing to Peer.'}</p></div></div>
   {fundingPreset&&<Notice>Previous amount filled in for convenience. This is a new request: review the current rate, fees and payment instructions before paying.</Notice>}
   {error&&<Notice error>{error}</Notice>}
-  {existing?<><p>You have an existing funding request. Open it to continue paying, cancel a draft or stop an unpaid request before choosing another amount.</p><Button className="full" onClick={()=>open('funding-draft',existing.id)}>Review existing request</Button></>:<form onSubmit={async e=>{e.preventDefault();if(!compatibility.canSaveDraft||!validMethod||!supportsFunding(rail,currency)||live&&state.paymentsDisabled===true)return;const s=await act('funding/drafts',{requestId,agentId,amount,rail,currency,targetAsset,route,confirm:confirmed});if(s)open('funding-draft',s.selectedFundingDraftId);}}>
-   <Field label="Agent to fund"><select required disabled={busy} value={agentId} onChange={e=>{setAgentId(e.target.value);setConfirmed(false);}}><option value="" disabled>Choose an agent</option>{state.agents.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select></Field>
-   {!state.agents.length&&<Button type="button" secondary onClick={()=>open('wallet')}>Add agent wallet</Button>}
-   <Field label="What asset does your agent need?"><select aria-label="Asset your agent needs" value={targetAsset} disabled={busy} onChange={e=>{setTargetAsset(e.target.value);setConfirmed(false);}}>{fundingAssets.map(asset=><option key={asset.id} value={asset.id}>{asset.label}</option>)}</select></Field>
-   <Field label="Funding route"><select aria-label="Funding route" value={route} disabled={busy} onChange={e=>{setRoute(e.target.value);setConfirmed(false);}}><option value="merchant">Peer merchant checkout</option><option value="p2p">Direct P2P · not connected here</option></select></Field>
-   <Field label="Payment currency"><select aria-label="Payment currency" value={currency} disabled={busy} onChange={e=>{const c=e.target.value;setCurrency(c);setConfirmed(false);if(!supportsFunding(rail,c))setRail(fundingCatalog.methods.find(m=>m.checkoutSupported&&m.currencies.includes(c)&&(!live||methods.some(x=>x.id===m.id)))?.id??'');}}>{fundingCatalog.currencies.map(c=><option key={c.code} value={c.code}>{c.code} · {c.name}</option>)}</select></Field>
-   <Field label="Pay with"><select aria-label="Pay with" value={rail} disabled={busy||!available.length} onChange={e=>{setRail(e.target.value);setConfirmed(false);}}>{!validMethod&&<option value="">Choose a payment method</option>}{choices.map(m=><option key={m.id} value={m.id} disabled={!available.some(a=>a.id===m.id)}>{m.label}{!m.checkoutSupported?' · Not connected to checkout':!available.some(a=>a.id===m.id)?' · Unavailable':''}</option>)}</select></Field>
-   {!available.length&&<Notice>No connected checkout method supports this currency yet. Choose another currency. No payment request will be created.</Notice>}
-   <Field label="Funding amount" hint={`${(minimumMinor(rail,currency)/100).toFixed(2)} to 1,000 ${currency} per request. Peer offers and limits also apply.`}><div className="money-input"><span>{currency}</span><input aria-label="Funding amount" required disabled={busy||!available.length} inputMode="decimal" pattern="[0-9]+([.][0-9]{1,2})?" value={amount} onChange={e=>{setAmount(e.target.value);setConfirmed(false);}}/></div></Field>
-   <p className="fine-print">Peer checks availability when you open checkout. The method may need identity, phone or extension verification. Review those steps before paying.</p>
-   <FundingCompatibility agent={agent} rail={rail} currency={currency} amountMinor={inputPence(amount)} targetAsset={targetAsset} route={route}/><FundingCosts requestedPence={inputPence(amount)} currency={currency}/>
-   {agent&&<><p>Receiving address</p><code className="checkout-address">{agent.address}</code></>}
-   <Check checked={confirmed} onChange={e=>setConfirmed(e.target.checked)}>This is my receiving wallet. I have checked the full address and amount.</Check>
-   <Button className="full spaced" disabled={busy||!compatibility.canSaveDraft||!agent||!confirmed||!validMethod||(live&&(!methods.some(m=>m.id===rail)||state.paymentsDisabled===true))}>{busy?'Saving…':'Review funding request'}</Button>
+  {existing?<section className="fund-existing"><span className="fund-screen-icon"><Icon name="clock"/></span><h3>Continue your saved request</h3><p>You have an existing funding request. Open it to continue paying, cancel a draft or stop an unpaid request before choosing another amount.</p><Button className="full" onClick={()=>open('funding-draft',existing.id)}>Review existing request<Icon name="arrow" size={18}/></Button></section>:<form onSubmit={async e=>{e.preventDefault();if(!compatibility.canSaveDraft||!validMethod||!supportsFunding(rail,currency)||live&&state.paymentsDisabled===true)return;const s=await act('funding/drafts',{requestId,agentId,amount,rail,currency,targetAsset,route,confirm:confirmed});if(s)open('funding-draft',s.selectedFundingDraftId);}}>
+   <div className="fund-form-grid">
+    <div className="fund-form-fields">
+     <fieldset className="fund-form-section"><legend><Icon name="wallet" size={20}/>Receiving wallet</legend><p className="fund-section-help">Use the receiving details supplied by your agentic wallet.</p>
+      <Field label="Agentic wallet"><select required disabled={busy} value={agentId} onChange={e=>{setAgentId(e.target.value);setConfirmed(false);}}><option value="" disabled>Choose a saved wallet</option>{state.agents.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select></Field>
+      {!state.agents.length&&<Button type="button" secondary className="full" onClick={()=>open('wallet')}><Icon name="plus" size={18}/>Add agentic wallet</Button>}
+      <Field label="What asset does your agent need?"><select aria-label="Asset your agent needs" value={targetAsset} disabled={busy} onChange={e=>{setTargetAsset(e.target.value);setConfirmed(false);}}>{fundingAssets.map(asset=><option key={asset.id} value={asset.id}>{asset.label}</option>)}</select></Field>
+      <Field label="Funding route"><select aria-label="Funding route" value={route} disabled={busy} onChange={e=>{setRoute(e.target.value);setConfirmed(false);}}><option value="merchant">Peer merchant checkout</option><option value="p2p">Direct P2P · not connected here</option></select></Field>
+     </fieldset>
+     <fieldset className="fund-form-section fund-form-section--payment"><legend><Icon name="bank" size={20}/>Your payment</legend>
+      <div className="fund-payment-pair">
+       <Field label="Payment currency"><select aria-label="Payment currency" value={currency} disabled={busy} onChange={e=>{const c=e.target.value;setCurrency(c);setConfirmed(false);if(!supportsFunding(rail,c))setRail(fundingCatalog.methods.find(m=>m.checkoutSupported&&m.currencies.includes(c)&&(!live||methods.some(x=>x.id===m.id)))?.id??'');}}>{fundingCatalog.currencies.map(c=><option key={c.code} value={c.code}>{c.code} · {c.name}</option>)}</select></Field>
+       <Field label="Pay with"><select aria-label="Pay with" value={rail} disabled={busy||!available.length} onChange={e=>{setRail(e.target.value);setConfirmed(false);}}>{!validMethod&&<option value="">Choose a payment method</option>}{choices.map(m=><option key={m.id} value={m.id} disabled={!available.some(a=>a.id===m.id)}>{m.label}{!m.checkoutSupported?' · Not connected to checkout':!available.some(a=>a.id===m.id)?' · Unavailable':''}</option>)}</select></Field>
+      </div>
+      {!available.length&&<Notice>No connected checkout method supports this currency yet. Choose another currency. No payment request will be created.</Notice>}
+      <Field label="Funding amount" hint={`${(minimumMinor(rail,currency)/100).toFixed(2)} to 1,000 ${currency} per request. Peer offers and limits also apply.`}><div className="money-input"><span>{currency}</span><input aria-label="Funding amount" required disabled={busy||!available.length} inputMode="decimal" pattern="[0-9]+([.][0-9]{1,2})?" value={amount} onChange={e=>{setAmount(e.target.value);setConfirmed(false);}}/></div></Field>
+      <p className="fine-print">Peer checks availability when you open checkout. The method may need identity, phone or extension verification. Review those steps before paying.</p>
+     </fieldset>
+    </div>
+    <aside className="fund-review-panel" aria-label="Destination and cost review">
+     <section className="fund-destination"><div className="fund-destination-title"><span className="fund-screen-icon"><Icon name="wallet" size={22}/></span><div><span>Receiving wallet</span><h3>{agent?.name??'Choose a wallet'}</h3></div></div><span className="fund-network-label">USDC on Base</span>{agent?<><p>Check the full receiving address</p><code className="checkout-address">{agent.address}</code><small>Saved address. Ownership and spending access are not verified.</small></>:<p>Select the saved agentic wallet that should receive the funds.</p>}</section>
+     <FundingCosts requestedPence={inputPence(amount)} currency={currency}/>
+    </aside>
+   </div>
+   <section className="fund-route-review" aria-label="Route review">
+    <div className="fund-review-heading"><Icon name="info" size={22}/><div><h3>Review the route</h3><p role="status">{compatibility.title}</p></div></div>
+    {!compatibility.canSaveDraft||rail==='wise'?<FundingCompatibility agent={agent} rail={rail} currency={currency} amountMinor={inputPence(amount)} targetAsset={targetAsset} route={route}/>:<details className="fund-check-details"><summary>View compatibility checks and limitations</summary><FundingCompatibility agent={agent} rail={rail} currency={currency} amountMinor={inputPence(amount)} targetAsset={targetAsset} route={route}/></details>}
+    <p className="fine-print">A matching saved address does not prove wallet support. Confirm that your receiving platform accepts USDC on Base.</p>
+   </section>
+   <div className="fund-confirm"><Check checked={confirmed} disabled={busy} onChange={e=>setConfirmed(e.target.checked)}>This is my receiving wallet. I have checked the full address and amount.</Check><div className="fund-confirm-action"><p>Next: review your saved request. This step does not create a checkout or send money.</p><Button disabled={busy||!compatibility.canSaveDraft||!agent||!confirmed||!validMethod||(live&&(!methods.some(m=>m.id===rail)||state.paymentsDisabled===true))}>{busy?'Saving…':'Review funding request'}<Icon name="arrow" size={18}/></Button></div></div>
   </form>}
  </Modal>;
 }
@@ -54,7 +71,7 @@ export function FundingDraft({state,draft,act,busy,error,onClose,open}){
  const draftOnly=draft.status==='draft',cancelled=draft.status==='cancelled',bound=draft.status==='bound',closed=draft.status==='closed';
  const tracked=state.orders.find(o=>o.id===draft.id),ready=canContinueCheckout(draft,tracked,live);
  async function resume(){setOpening(true);setError('');try{const r=await api('funding/resume',{id:draft.id,confirm:true});setLink(r.checkoutUrl);}catch(e){setError(e.message);}finally{setOpening(false);}}
- return <Modal title="Your funding request" onClose={busy?()=>{}:onClose}>
+ return <Modal title="Your funding request" className="fund-request-modal" onClose={busy?()=>{}:onClose}>
   {state.account&&<button className="text-button" onClick={()=>open('payment-help',draft.id)}>Payment help and downloadable record</button>}
   <Notice>{draft.stoppedAt?'Stopped in Eupova. You can start a new funding request. The old Peer checkout may still be open; do not pay it.':cancelled?(draft.cancellationState==='confirmed'?'Peer has confirmed cancellation. You can create a new request with a different amount.':'Draft cancelled. No checkout was created.'):draftOnly?'Saved in Eupova. No checkout has been created yet.':closed?'The funds arrived in your wallet. Open the receipt to see the confirmed transfer.':bound?(draft.cancellationState==='requested'?'Your cancellation request is saved. The order is not cancelled yet.':paymentAttemptState(tracked)?'Your funding request is saved. Review its status below.':'Your Peer checkout is saved. Use this request to continue the same payment.'):'Eupova has not confirmed whether Peer created this checkout. Keep this request while Eupova checks; do not pay a replacement.'}</Notice>
   {tracked&&<TrackingNotice order={tracked}/>}

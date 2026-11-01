@@ -1,13 +1,14 @@
 import {fundingCatalog} from '../shared/fiat.mjs';
 import React from 'react';
-import {Modal,Notice,Button} from './ui';
+import {Modal,Notice,Button,Icon} from './ui';
 import {fundingOptions} from './funding-options.mjs';
 import './funding-options.css';
+import './fund-wallet.css';
 export default function FundingOptions({state,open,onClose,selected,fundingPreset}){
  const options=fundingOptions(state);
  const continueFunding=()=>{const a=options.action;if(a)open(a.kind,a.id??selected,a.needsWallet?{continueFunding:true}:options.existing?undefined:fundingPreset);};
- return <Modal title="Funding options" onClose={onClose}>
-  <p>Fund a saved wallet with USDC on Base. Each provider has its own payment steps and checks.</p>
+ return <Modal title="Funding options" className="fund-options-modal" onClose={onClose}>
+  <div className="fund-screen-intro"><span className="fund-screen-icon"><Icon name="bank" size={26}/></span><div><h3>Choose how to fund your wallet.</h3><p>Fund a saved wallet with USDC on Base. Each provider has its own payment steps and checks.</p></div></div>
   {!options.customer?<Notice>Sign in to your customer account to see your funding options.</Notice>:<>
    {options.existing&&<Notice>You have an existing funding request. Review it before starting another. If you have already paid, keep following that request.</Notice>}
    <section className="funding-option" aria-labelledby="peer-option-title">
