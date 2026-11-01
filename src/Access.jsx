@@ -55,10 +55,11 @@ export default function Access(){
  const customer=access?.customerAccounts,effectiveMode=customer?mode:'tester';
  const emailEnabled=access?.emailSendingEnabled,localEmail=access?.localEmailPreview;
  const title={security:'Account security',signup:'Create your Eupova account',recover:'Use your recovery code',forgot:'Reset your password',reset:'Choose a new password',confirmEmail:'Verify your email'}[mode]??'Welcome to Eupova';
+ const verifying=mode==='confirmEmail'&&!recovery;
  const illustrated=!!access&&!access.authenticated&&!recovery&&!link&&!hasResume&&['signin','signup','tester'].includes(mode);
- return <main className={`sandbox-login auth-page ${illustrated?'auth-page--illustrated':'auth-page--compact'}`}><div className="auth-shell">
+ return <main className={`sandbox-login auth-page ${illustrated?'auth-page--illustrated':'auth-page--compact'} ${verifying?'auth-page--verification':''}`}><div className="auth-shell">
  {illustrated&&<AccessArtwork/>}
- <section className="panel auth-panel" aria-labelledby="auth-title"><div className="auth-panel-top"><Brand/>{illustrated&&<AccessRibbon className="auth-mobile-ribbon"/>}</div><h1 id="auth-title">{recovery?'Save your recovery code':title}</h1><p>Save your agent wallets and track your funding. Review the payment mode before creating a checkout.</p>
+ <section className="panel auth-panel" aria-labelledby="auth-title"><div className="auth-panel-top"><Brand/>{verifying&&<span className="auth-verification-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m4 7 8 6 8-6"/></svg></span>}{illustrated&&<AccessRibbon className="auth-mobile-ribbon"/>}</div><h1 id="auth-title">{recovery?'Save your recovery code':title}</h1><p>{verifying?(access?.account?'Check that you’re signed in to the account this link was sent to.':'Sign in to the account this link was sent to. Then confirm your email address.'):'Save your agent wallets and track your funding. Review the payment mode before creating a checkout.'}</p>
  {hasResume&&!access?.authenticated&&<Notice>Sign in to the same Eupova account to resume your saved request. Opening this link does not create an order or send money.</Notice>}
  {error&&<Notice error>{error}</Notice>}{message&&<Notice>{message}</Notice>}
  {localEmail&&<Notice>Local email preview: messages stay in this test app. Nothing is sent to an inbox.</Notice>}
@@ -69,9 +70,16 @@ export default function Access(){
   <Check checked={saved} onChange={e=>setSaved(e.target.checked)}>I have saved my recovery code.</Check>
   <Button className="full" disabled={!saved||busy} onClick={async()=>{if(access.authenticated&&!await action('confirmRecovery',{recoveryCode:recovery}))return;setRecovery('');setSaved(false);setMode(access.authenticated?'security':'signin');}}>{access.authenticated?'Continue to account security':'Return to sign in'}</Button>
  </>:mode==='confirmEmail'?<>
-  <p>{access.account?`Confirm the email address for ${access.account.email}.`:'Sign in to the account this link was sent to. Then confirm your email address.'}</p>
-  {access.account?<><Button disabled={busy||!link} onClick={async()=>{const result=await action('verifyEmail',{linkToken:link?.token});if(result){setLink(null);setMode('security');}}}>Confirm email address</Button><button className="text-button" disabled={busy} onClick={()=>signout(true)}>Sign in to a different account</button></>:<Button onClick={()=>setMode('signin')}>Sign in to confirm</Button>}
-  <button className="text-button" onClick={()=>{setLink(null);switchMode(access.account?'security':'signin');}}>Cancel</button>
+  {access.account&&<div className="auth-verification-account"><span>Signed in as</span><strong>{access.account.email}</strong></div>}
+  <div className="auth-verification-actions">
+   {access.account?<Button className="full" disabled={busy||!link} onClick={async()=>{const result=await action('verifyEmail',{linkToken:link?.token});if(result){setLink(null);setMode('security');}}}>{busy?'Confirming…':'Confirm email address'}</Button>:<Button className="full" onClick={()=>setMode('signin')}>Sign in to confirm</Button>}
+   <div className="auth-verification-secondary" role="group" aria-label="Other options">
+    {access.account&&<button type="button" className="text-button" disabled={busy} onClick={()=>signout(true)}>Sign in to a different account</button>}
+    <button type="button" className="text-button" disabled={busy} onClick={()=>{setLink(null);switchMode(access.account?'security':'signin');}}>Cancel</button>
+   </div>
+  </div>
+  <span className="auth-verification-status" role="status">{busy?'Confirming your email address…':''}</span>
+  <p className="auth-verification-next">After confirmation, you’ll return to Account security.</p>
  </>:<>
  {customer&&!access.authenticated&&mode!=='reset'&&<nav className="auth-tabs" aria-label="Account access"><button type="button" disabled={busy} aria-pressed={mode==='signin'} onClick={()=>switchMode('signin')}>Sign in</button><button type="button" disabled={busy} aria-pressed={mode==='signup'} onClick={()=>switchMode('signup')}>Create account</button></nav>}
  {mode==='security'&&<>

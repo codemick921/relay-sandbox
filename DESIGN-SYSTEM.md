@@ -71,3 +71,9 @@ At 900px and below, remove the large side panel and keep a small decorative ribb
 Use AccessPassword for the reviewed show/hide control: explicit labels, password-manager autocomplete, no form submission from the toggle, hidden on mode change, and cursor restoration cancelled if typing resumes. Do not broaden this visual change into credential-policy or recovery-flow changes. Retain invitation codes, recovery acknowledgement, tester separation, saved requests and payment settings.
 
 Verified locally in isolated Chromium at 1440×900, 768×1024, 393×852, 393×660, 320×568 and 852×393; enlarged desktop layout and keyboard paths were also checked. Physical iPhone browser toolbar and WebKit behaviour remain unverified. This design is a hypothesis for clarity and engagement; no conversion uplift has been measured.
+
+## Email verification application: 1 November 2026
+
+Keep the task in a compact white card on the existing background. A small decorative email icon identifies the step without implying success. Show the currently signed-in email in its own labelled panel; this is not proof that it matches the link. Use one full-width confirmation button, then a separately spaced group for changing account and cancelling. Stack the alternatives across the full card width at 480px and below, with at least 44px touch targets. Wrap long email addresses, preserve visible keyboard focus and announce the pending action.
+
+Replace general funding copy with the specific verification instruction. Preserve explicit confirmation, server validation, token removal from the URL, account-switch token retention and the existing success destination. Never imply verification is complete before the server succeeds. Check signed-in/out, wrong-account, expired-link, busy, cancellation and success states using fixtures; do not consume real verification links during design QA.
