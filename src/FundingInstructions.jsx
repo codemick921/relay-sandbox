@@ -15,7 +15,7 @@ export default function FundingInstructions({preview=false,rail,currency='GBP',r
    <li><strong>Return to the same Peer checkout.</strong> Follow its payment-verification steps, including any phone or app checks. Keep your payment confirmation. If you have already paid, do not pay again because the screen is still pending.</li>
    <li><strong>Track the result in Eupova.</strong> Open this request in Activity. Eupova shows payment verification and wallet delivery separately. Eupova shows “Funds arrived” only after the Base network gives the matching USDC transfer its final confirmation.</li>
   </ol>
-  {!preview&&<details className="payment-help"><summary>QR code failed, recipient missing or amount changed?</summary><p>Stop before paying. Reopen the same checkout to check its current instructions. Do not search for a similar recipient, reuse an old reference or change the amount yourself.</p><p>If you have not sent or scheduled payment, use “Stop this request and start again” when Eupova offers it. This does not cancel the old Peer checkout. If you have paid, keep tracking the original order and do not pay a replacement.</p></details>}
+  {!preview&&<details className="payment-help"><summary>QR code failed, recipient missing or amount changed?</summary><p>Stop before paying. Reopen the same checkout to check its current instructions. Do not search for a similar recipient, reuse an old reference or change the amount yourself.</p><p>If you have not sent or scheduled payment, use “Cancel this request and start again” when Eupova offers it. This does not cancel the old Peer checkout. If you have paid, keep tracking the original order and do not pay a replacement.</p></details>}
   </>}
  </section>;
 }
