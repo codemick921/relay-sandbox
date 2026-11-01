@@ -79,7 +79,7 @@ export function FundingDraft({state,draft,act,busy,error,onClose,open}){
   {!draft.stoppedAt&&draft.cancellationState==='blocked'&&<Notice error>Peer cancellation is unavailable. If you have not paid, Eupova can check whether you can stop this request and start again.</Notice>}
   {(error||localError)&&<Notice error>{error||localError}</Notice>}
   <dl className="details"><div><dt>Requested funding</dt><dd>{formatFiat(draft.pence,draft.currency)}</dd></div><div><dt>Pay with</dt><dd>{methodLabel(draft.rail)} · {draft.currency??'GBP'}</dd></div><div><dt>Agent</dt><dd>{draft.agent.name}</dd></div><div><dt>Receives</dt><dd>USDC on Base</dd></div></dl>
-  {draftOnly&&<FundingCompatibility agent={draft.agent} rail={draft.rail} currency={draft.currency} amountMinor={draft.pence} walletCurrent={draft.walletCurrent}/>}
+  {draftOnly&&<FundingCompatibility requestSummary agent={draft.agent} rail={draft.rail} currency={draft.currency} amountMinor={draft.pence} walletCurrent={draft.walletCurrent}/>}
   <FundingCosts setupOnly={draftOnly&&!tracked&&!draft.stoppedAt} currency={draft.currency} expiry={paymentAttemptState(tracked)} reviewNoticeShown requestedPence={draft.pence} verification={tracked?.verification} simulated={!!tracked?.fixture||!!tracked?.journey} stopped={!!draft.stoppedAt} ended={cancelled||closed} review={!!tracked?.reviewRequired||tracked?.status==='checkout_review'} trackingError={!!tracked?.trackingError}/>
   <p>Receiving address</p><code className="checkout-address">{draft.agent.address}</code>
   {!draft.walletCurrent&&draftOnly&&<Notice error>The saved wallet has changed. Cancel this draft and review the updated address.</Notice>}

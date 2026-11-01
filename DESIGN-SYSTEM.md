@@ -106,3 +106,6 @@ Preserve the current submission contract, idempotency reference, confirmation re
 
 ## Concise funding costs: 1 November 2026
 Mickel found the setup panel overbearing. Keep requested funding prominent and use one short instruction to review Peer’s offer and fees before paying. Do not fill the initial form or clean saved-draft review with unavailable fee, net USDC, exchange-rate, bank-charge or network-cost placeholders. Unknown is not zero: omit unsupported estimates without inventing an all-in price. Add live estimates only when a documented merchant quote matches the selected amount, currency, rail and destination and defines fees, units and freshness. A direct P2P quote cannot stand in for a merchant quote. Preserve recorded payment figures, simulations, expiry, conflicts and recovery warnings in tracking and history.
+
+## Funding-request checklist: 1 November 2026
+In the saved funding-request popup, show the receiving wallet, required asset, payment route and request amount. Mickel asked to remove Payment-account rules, Verification on your device and Agent spending readiness from this popup. Apply this as a presentation change to the request summary only; preserve validation, checkout consent and the payment instructions. Do not label removed checks as passed.
