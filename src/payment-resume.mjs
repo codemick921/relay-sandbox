@@ -9,6 +9,9 @@ export function resumeLink(origin,id){
 }
 export function resumeTarget(location){
  const hash=location.hash??'';
+ if(hash.startsWith('#payment=')){
+  const id=hash.slice('#payment='.length);return uuid.test(id)?{kind:'payment-help',id}:{kind:'invalid'};
+ }
  if(hash.startsWith('#funding=')){
   const id=hash.slice('#funding='.length);return uuid.test(id)?{kind:'funding-draft',id}:{kind:'invalid'};
  }
@@ -18,6 +21,8 @@ export function resumeTarget(location){
 }
 export function resolveResume(target,state){
  if(!target)return null;
+ // Payment detail reads are owner-authorised by the existing API, not this fragment.
+ if(target.kind==='payment-help'&&state.account)return target;
  if(target.kind==='funding-draft'&&state.account&&state.fundingDrafts?.some(d=>d.id===target.id))return target;
  if(target.kind==='order'&&state.orders?.some(o=>o.id===target.id&&['checkout','ramp'].includes(o.kind)))return target;
  return {kind:'resume-unavailable'};

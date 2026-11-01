@@ -2,6 +2,7 @@ import React,{useEffect,useState,useRef,useCallback} from 'react';
 import {api} from './api';
 import {Button,Notice,Field,Check,Icon} from './ui';
 import './notifications.css';
+import PaymentEmails from './PaymentEmails';
 const stamp=value=>value&&Number.isFinite(Date.parse(value))?new Date(value).toLocaleString('en-GB',{timeZone:'Europe/London',day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'Not recorded';
 const dateLabel=value=>value&&/^\d{4}-\d{2}-\d{2}$/.test(value)&&Number.isFinite(Date.parse(value))?new Date(value+'T12:00:00Z').toLocaleDateString('en-GB',{timeZone:'Europe/London',day:'numeric',month:'short',year:'numeric'}):'Not recorded';
 const types={arrival:{label:'Wallet arrival',icon:'check',tone:'arrival'},attention:{label:'Payment update',icon:'info',tone:'attention'},balance:{label:'Balance alert',icon:'wallet',tone:'balance'},reminder:{label:'Funding reminder',icon:'clock',tone:'reminder'}};
@@ -30,14 +31,15 @@ function UpdateCard({notice:n,busy,mutate,open,onWallets}){
   </div>
  </article>;
 }
-export default function Notifications({inbox,agents,open,onWallets}){
+export default function Notifications({inbox,agents,open,onWallets,emailPreview=false}){
  const {data,error,busy,refresh,mutate,filter,page,setPage,setFilter}=inbox;
  const [section,setSection]=useState('inbox'),[message,setMessage]=useState('');
  async function mark(body){setMessage('');if(await mutate('read',body))setMessage(body.all?'All updates marked as read.':body.read?'Update marked as read.':'Update marked as unread.');}
  return <div className="notification-centre">
   <div className="updates-top"><div><span className="updates-top-icon"><Icon name="activity" size={25}/></span><div><h2>{data?`${data.unread} unread ${data.unread===1?'update':'updates'}`:'Your updates'}</h2><p>Payment progress, wallet alerts and reminders.</p></div></div><Button secondary disabled={busy} onClick={()=>refresh()}>Refresh updates</Button></div>
-  <div className="updates-sections" role="group" aria-label="Notification sections">{[['inbox','Inbox','activity'],['reminders','Reminders','clock'],['preferences','Preferences','check']].map(([key,label,icon])=><button key={key} type="button" aria-pressed={section===key} onClick={()=>setSection(key)}><Icon name={icon} size={18}/>{label}</button>)}</div>
+  <div className="updates-sections" role="group" aria-label="Notification sections">{[['inbox','Inbox','activity'],['reminders','Reminders','clock'],['preferences','Preferences','check'],['emails','Email updates','activity']].map(([key,label,icon])=><button key={key} type="button" aria-pressed={section===key} onClick={()=>setSection(key)}><Icon name={icon} size={18}/>{label}</button>)}</div>
   <p className="updates-channel"><Icon name="info" size={17}/>These updates appear in Eupova. They are not sent by email or phone.</p>
+  {section==='emails'&&<PaymentEmails sampleEnabled={emailPreview} onPayment={id=>open('payment-help',id)}/>}
   {error&&<Notice error>{error} Your saved updates are retained. Try refreshing again.</Notice>}
   <p className="updates-feedback" role="status">{message}</p>
   {!data?<section className="updates-empty" aria-live="polite"><Icon name="activity" size={32}/><h2>{busy?'Loading your updates…':'Updates are unavailable'}</h2><p>{busy?'Your saved notifications will appear here.':'Refresh to try loading your notifications again.'}</p></section>:<>
