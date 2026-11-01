@@ -92,6 +92,7 @@ test('automatic hosted tracking retries convergence, survives restart and update
   const p={...payment(),currency:'USD',paymentAmount:'12.50',penalties:[{kind:'CROSS_CURRENCY',penaltyBps:300,originalAmount:'12.50',attestedAmount:'12.12'}]};
   const provider={...orderFor(id),remainingUsdcAmount:'0.02'};
   const fetcher=async(url,options)=>{
+   if(url==='https://peerlytics.xyz/api/mcp'){assert.equal(options.method,'POST');assert.equal(JSON.parse(options.body).params.name,'peerlytics_receipt');assert.equal(options.headers['X-API-Key'],undefined);return new Response('unavailable',{status:503});}
    if(options.method==='POST'){posts++;return envelope({order:{...provider,status:'CREATED'},orderToken:'fixture-private-token'});}
    assert.equal(options.method,'GET');
    if(url.endsWith('/me'))return envelope({id:'merchant',environment:'LIVE',merchantConfig:{enabledRails:['wise']}});

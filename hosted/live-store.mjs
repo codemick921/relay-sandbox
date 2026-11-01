@@ -50,7 +50,7 @@ function checkedResult(order,update){
   check(d?.finalized===true&&d.chainId===8453&&same(d.tokenAddress,TOKEN)&&same(d.recipient,order.agent.address)&&d.amountRaw===String(arrived)&&
    JSON.stringify(d.receipts)===JSON.stringify(settled.map(p=>p.receipt)),'Delivery summary does not match receipts.');
  }else check(update.delivery===null,'Unverified order cannot have a delivery receipt.');
- return {status:update.status,providerStatus:update.providerStatus,checkedAt:update.checkedAt,verification:v,delivery:update.delivery,chargebackStatus:update.chargebackStatus,trackingError:null,trackingPending:false};
+ return {status:update.status,providerStatus:update.providerStatus,checkedAt:update.checkedAt,verification:v,delivery:update.delivery,chargebackStatus:update.chargebackStatus,trackingError:null,trackingPending:false,trackingIssueCode:null};
 }
 
 export function createLiveStore(pool,{merchantId}={}){
@@ -115,6 +115,7 @@ export function createLiveStore(pool,{merchantId}={}){
    // cannot erase a collision or conflicting finalised history.
    const resolving=resolveReviewReason!==undefined;
    const status=row.review_required&&!resolving?'checkout_review':result.status;
+   if(row.review_required&&!resolving)result.trackingIssueCode=row.result.trackingIssueCode??null;
    if(resolving){
     await c.query('UPDATE relay_live_orders SET review_required=false WHERE id=$1',[row.id]);
     await c.query("INSERT INTO relay_live_audit(order_id,event,data) VALUES($1,'operator_review_resolved',$2)",[row.id,{reason:resolveReviewReason,previousStatus:row.status,receivedRaw:result.verification.receivedRaw,transactions:result.delivery.receipts.map(r=>r.transactionHash)}]);
@@ -125,13 +126,15 @@ export function createLiveStore(pool,{merchantId}={}){
    if(row.status!==status||JSON.stringify(row.result.delivery)!==JSON.stringify(result.delivery)||row.result.chargebackStatus!==result.chargebackStatus)await c.query("INSERT INTO relay_live_audit(order_id,event,data) VALUES($1,'verified',$2)",[row.id,{from:row.status,to:status,receivedRaw:result.verification.receivedRaw,chargebackStatus:result.chargebackStatus}]);
    return true;
   });},
-  async fail(claim,{review=false,pending=false}={}){return tx(async c=>{
+  async fail(claim,{review=false,pending=false,code=null,retryAfterSeconds=0}={}){return tx(async c=>{
    const row=await current(c,claim);if(!row)return false;
    // Keep the last verified result and any existing security review. A normal
    // settlement/finality delay is neither a provider outage nor a new review.
    if(pending&&!review){await c.query(`UPDATE relay_live_orders SET result=result||jsonb_build_object('trackingError',NULL,'trackingPending',true,'trackingAttemptedAt',now()),generation=generation+1,lease_token=NULL,lease_until=NULL,attempts=0,next_check_at=now()+interval '15 seconds',updated_at=now() WHERE id=$1`,[row.id]);return true;}
+   const issueCode=typeof code==='string'&&/^[a-z_]{1,48}$/.test(code)?code:null;
+   const retrySeconds=Number.isFinite(retryAfterSeconds)?Math.min(3600,Math.max(0,Math.ceil(retryAfterSeconds))):0;
    const message=review?'Payment evidence needs operator review. Do not send another payment.':'Verification is temporarily unavailable. Your last verified result is retained.';
-   await c.query(`UPDATE relay_live_orders SET result=result||jsonb_build_object('trackingError',$2::text,'trackingPending',false,'trackingAttemptedAt',now()),status=CASE WHEN $3 THEN 'checkout_review' ELSE status END,review_required=review_required OR $3,generation=generation+1,lease_token=NULL,lease_until=NULL,attempts=attempts+1,next_check_at=now()+least(3600,30*power(2,least(attempts,7)))*interval '1 second',updated_at=now() WHERE id=$1`,[row.id,message,review]);
+   await c.query(`UPDATE relay_live_orders SET result=result||jsonb_build_object('trackingError',$2::text,'trackingPending',false,'trackingAttemptedAt',now(),'trackingIssueCode',$4::text),status=CASE WHEN $3 THEN 'checkout_review' ELSE status END,review_required=review_required OR $3,generation=generation+1,lease_token=NULL,lease_until=NULL,attempts=attempts+1,next_check_at=now()+(greatest($5,least(3600,30*power(2,least(attempts,7))))+floor(random()*5))*interval '1 second',updated_at=now() WHERE id=$1`,[row.id,message,review,issueCode,retrySeconds]);
    if(review&&!row.review_required)await c.query("INSERT INTO relay_live_audit(order_id,event) VALUES($1,'review_required')",[row.id]);return true;
   });},
   async accept(event,{client,matchedOnly=false}={}){

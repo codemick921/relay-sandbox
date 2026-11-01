@@ -7,14 +7,16 @@ import {recipientHash} from './revolut-replacement-read.mjs';
 
 const API='https://api.pay.peer.xyz/api/v1';
 const identifier=v=>typeof v==='string'&&/^[a-zA-Z0-9_-]{1,128}$/.test(v);
-export class TrackingReviewError extends Error {}
+export class TrackingReviewError extends Error {constructor(message,code='evidence_conflict'){super(message);this.code=code;}}
+export class TrackingRetryError extends Error {constructor(seconds){super('Payment verification is temporarily unavailable.');this.retryAfterSeconds=seconds;}}
 
 // Deliberately no create, signing, refund, payout or credential-discovery methods.
 // The caller supplies an explicitly authorised connection; no environment fallback.
-export function createLiveReadService({apiKey,merchantId,rpc,fetcher=fetch}){
+export function createLiveReadService({apiKey,merchantId,rpc,fetcher=fetch,corroborator=null}){
  if(!apiKey||!identifier(merchantId)||!rpc)throw Error('Live tracking requires an explicit merchant, read connection and receipt service.');
  async function read(path){
   const r=await fetcher(API+path,{method:'GET',headers:{'X-API-Key':apiKey},redirect:'error',signal:AbortSignal.timeout(15000)});
+  if(r.status===429){const seconds=Number(r.headers.get('x-retry-after')??r.headers.get('retry-after'));throw new TrackingRetryError(Number.isFinite(seconds)&&seconds>0?Math.min(3600,Math.ceil(seconds)):60);}
   if(!r.ok)throw Error('Provider read unavailable.');
   const b=await r.json();if(b?.success!==true||!b.responseObject)throw Error('Provider read unavailable.');
   return b.responseObject;
@@ -42,14 +44,16 @@ export function createLiveReadService({apiKey,merchantId,rpc,fetcher=fetch}){
     const payIn=observePeerPayIn(order,aggregate,history.payments,{consistent:payInSnapshotKey(aggregate)===payInSnapshotKey(latest),merchant:verifiedFeeProfile});
     if(payInSnapshotKey(aggregate)===payInSnapshotKey(latest)&&aggregate.currentPayment?.rail==='revolut'&&aggregate.currentPayment.status==='CREATED')payIn.recipientHash=recipientHash(aggregate.currentPayment.payTo);
     const result=await verifyPayDelivery(order,aggregate.order,history.payments,{rpc});
+    // Optional public-index corroboration cannot grant or revoke chain verification.
+    if(corroborator)for(const payment of result.verification.payments.filter(p=>p.status==='SETTLED').slice(-1)){try{payment.indexer=await corroborator.lookup(payment.intentHash,payment.transactionHash);}catch{payment.indexer={status:'unavailable'};}}
     const selected=aggregate.currentPayment;
     if(selected&&selected.quoteExpiresAt!==history.payments.find(p=>p.id===selected.id)?.quoteExpiresAt)throw new EvidencePendingError('Payment expiry reads have not converged.');
     const currentAttempt=selected?{id:selected.id,status:selected.status,quoteExpiresAt:typeof selected.quoteExpiresAt==='string'&&Number.isFinite(Date.parse(selected.quoteExpiresAt))?new Date(selected.quoteExpiresAt).toISOString():null}:null;
     if(!['NONE','PARTIALLY_CHARGEBACKED','CHARGEBACKED'].includes(aggregate.order.chargebackStatus))throw new TrackingReviewError('Unknown dispute state.');
     return {...result,verification:{...result.verification,payIn,currentAttempt},checkedAt:result.verification.checkedAt,providerStatus:aggregate.order.status,chargebackStatus:aggregate.order.chargebackStatus};
    }catch(e){
-    if(e instanceof TrackingReviewError||e instanceof EvidencePendingError)throw e;
-    if(e instanceof InputError)throw new TrackingReviewError('Payment or receipt evidence conflicts with the saved order.');
+    if(e instanceof TrackingReviewError||e instanceof EvidencePendingError||e instanceof TrackingRetryError)throw e;
+    if(e instanceof InputError)throw new TrackingReviewError('Payment or receipt evidence conflicts with the saved order.',e.evidenceCode??'receipt_conflict');
     // Do not persist provider bodies, URLs, credentials or transport error text.
     throw Error('Payment verification is temporarily unavailable.');
    }

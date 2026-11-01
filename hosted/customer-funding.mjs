@@ -16,8 +16,13 @@ export function createCustomerFunding({drafts,tracker,reader,connection,origin,f
    if(input.confirmNoPayment!==true||Object.keys(input).some(k=>!['id','confirmNoPayment'].includes(k)))throw new InputError('Confirm you have not sent or scheduled any payment and will not use the old checkout.');
    const row=await drafts.review(owner,input.id);if(row.stopped_at)return {id:row.id};
    if(row.status!=='bound'||row.superseded_by)throw new InputError('This request must be reconciled before it can be stopped.',409);
-   const tracked=await tracker.owned(owner,input.id),checked=await reader.refresh(liveOrderView(tracked));
-   const result=await drafts.stop(owner,input.id,checked,tracked.generation);await tracker.schedule(owner,input.id);return result;
+   // A worker can finish between the read and the stop. Retry once with a wholly
+   // fresh provider read; never reuse the old unpaid observation or bypass a hold.
+   for(let attempt=0;attempt<2;attempt++){
+    const tracked=await tracker.owned(owner,input.id),checked=await reader.refresh(liveOrderView(tracked));
+    try{const result=await drafts.stop(owner,input.id,checked,tracked.generation);await tracker.schedule(owner,input.id);return result;}
+    catch(e){if(attempt!==0||e.code!=='TRACKING_GENERATION_CHANGED')throw e;}
+   }
   },
   async requestCancellation(owner,input){
    if(input.confirmNoPayment!==true||Object.keys(input).some(k=>!['id','confirmNoPayment'].includes(k)))throw new InputError('Confirm that you have not sent or scheduled any payment.');

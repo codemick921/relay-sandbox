@@ -95,10 +95,11 @@ export function FundingDraft({state,draft,act,busy,error,onClose,open}){
   </>:!live&&!closed&&!cancelled&&<Button className="full" disabled>Payments disabled</Button>}
   {(bound||closed||draft.cancellationState==='confirmed')&&<Button secondary className="full spaced" onClick={()=>open('order',draft.id)}>Track payment and wallet delivery</Button>}
   {draftOnly&&<Button secondary className="full spaced" disabled={busy} onClick={async()=>{if(await act('funding/cancel',{id:draft.id}))open('live-fund',draft.agent.id);}}>Cancel draft and choose another amount</Button>}
-  {(cancelled||draft.stoppedAt)&&<Button className="full spaced" onClick={()=>open('live-fund',draft.agent.id)}>Create a new funding request</Button>}
-  {bound&&!draft.supersededBy&&!draft.stoppedAt&&<>
+  {(closed||cancelled||draft.stoppedAt)&&<Button className="full spaced" onClick={()=>open('live-fund',draft.agent.id)}>Create a new funding request</Button>}
+  {bound&&!draft.supersededBy&&!draft.stoppedAt&&!tracked?.verification?.payments?.some(p=>p.status==='SETTLED')&&!tracked?.reviewRequired&&<>
    <Button secondary className="full spaced" disabled={busy} onClick={()=>setCancelOpen(!cancelOpen)}>Stop this request and start again</Button>
    {cancelOpen&&<section className="checkout-setup"><h3>Choose a new amount</h3><p>This stops the request in Eupova and lets you start a new one immediately. It does not cancel the Peer checkout, cancel a bank transfer or refund money. Do not use the old payment link or instructions.</p><p>If you have already sent or scheduled payment, keep tracking this order instead. Eupova will continue checking the old order for any late funds.</p>
+    {(error||localError)&&<Notice error>{error||localError}</Notice>}
     <Check checked={noPayment} onChange={e=>setNoPayment(e.target.checked)}>I have not sent or scheduled any payment for this order, and I will not pay its old checkout.</Check>
     <Button className="full spaced" disabled={busy||!live||!noPayment} onClick={async()=>{if(await act('funding/stop',{id:draft.id,confirmNoPayment:true}))open('live-fund',draft.agent.id);}}>{busy?'Checking payment status…':'Stop request and choose a new amount'}</Button>
    </section>}

@@ -1,14 +1,14 @@
 import {checkoutRails,currencyCode,supportsFunding,knownCurrency,minimumMinor,methodLabel} from '../shared/fiat.mjs';
 import {parseUnits} from 'viem';
 import {InputError,TOKEN} from './validation.mjs';
-import {chain,ORCHESTRATOR,ESCROW,same,hash,validateDelivery} from './receipts.mjs';
+import {chain,ORCHESTRATOR,ESCROW,same,hash,validateDelivery,settlementContract,verifySettlementCode} from './receipts.mjs';
 
 const id=v=>typeof v==='string'&&/^[a-zA-Z0-9_-]{1,128}$/.test(v);
 export function microUsdc(value){
  if(typeof value!=='string'||!/^\d{1,9}(\.\d{1,6})?$/.test(value))throw new InputError('Peer returned an invalid USDC amount. Delivery is not confirmed.',502);
  return parseUnits(value,6);
 }
-const issue=message=>{throw new InputError(message,502);};
+const issue=(message,code='evidence_conflict')=>{const e=new InputError(message,502);e.evidenceCode=code;throw e;};
 // Absence during provider/RPC convergence is retryable; conflicting evidence is not.
 export class EvidencePendingError extends Error {}
 // Settlement observations do not authorise a new payment or change its GBP request.
@@ -34,15 +34,18 @@ export function paymentSnapshot(local,remote,rows){
   const adjustments=settlementAdjustments(p.penalties);
   const net=microUsdc(p.netSettledUsdcAmount),fee=microUsdc(p.totalUsdcFeeAmount),signal=p.quote?.signalIntent;
   const intentHash=hash(p.railIdentifier),transactionHash=hash(p.fulfillTransaction);
-  if(net<=0n||!signal||!same(signal.toAddress,local.agent.address)||signal.processorName!==local.quote.platform||
-    (signal.orchestratorAddress&&!same(signal.orchestratorAddress,ORCHESTRATOR.address))||
-    (signal.escrowAddress&&!same(signal.escrowAddress,ESCROW))||
-    (p.quote.intentHash&&!same(p.quote.intentHash,intentHash))||!/^\d{1,16}$/.test(signal.amount)||BigInt(signal.amount)<net+fee||
-    intents.has(intentHash.toLowerCase()))issue('This payment uses an unsupported or inconsistent settlement route.');
+  const checks={missing_quote:!!signal,invalid_net:net>0n,recipient_mismatch:same(signal?.toAddress,local.agent.address),
+   method_mismatch:signal?.processorName===local.quote.platform,unsupported_contract:!!settlementContract(signal?.orchestratorAddress??ORCHESTRATOR.address),
+   escrow_mismatch:!signal?.escrowAddress||same(signal.escrowAddress,ESCROW),intent_mismatch:!p.quote?.intentHash||same(p.quote.intentHash,intentHash),
+   amount_mismatch:/^\d{1,16}$/.test(signal?.amount)&&BigInt(signal.amount)>=net+fee,duplicate_intent:!intents.has(intentHash.toLowerCase())};
+  const failed=Object.keys(checks).find(k=>!checks[k]);
+  if(failed)issue('This payment uses an unsupported or inconsistent settlement route.',failed);
+  const payout=p.payout==null?null:{status:p.payout.status,releaseEligibleAt:p.payout.releaseEligibleAt??null,releasedAt:p.payout.releasedAt??null};
+  if(payout&&(!['PAID','HELD','RELEASED','DISPUTED'].includes(payout.status)||[payout.releaseEligibleAt,payout.releasedAt].some(t=>t!==null&&(typeof t!=='string'||!Number.isFinite(Date.parse(t))))))issue('Unsupported payout state.','payout_unknown');
   intents.add(intentHash.toLowerCase());
   const prior=local.verification?.payments?.find(x=>x.id===p.id&&x.intentHash);
   if(prior&&(!same(prior.intentHash,intentHash)||!same(prior.transactionHash,transactionHash)||prior.amountRaw!==String(net)))issue('A settled payment changed. Delivery needs reconciliation.');
-  return {...item,intentHash,transactionHash,amountRaw:String(net),feeRaw:String(fee),adjustments};
+  return {...item,intentHash,transactionHash,amountRaw:String(net),feeRaw:String(fee),adjustments,payout,orchestratorAddress:signal.orchestratorAddress??ORCHESTRATOR.address};
  });
  // A truncated or stale history cannot erase a previously known settlement.
  for(const prior of local.verification?.payments??[])if(prior.status==='SETTLED'&&!payments.some(p=>p.id===prior.id&&p.status==='SETTLED'))issue('Peer settlement history is incomplete. Retry reconciliation.');
@@ -64,12 +67,16 @@ export async function verifyPayDelivery(local,remote,rows,{rpc=chain,now=Date.no
  const finalized=settled.length?await rpc.getBlock({blockTag:'finalized'}):null;
  if(settled.length&&(typeof finalized?.number!=='bigint'||finalized.number<0n))throw new EvidencePendingError('Base finality is temporarily unavailable.');
  for(const payment of settled){
+  // A settled held payout is not a delivered wallet transfer. Keep watching it.
+  if(['HELD','DISPUTED'].includes(payment.payout?.status)&&!local.verification?.payments?.find(p=>p.id===payment.id)?.receipt?.finalized){payment.deliveryStatus=payment.payout.status==='HELD'?'held':'disputed';continue;}
   let receipt;
   try{receipt=await rpc.getTransactionReceipt({hash:payment.transactionHash});}
   catch(e){if(e.name==='TransactionReceiptNotFoundError'){payment.deliveryStatus='pending';continue;}throw e;}
   if(!same(receipt.transactionHash,payment.transactionHash)||typeof receipt.blockNumber!=='bigint')issue('Base returned an unexpected receipt.');
   if(receipt.status==='reverted'){payment.deliveryStatus='reverted';continue;}
-  const delivery=validateDelivery({intentHash:payment.intentHash,quote:{recipient:local.agent.address},execution:{net:payment.amountRaw}},receipt);
+  const contract=settlementContract(payment.orchestratorAddress);
+  await verifySettlementCode(rpc,contract,receipt.blockNumber);
+  const delivery=validateDelivery({intentHash:payment.intentHash,quote:{recipient:local.agent.address},execution:{net:payment.amountRaw}},receipt,contract);
   // Exact net, not a balance change or a loosely matching token transfer.
   if(delivery.amountRaw!==payment.amountRaw)issue('The USDC receipt differs from the settled amount.');
   const canonical=await rpc.getBlock({blockNumber:receipt.blockNumber});
@@ -79,8 +86,8 @@ export async function verifyPayDelivery(local,remote,rows,{rpc=chain,now=Date.no
  }
  const total=settled.reduce((n,p)=>n+BigInt(p.amountRaw),0n),arrived=settled.filter(p=>p.deliveryStatus==='finalized').reduce((n,p)=>n+BigInt(p.amountRaw),0n);
  const complete=remote.status==='FULFILLED'&&settled.length>0&&settled.every(p=>p.deliveryStatus==='finalized');
- const status=complete?'checkout_received':settled.some(p=>p.deliveryStatus==='reverted')?'checkout_review':
-  settled.some(p=>p.deliveryStatus==='confirming')?'checkout_confirming':settled.some(p=>p.deliveryStatus==='pending')?'checkout_settled':
+ const status=complete?'checkout_received':settled.some(p=>['reverted','disputed'].includes(p.deliveryStatus))?'checkout_review':
+  settled.some(p=>p.deliveryStatus==='confirming')?'checkout_confirming':settled.some(p=>['pending','held'].includes(p.deliveryStatus))?'checkout_settled':
   remote.status==='CANCELLED'?'checkout_cancelled':remote.status==='PARTIALLY_FULFILLED'||settled.length?'checkout_partial':'checkout_ready';
  return {status,verification:{environment:'LIVE',checkedAt:new Date(now).toISOString(),providerFulfilled:remote.status==='FULFILLED',providerRemainingRaw:String(microUsdc(remote.remainingUsdcAmount)),expectedNetRaw:String(total),receivedRaw:String(arrived),payments},
   delivery:complete?{chainId:8453,tokenAddress:TOKEN,recipient:local.agent.address,amountRaw:String(arrived),finalized:true,verifiedAt:new Date(now).toISOString(),receipts:settled.map(p=>p.receipt)}:null};

@@ -265,3 +265,24 @@ test('Revolut GBP settlement completes through the background reader without ope
   assert.equal(state.status,'checkout_received');assert.equal(state.reviewRequired,false);assert.equal(state.delivery.amountRaw,'12000000');
  }finally{await f.close();}
 });
+
+test('held settlement persists without delivery and release completes only after a final receipt',async()=>{
+ const f=await fixture();try{
+  const s=f.store,o=intent();await s.bindTrustedOrder('alice',o);
+  await s.apply(await s.claimNext(),await verified(o,{payments:[paymentFor(o,{payout:{status:'HELD'}})]}));
+  let state=(await s.state('alice')).orders[0];assert.equal(state.status,'checkout_settled');assert.equal(state.verification.receivedRaw,'0');assert.equal(state.delivery,null);
+  assert.equal((await s.query('SELECT * FROM relay_live_payments')).rows.length,1);
+  await s.accept({...event(o,'released'),type:'PAYMENT_PAYOUT_RELEASED'});
+  await s.apply(await s.claimNext(),await verified(o,{payments:[paymentFor(o,{payout:{status:'RELEASED',releasedAt:new Date().toISOString()}})]}));
+  state=(await s.state('alice')).orders[0];assert.equal(state.status,'checkout_received');assert.equal(state.delivery.amountRaw,'12000000');
+  await due(s,o.id);await s.apply(await s.claimNext(),await verified(state,{payments:[paymentFor(o,{payout:{status:'DISPUTED'}})]}));
+  assert.equal((await s.state('alice')).orders[0].delivery.amountRaw,'12000000');
+ }finally{await f.close();}
+});
+test('provider cooldown and safe diagnostic reasons survive a worker restart',async()=>{
+ const f=await fixture();try{
+  const s=f.store,o=intent();await s.bindTrustedOrder('alice',o);await s.fail(await s.claimNext(),{review:true,code:'unsupported_contract',retryAfterSeconds:120});
+  const row=await s.owned('alice',o.id);assert.equal(row.result.trackingIssueCode,'unsupported_contract');assert.ok(new Date(row.next_check_at)-Date.now()>115000);
+  assert.equal(row.review_required,true);assert.equal(await s.claimNext(),null);
+ }finally{await f.close();}
+});

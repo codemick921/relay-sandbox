@@ -11,7 +11,7 @@ export function atomicJson(file,value){
  const dir=openSync(path.dirname(file),'r');try{fsyncSync(dir);}finally{closeSync(dir);}
 }
 const validId=v=>typeof v==='string'&&/^[a-zA-Z0-9_-]{1,256}$/.test(v);
-const TYPES=new Set(['ORDER_CREATED','ORDER_FULFILLED','ORDER_CANCELLED','ORDER_RESIZED','ORDER_AMOUNT_SET','PAYMENT_CREATED','PAYMENT_SETTLED','PAYMENT_FAILED','PAYMENT_EXPIRED','PAYMENT_CANCELLED','PAYMENT_CHARGEBACKED','ORDER_PARTIALLY_CHARGEBACKED','ORDER_CHARGEBACKED','REFUND_PENDING','REFUND_COMPLETED','PAYMENT_BRIDGE_PENDING','PAYMENT_BRIDGE_SUBMITTED','PAYMENT_BRIDGE_COMPLETED','PAYMENT_BRIDGE_FAILED']);
+const TYPES=new Set(['ORDER_CREATED','ORDER_FULFILLED','ORDER_CANCELLED','ORDER_RESIZED','ORDER_AMOUNT_SET','PAYMENT_CREATED','PAYMENT_SETTLED','PAYMENT_PAYOUT_RELEASED','PAYMENT_FAILED','PAYMENT_EXPIRED','PAYMENT_CANCELLED','PAYMENT_CHARGEBACKED','ORDER_PARTIALLY_CHARGEBACKED','ORDER_CHARGEBACKED','REFUND_PENDING','REFUND_COMPLETED','PAYMENT_BRIDGE_PENDING','PAYMENT_BRIDGE_SUBMITTED','PAYMENT_BRIDGE_COMPLETED','PAYMENT_BRIDGE_FAILED']);
 export function verifyWebhook(raw,headers,{secret,merchantId,environment,now=Date.now()}){
  if(!secret||!merchantId||!['SANDBOX','LIVE'].includes(environment))throw new InputError('Webhook connection is not configured.',503);
  const timestamp=headers['x-webhook-timestamp'],signature=headers['x-webhook-signature'],deliveryId=headers['x-webhook-id'];

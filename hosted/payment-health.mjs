@@ -42,7 +42,7 @@ export function createPaymentHealthReader(pool,merchantId){
     reason:n.missing_reference?'no_order_reference':!n.relay_id?'no_saved_order':n.unmatched?'linked_since_receipt':'queued'}));
    const project=row=>{
     const r=paymentRecord({...row.request,...row.result,id:row.id,createdAt:row.created_at,status:row.status,reviewRequired:row.review_required,source:simulated?'fixture':'live',fixture:simulated,trackingSchedule:{nextCheckAt:row.next_check_at},stoppedInRelay:!!row.stopped_at},null,now);
-    return {record:r,flags:healthFilters.filter(x=>!['all','attention'].includes(x)&&row[x]),updatedAt:date(row.updated_at),nextCheckAt:date(row.next_check_at),lastAttemptAt:date(row.result.trackingAttemptedAt),failedChecks:row.attempts,stoppedAt:date(row.stopped_at)};
+    return {record:r,flags:healthFilters.filter(x=>!['all','attention'].includes(x)&&row[x]),updatedAt:date(row.updated_at),nextCheckAt:date(row.next_check_at),lastAttemptAt:date(row.result.trackingAttemptedAt),failedChecks:row.attempts,issueCode:row.result.trackingIssueCode??null,stoppedAt:date(row.stopped_at)};
    };
    let detail=null;
    if(id){
