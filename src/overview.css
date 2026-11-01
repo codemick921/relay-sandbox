@@ -1,0 +1,68 @@
+/* Signed-in shell: keep public welcome and account pages on their existing styles. */
+.dashboard-menu-toggle{display:none}
+.app--customer{--ink:#183d30;--muted:#53665b;--green:#254f3b;font-family:EupovaBody,system-ui,sans-serif;background:#f8faf6;min-height:100vh;color:var(--ink)}
+.app--customer h1,.app--customer h2{font-family:EupovaDisplay,system-ui,sans-serif;font-weight:500}
+.app--customer>.sidebar{width:224px;padding:30px 16px 20px;overflow-y:auto;overscroll-behavior:contain;background:#fff;border-color:#dde6df}
+.app--customer .sidebar .brand{padding:0 8px 20px}
+.app--customer .provider-badge{font-size:12px;line-height:1.5;margin:0 8px 28px;color:#53665b}
+.app.app--customer .sidebar nav{gap:6px}
+.app--customer .nav-item{min-height:48px;padding:12px 16px;font-size:14px;border-radius:12px;gap:12px;text-align:left;color:#3f5749}
+.app--customer .nav-item:hover{background:#f0f5f1}
+.app--customer .nav-item.active{background:#e7f1e9;color:#183d30;box-shadow:inset 3px 0 #254f3b;font-weight:700}
+.app--customer .help-nav{margin-top:auto}
+.app--customer>main{margin-left:224px;max-width:1360px;padding:36px clamp(24px,3vw,48px) 24px}
+.app--customer .page-header{margin:0 0 26px;align-items:center}
+.app--customer .page-header h1{font-size:34px;line-height:1.18;letter-spacing:-1.2px}
+.app--customer .page-header p{font-size:15px;margin-top:8px;max-width:640px;line-height:1.6}
+.app--customer .peer-avatar{background:#e4def0;color:#443557;border:4px solid white;width:44px;height:44px;flex-basis:44px}
+.app--customer .mode-banner{background:#eef2e3;border:1px solid #dce3c8;color:#3d512d;border-radius:12px;padding:12px 16px;margin-bottom:24px;gap:12px;font-size:13px;line-height:1.6}
+.app--customer .button{min-height:48px;border-radius:10px;font-family:inherit;font-size:14px;line-height:1.45;gap:10px;padding:12px 18px}
+.app--customer .button.secondary{background:white;color:#254f3b;border:1px solid #728d7d}
+.app--customer .button.secondary:hover{background:#edf4ef}
+.app--customer :is(button,a,summary):focus-visible{outline:3px solid #7655ad;outline-offset:3px}
+.app--customer>main>.page-header h1:focus{outline:none}
+.app--customer .funding-start{position:relative;grid-template-columns:minmax(0,1.12fr) minmax(300px,.88fr);gap:clamp(28px,4vw,56px);padding:clamp(24px,3vw,40px);border:1px solid #d8e4da;border-radius:24px;background:linear-gradient(120deg,#edf4ef 0%,#f6f9f3 66%,#fafbf6 100%);align-items:center;box-shadow:0 4px 16px #254f3b05;margin-bottom:24px}
+.app--customer .funding-start-content{align-self:center;min-width:0}
+.app--customer .funding-start .funding-eyebrow{display:inline-flex;padding:6px 10px;background:#e4ebce;border-radius:6px;color:#3f512f;font-size:12px;letter-spacing:.01em;margin:0 0 20px}
+.app--customer .funding-start h2{font-size:clamp(30px,3vw,42px);line-height:1.12;letter-spacing:-1.4px;max-width:460px;margin-bottom:20px}
+.app--customer .funding-start-content>p:not(.funding-eyebrow){font-size:15px;line-height:1.75;max-width:490px;color:#466152}
+.app--customer .funding-start-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:28px;max-width:490px;align-items:stretch}
+.app--customer .funding-start-actions>.button:first-child{grid-column:1/-1;justify-self:start;min-width:190px;margin-bottom:2px;min-height:52px}
+.app--customer .funding-start-actions>.secondary{justify-content:center;padding:12px;font-size:13px;min-height:52px}
+.app--customer .funding-start-actions svg{flex-shrink:0}
+.app--customer .funding-start .funding-caption{font-size:13px!important;line-height:1.65!important;margin-top:20px!important}
+.funding-visual{min-width:0}
+.funding-journey{margin:0;padding:24px;border:1px solid #d7e0d8;border-radius:20px;background:#fff;box-shadow:0 12px 30px #254f3b08;min-width:0}
+.journey-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:24px}
+.journey-heading h3{font-size:14px;font-weight:700;line-height:1.5;letter-spacing:0}
+.journey-heading>span{font-size:11px;white-space:nowrap;background:#eee8f5;color:#57416f;border-radius:6px;padding:4px 7px}
+.journey-nodes{list-style:none;margin:0;padding:0;display:grid;gap:22px}
+.journey-node{position:relative;display:flex;gap:14px;align-items:center;padding:14px;background:#f0f5ee;border:1px solid #dce6d8;border-radius:14px;min-width:0}
+.journey-node:not(:last-child):after{content:"";position:absolute;left:37px;bottom:-23px;height:22px;border-left:2px dashed #8eaa97}
+.journey-node--checkout{margin-left:20px;background:#f4f0fa;border-color:#e3daef}
+.journey-node--checkout:before{content:"";position:absolute;left:16px;top:-5px;width:7px;height:7px;border-right:1.5px solid #607967;border-bottom:1.5px solid #607967;transform:rotate(45deg)}
+.journey-node--wallet{margin-left:40px;background:#f1f4d8;border-color:#e0e5ba}
+.journey-node--wallet:before{content:"";position:absolute;left:16px;top:-5px;width:7px;height:7px;border-right:1.5px solid #607967;border-bottom:1.5px solid #607967;transform:rotate(45deg)}
+.journey-icon{display:grid;place-items:center;flex:0 0 46px;height:46px;color:#254f3b;background:white;border:1px solid #d2dfd5;border-radius:12px}
+.journey-node>div{min-width:0}
+.journey-node span:not(.journey-icon){display:block;font-size:12px;color:#53665b;line-height:1.5}
+.journey-node strong{display:block;font-family:EupovaDisplay,system-ui,sans-serif;font-size:21px;line-height:1.3;font-weight:500;letter-spacing:-.6px;margin:2px 0}
+.journey-node small{display:block;font-size:12px;line-height:1.5;color:#53665b}
+.funding-journey figcaption{border-top:1px solid #e0e7df;margin-top:22px;padding-top:14px;font-size:12px;line-height:1.7;color:#53665b}
+.app--customer .funding-terms{margin:10px 0 0;font-size:13px}
+.app--customer .funding-terms summary{min-height:44px;align-content:center;padding:10px 2px}
+.app--customer .activity{padding:24px 28px;border-radius:20px;border-color:#dce5dd;background:white}
+.app--customer .activity h2{font-size:23px;letter-spacing:-.6px}
+.app--customer .activity-view-all{font-size:13px;min-height:44px;padding:10px 14px}
+.app--customer .overview-empty{display:flex;gap:20px;text-align:left;align-items:center;justify-content:flex-start;background:#f8faf6;border-radius:14px;margin-top:20px;padding:28px}
+.overview-empty-icon{display:grid;place-items:center;width:60px;height:60px;flex-shrink:0;background:#e9eee0;color:#536d45;border-radius:16px}
+.app--customer .overview-empty h3{font-size:16px;margin:0 0 6px;color:#183d30;font-weight:650}
+.app--customer .overview-empty p{font-size:14px;line-height:1.7;max-width:580px;color:#53665b;margin:0}
+.app--customer .transaction-amount{font-variant-numeric:tabular-nums}
+.app--customer footer{font-size:12px;color:#53665b;line-height:1.7;gap:16px}
+.app--customer footer button,.app--customer footer a{min-height:44px;display:inline-flex;align-items:center}
+@media(min-width:1584px){.app--customer>main{margin-left:calc(224px + (100vw - 1584px)/2)}}
+@media(max-width:1100px){.app--customer>.sidebar{width:200px;padding:24px 12px}.app--customer>main{margin-left:200px;padding:28px 24px}.app--customer .funding-start{grid-template-columns:1fr;gap:28px}.app--customer .funding-start-content>p:not(.funding-eyebrow),.app--customer .funding-start h2{max-width:640px}.funding-visual{width:100%;max-width:560px}.app--customer .funding-start-actions{max-width:540px}}
+@media(max-width:650px){.app--customer>.sidebar{position:relative;width:auto;padding:16px 20px;display:flex;flex-wrap:wrap;flex-direction:row;align-items:center;gap:12px;border-right:0;border-bottom:1px solid #dde6df}.app--customer .sidebar .brand{padding:0;margin:0 auto 0 0}.app--customer .provider-badge{display:none}.app--customer .dashboard-menu-toggle{display:flex;align-items:center;gap:8px;min-height:44px;border:1px solid #728d7d;background:white;color:#254f3b;border-radius:10px;padding:10px 12px;font:600 14px EupovaBody,system-ui,sans-serif}.app.app--customer .sidebar nav{display:none;flex-basis:100%;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;padding-top:10px}.app.app--customer .sidebar.is-menu-open nav{display:grid}.app--customer .nav-item{font-size:13px;justify-content:flex-start;padding:12px;gap:8px}.app--customer .help-nav{display:none;position:static;font-size:13px;min-height:44px;margin:0;flex-basis:100%}.app--customer .is-menu-open .help-nav{display:flex}.app--customer>main{margin:0;padding:24px 20px;max-width:none}.app--customer .page-header{margin-bottom:20px}.app--customer .page-header h1{font-size:29px}.app--customer .page-header p{font-size:14px;line-height:1.6}.app--customer .mode-banner{font-size:12px;margin-bottom:20px}.app--customer .funding-start{padding:24px 20px;border-radius:20px;gap:24px}.app--customer .funding-start .funding-eyebrow{font-size:11px;margin-bottom:16px}.app--customer .funding-start h2{font-size:32px;letter-spacing:-1.2px}.app--customer .funding-start-actions{margin-top:24px;gap:10px}.app--customer .funding-start-actions>.button:first-child{justify-self:stretch;width:100%}.app--customer .funding-start-actions>.secondary{flex-direction:column;gap:6px;font-size:12px;line-height:1.5;padding:12px 8px}.funding-journey{padding:18px;border-radius:16px}.journey-heading{flex-wrap:wrap;margin-bottom:20px}.journey-node{gap:10px;padding:12px}.journey-node--checkout{margin-left:10px}.journey-node--wallet{margin-left:20px}.journey-icon{width:40px;height:40px;flex-basis:40px;border-radius:10px}.journey-node strong{font-size:19px}.journey-node:not(:last-child):after{left:31px}.journey-node--checkout:before,.journey-node--wallet:before{left:18px}.app--customer .activity{padding:20px}.app--customer .activity .section-head{align-items:center;flex-wrap:wrap;gap:12px}.app--customer .activity h2{font-size:21px}.app--customer .overview-empty{padding:20px;gap:16px;align-items:flex-start;flex-direction:column}.overview-empty-icon{width:48px;height:48px;border-radius:12px}.app--customer footer{align-items:flex-start}.app--customer footer>div{flex-wrap:wrap}}
+@media(max-width:359px){.app--customer>main{padding:20px 16px}.app--customer>.sidebar{padding:14px 16px}.app--customer .funding-start{padding:20px 16px}.app--customer .funding-start-actions{grid-template-columns:1fr}.app--customer .funding-start-actions>.secondary{flex-direction:row;justify-content:flex-start;gap:10px;font-size:13px;padding:12px}.funding-journey{padding:16px}.journey-node--checkout,.journey-node--wallet{margin-left:0}.journey-node--checkout:before,.journey-node--wallet:before{left:28px}.journey-node strong{font-size:18px}.journey-icon{flex-basis:36px;width:36px;height:36px}.journey-node:not(:last-child):after{left:29px}.app--customer .peer-avatar{display:none}}
+@media(prefers-reduced-motion:reduce){.app--customer *, .app--customer *:before,.app--customer *:after{animation:none!important;transition:none!important}}

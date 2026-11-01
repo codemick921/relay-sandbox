@@ -35,7 +35,7 @@ Colour has a purpose. Avoid gradients everywhere, rainbow panels or generic blue
 
 Use a centred content shell up to 1280px. Desktop side space is about 56px; mobile 20px (16px on the narrowest screen). Use responsive grids that collapse naturally. Hero artwork and concise copy balance each other. Signed-in pages should use the same fonts, colours and rounded controls but shorter headings, compact navigation and content-first layouts.
 
-Controls use roughly 8px corners; small floating panels 12px; large demonstration surfaces 20–24px. Subtle borders and restrained shadows separate layers. Keep touch targets at least 44px, visible focus, sensible tab order and labels that explain the action. Prefer one primary action per decision area, secondary text actions and progressive disclosure for detail.
+Controls use roughly 8px corners; small floating panels 12px; large demonstration surfaces 20–24px. Subtle borders and restrained shadows separate layers. Keep touch targets at least 44px, visible focus, sensible tab order and labels that explain the action. Prefer one primary action per decision area. Give frequently used secondary actions visible outlined buttons; reserve text links and progressive disclosure for supporting detail.
 
 Reusable patterns: branded header; clear page title and short explanation; primary action; white content panels; labelled progress; native expandable questions; explicit recovery action. Keep invitations, currency choice, saved records and existing navigation functional during migration.
 
@@ -77,3 +77,15 @@ Verified locally in isolated Chromium at 1440×900, 768×1024, 393×852, 393×66
 Keep the task in a compact white card on the existing background. A small decorative email icon identifies the step without implying success. Show the currently signed-in email in its own labelled panel; this is not proof that it matches the link. Use one full-width confirmation button, then a separately spaced group for changing account and cancelling. Stack the alternatives across the full card width at 480px and below, with at least 44px touch targets. Wrap long email addresses, preserve visible keyboard focus and announce the pending action.
 
 Replace general funding copy with the specific verification instruction. Preserve explicit confirmation, server validation, token removal from the URL, account-switch token retention and the existing success destination. Never imply verification is complete before the server succeeds. Check signed-in/out, wrong-account, expired-link, busy, cancellation and success states using fixtures; do not consume real verification links during design QA.
+
+## Signed-in overview — 1 November 2026
+
+Mickel asked for Manage wallets and View funding options to be buttons alongside the clear funding action, and for a more engaging funding diagram. The overview uses a mint funding surface, jade primary control, outlined secondary controls and white route cards accented with restrained lilac and lime. Retain Space Grotesk and Manrope from the public and sign-in pages.
+
+The diagram is a semantic three-item list with native SVG icons and decorative connectors: Your currency, Peer checkout, USDC on Base. It explains the route; it never shows completed steps, amounts, moving funds or invented timing. Its caption distinguishes live, simulated and unavailable modes. Keep it visible at every width.
+
+The mobile menu is an in-flow disclosure, not an overlay: Menu exposes every existing destination, Escape closes it and restores toggle focus, and selecting a destination focuses the page heading. There is no modal focus trap because page content remains available. Keep the desktop navigation order and aria-current. Do not apply the public welcome header-removal rule to this necessary signed-in navigation.
+
+Preserve the fundingEntry helper: an unresolved request takes precedence, revoked/disabled actions remain disabled, and simulation labels remain distinct. Do not turn these presentation changes into new funding options or settlement claims. Recent activity is based on orders, not drafts; its empty text must not instruct users to select an action unavailable in their current mode.
+
+Local review only for this overview. Research, model provenance, screenshots, QA and change log are saved beside this release. Mobile viewport checks do not establish physical iPhone toolbar or WebKit validation.
