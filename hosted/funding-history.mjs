@@ -1,9 +1,10 @@
+import {matchesPaymentStatus} from '../shared/payment-views.mjs';
 import {knownCurrency} from '../shared/fiat.mjs';
 // Customer-owned saved evidence only. No provider clients or payment mutations.
 import {InputError} from '../server/validation.mjs';
 import {paymentRecord,units} from './payment-records.mjs';
 const uuid=v=>typeof v==='string'&&/^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(v);
-export const historyStatuses=['all','draft','awaiting','uncertain','partial','settled','confirming','stopped','ended','review','received','disputed'];
+export const historyStatuses=['all','in_progress','attempt_expired','draft','awaiting','uncertain','partial','settled','confirming','stopped','ended','review','received','disputed'];
 export function historyOptions(params){
  const allowed=['source','status','q','address','from','to','page','format'];
  if([...params.keys()].some(k=>!allowed.includes(k))||allowed.some(k=>params.getAll(k).length>1))throw new InputError('Invalid history filters.');
@@ -65,7 +66,7 @@ export function createFundingHistoryReader(pool){
      const r=paymentRecord(order,row.linked_draft??row.draft,now);
      if(row.source==='ramp'){r.provider='Ramp';r.code='awaiting';r.title='Ramp simulation · '+(row.status==='received'?'completed':'in progress');r.next='This is a saved Ramp test. It does not confirm a real payment or wallet arrival.';r.document='summary';r.deliveryConfirmed=false;r.receipts=[];r.netUsdc=null;r.confirmedUsdc=null;r.peerFeeUsdc=null;}
      r.source=row.source==='draft'?'draft':simulated?'simulated':'live';r.agentId=row.request?.agent?.id??row.draft?.agent?.id??null;
-     if(!id&&(opts.source!=='all'&&(opts.source==='simulated')!==r.simulated||opts.status!=='all'&&opts.status!==r.code||opts.address&&r.address?.toLowerCase()!==opts.address||opts.q&&![r.agentName,r.id,r.providerOrderId,r.address].some(v=>v?.toLowerCase().includes(opts.q.toLowerCase()))))continue;
+     if(!id&&(opts.source!=='all'&&(opts.source==='simulated')!==r.simulated||!matchesPaymentStatus(r,opts.status)||opts.address&&r.address?.toLowerCase()!==opts.address||opts.q&&![r.agentName,r.id,r.providerOrderId,r.address].some(v=>v?.toLowerCase().includes(opts.q.toLowerCase()))))continue;
      total++;add(r);
      if(download&&total>10000)throw new InputError('This statement exceeds 10,000 records. Choose a shorter date range.',413);
      if(id||download||total>(opts.page-1)*pageSize&&total<=opts.page*pageSize)retained.push(r);

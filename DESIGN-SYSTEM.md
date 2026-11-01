@@ -124,3 +124,11 @@ After the saved-checkout check succeeds, replace the Continue control with one �
 ### New checkout handoff
 
 On the reviewed funding draft, use “Pay with Peer” after the existing consent checkbox. Create the checkout once, check the stored link and current status, then navigate to Peer in the same tab. Do not require another action just to open a successfully created checkout. On failure or an unresolved creation outcome, retain the saved request and recovery controls; never automatically create a replacement.
+
+## Payments area (1 November 2026)
+
+Activity, Funding history and Payment help share one customer navigation entry: Payments. In progress includes drafts, unresolved requests, disputes and locally stopped requests still awaiting an outcome. Completed is reserved for records whose delivery is confirmed and whose current status is received; cancelled requests remain in All payments. Simulations stay explicitly separate.
+
+Keep the existing Manrope/Space Grotesk typography, forest actions, mint status panel, lavender record heading and lime receiving-wallet card. Payment progress is an evidence checklist rather than an invented duration or percentage. Provider confirmation and wallet arrival have separate indicators. Recorded arrival without complete confirmation is not automatically a partial payment. Unknown amounts remain unavailable, never zero.
+
+Request detail prioritises current status and next step, then amounts, progress and destination. Recovery guidance and references expand on demand; existing receipts and request controls remain available. Back retains the list tab, search and page. Background refresh retains the visible list until fresh data arrives. These views read existing records; they do not change payment state or settings.

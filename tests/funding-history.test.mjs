@@ -109,3 +109,17 @@ test('oversized downloads fail explicitly rather than silently truncating the st
   const page=await f.store.fundingHistory(owner,{page:401},f.scopes);assert.equal(page.total,10001);assert.equal(page.records.length,1);
  }finally{await f.close();}
 });
+
+test('Payments in-progress filter applies across pages without changing any saved records',async()=>{
+ const f=await setup();try{
+  const waiting=[];for(let i=0;i<27;i++)waiting.push(await insert(f,{name:'Waiting '+i}));
+  const received=await insert(f,{received:true,name:'Confirmed'});
+  await insert(f,{who:other});await insert(f,{store:f.sim});
+  const snapshot=async()=>({orders:(await f.store.query('SELECT * FROM relay_live_orders ORDER BY id')).rows,drafts:(await f.store.query('SELECT * FROM relay_funding_drafts ORDER BY id')).rows});
+  const before=await snapshot(),first=await f.store.fundingHistory(owner,{status:'in_progress'},f.scopes),second=await f.store.fundingHistory(owner,{status:'in_progress',page:2},f.scopes);
+  assert.equal(first.total,27);assert.equal(first.records.length,25);assert.equal(second.records.length,2);
+  assert.deepEqual(new Set([...first.records,...second.records].map(r=>r.id)),new Set(waiting.map(o=>o.id)));
+  const completed=await f.store.fundingHistory(owner,{status:'received'},f.scopes);assert.equal(completed.total,1);assert.equal(completed.records[0].id,received.id);
+  assert.deepEqual(await snapshot(),before);
+ }finally{await f.close();}
+});
