@@ -97,3 +97,7 @@ test('documented payout release webhook is authenticated and remains only a re-r
  assert.equal(event.type,'PAYMENT_PAYOUT_RELEASED');assert.equal(event.delivery,undefined);
  assert.throws(()=>verifyWebhook(raw,{...headers,'x-webhook-signature':'00'.repeat(32)},{secret:'fixture',merchantId:'merchant',environment:'LIVE',now}),/signature/);
 });
+test('a delivered payout cannot silently regress to held',async()=>{
+ const first=await verifyPayDelivery(local(),remote(),[payment()],{rpc:rpc()});
+ await assert.rejects(verifyPayDelivery({...local(),verification:first.verification},remote(),[{...payment(),payout:{status:'HELD'}}],{rpc:rpc()}),e=>e.evidenceCode==='payout_regressed');
+});

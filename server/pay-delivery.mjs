@@ -44,6 +44,7 @@ export function paymentSnapshot(local,remote,rows){
   if(payout&&(!['PAID','HELD','RELEASED','DISPUTED'].includes(payout.status)||[payout.releaseEligibleAt,payout.releasedAt].some(t=>t!==null&&(typeof t!=='string'||!Number.isFinite(Date.parse(t))))))issue('Unsupported payout state.','payout_unknown');
   intents.add(intentHash.toLowerCase());
   const prior=local.verification?.payments?.find(x=>x.id===p.id&&x.intentHash);
+  if(payout?.status==='HELD'&&prior?.receipt?.finalized)issue('A delivered payout returned to held. Reconciliation is required.','payout_regressed');
   if(prior&&(!same(prior.intentHash,intentHash)||!same(prior.transactionHash,transactionHash)||prior.amountRaw!==String(net)))issue('A settled payment changed. Delivery needs reconciliation.');
   return {...item,intentHash,transactionHash,amountRaw:String(net),feeRaw:String(fee),adjustments,payout,orchestratorAddress:signal.orchestratorAddress??ORCHESTRATOR.address};
  });
