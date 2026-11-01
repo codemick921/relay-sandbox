@@ -1,3 +1,4 @@
+import {peerHandoffUrl} from './peer-handoff.mjs';
 import {useDialogState} from './DialogNavigation';
 import {hasRecordedPayment} from '../shared/paid-request.mjs';
 import FundingCompatibility,{fundingAssets} from './FundingCompatibility';
@@ -11,7 +12,7 @@ import {inputPence} from './funding-costs.mjs';
 import {activeFundingDraft} from './funding-entry.mjs';
 import PhoneResume from './PhoneResume';
 import {canContinueCheckout} from './payment-resume.mjs';
-import React,{useState,useEffect} from 'react';
+import React,{useState,useEffect,useRef} from 'react';
 import {Button,Modal,Field,Check,Notice,Icon} from './ui';
 import {api,gbp} from './api';
 import FundingInstructions from './FundingInstructions';
@@ -67,12 +68,29 @@ export function LiveFunding({state,act,busy,error,onClose,open,selected,fundingP
 }
 export function FundingDraft({state,draft,act,busy,error,onClose,open}){
  const live=state.liveFunding?.paymentsEnabled===true;
+ const handoffInFlight=useRef(false),active=useRef(null),currentCheckout=useRef(null);
+ useEffect(()=>{active.current=draft?.id;return()=>{active.current=null;};},[draft?.id]);
  const [consent,setConsent]=useState(false),[link,setLink]=useState(null),[localError,setError]=useState(''),[opening,setOpening]=useState(false),[cancelOpen,setCancelOpen]=useState(false),[noPayment,setNoPayment]=useState(false),[separate,setSeparate]=useState(false);
  useEffect(()=>{setLink(null);setConsent(false);setError('');setCancelOpen(false);setNoPayment(false);setSeparate(false);},[draft?.id,draft?.status,draft?.cancellationState,draft?.stoppedAt,draft?.trackingOnlyAt,state.orders.find(o=>o.id===draft?.id)?.status,state.orders.find(o=>o.id===draft?.id)?.trackingError,state.orders.find(o=>o.id===draft?.id)?.reviewRequired]);
  if(!draft)return <Modal title="Funding request" onClose={onClose}><Notice>This request is no longer available in your account.</Notice></Modal>;
  const draftOnly=draft.status==='draft',cancelled=draft.status==='cancelled',bound=draft.status==='bound',closed=draft.status==='closed';
  const tracked=state.orders.find(o=>o.id===draft.id),ready=canContinueCheckout(draft,tracked,live);
+ currentCheckout.current={id:draft.id,ready};
  async function resume(){setOpening(true);setError('');try{const r=await api('funding/resume',{id:draft.id,confirm:true});setLink(r.checkoutUrl);}catch(e){setError(e.message);}finally{setOpening(false);}}
+ async function payWithPeer(){
+  if(handoffInFlight.current||busy||!live||!consent||!draft.walletCurrent||!draftOnly)return;
+  handoffInFlight.current=true;setOpening(true);setError('');
+  try{
+   const saved=await act('funding/checkout',{id:draft.id,confirm:true,consent:true});
+   if(!saved||active.current!==draft.id)return;
+   const savedDraft=saved.fundingDrafts?.find(d=>d.id===draft.id),savedOrder=saved.orders?.find(o=>o.id===draft.id);
+   if(!canContinueCheckout(savedDraft,savedOrder,saved.liveFunding?.paymentsEnabled===true))return;
+   const result=await api('funding/resume',{id:draft.id,confirm:true});
+   const destination=peerHandoffUrl(result,draft.id);
+   if(active.current===draft.id&&currentCheckout.current?.id===draft.id&&currentCheckout.current.ready)window.location.assign(destination);
+  }catch(e){if(active.current===draft.id)setError(e.message);}
+  finally{handoffInFlight.current=false;if(active.current===draft.id)setOpening(false);}
+ }
  return <Modal title="Your funding request" className="fund-request-modal" onClose={busy?()=>{}:onClose}>
   {state.account&&<button className="text-button" onClick={()=>open('payment-help',draft.id)}>Payment help and downloadable record</button>}
   <Notice>{draft.trackingOnlyAt&&!closed&&!cancelled?'This paid request is still tracking. Follow its progress in Activity while you fund another wallet or amount.':draft.stoppedAt?'Stopped in Eupova. You can start a new funding request. The old Peer checkout may still be open; do not pay it.':cancelled?(draft.cancellationState==='confirmed'?'Peer has confirmed cancellation. You can create a new request with a different amount.':'Draft cancelled. No checkout was created.'):draftOnly?'Saved in Eupova. No checkout has been created yet.':closed?'The funds arrived in your wallet. Open the receipt to see the confirmed transfer.':bound?(draft.cancellationState==='requested'?'Your cancellation request is saved. The order is not cancelled yet.':paymentAttemptState(tracked)?'Your funding request is saved. Review its status below.':'Your Peer checkout is saved. Use this request to continue the same payment.'):'Eupova has not confirmed whether Peer created this checkout. Keep this request while Eupova checks; do not pay a replacement.'}</Notice>
@@ -90,9 +108,9 @@ export function FundingDraft({state,draft,act,busy,error,onClose,open}){
   {live&&ready&&<Notice>Already paid or scheduled it? Open the same checkout only to complete verification. Do not send another transfer.</Notice>}
   {draft.stoppedAt||draft.trackingOnlyAt?null:draft.supersededBy?<Button onClick={()=>open('funding-draft',draft.supersededBy)}>Open replacement request</Button>:live&&draftOnly?<>
    <Check checked={consent} onChange={e=>setConsent(e.target.checked)}>Create a real Peer checkout and share this amount, receiving address and order reference with Peer. I will review the final payment details before paying.</Check>
-   <Button className="full spaced" disabled={busy||!consent||!draft.walletCurrent} onClick={()=>act('funding/checkout',{id:draft.id,confirm:true,consent:true})}>{busy?'Creating checkout…':'Create real Peer checkout'}</Button>
+   <Button className="full spaced" disabled={busy||opening||!consent||!draft.walletCurrent} onClick={payWithPeer}>{busy||opening?'Opening Peer…':'Pay with Peer'}</Button>
   </>:live&&ready?<>
-   {!link&&<Button className="full spaced" disabled={opening} onClick={resume}>{opening?'Checking saved checkout…':'Continue existing Peer checkout'}</Button>}
+   {!link&&<Button className="full spaced" disabled={opening||busy} onClick={resume}>{opening?'Checking saved checkout…':'Continue existing Peer checkout'}</Button>}
    {link&&<a className="button full spaced" href={link} target="_blank" rel="noopener noreferrer">Pay with Peer</a>}
   </>:!live&&!closed&&!cancelled&&<Button className="full" disabled>Payments disabled</Button>}
   {(bound||closed||draft.cancellationState==='confirmed')&&<Button secondary className="full spaced" onClick={()=>open('order',draft.id)}>Track payment and wallet delivery</Button>}

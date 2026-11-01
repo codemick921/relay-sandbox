@@ -120,3 +120,7 @@ Provide a visible Back button alongside Close in the sticky pop-up header. Back 
 ### Saved checkout actions
 
 After the saved-checkout check succeeds, replace the Continue control with one “Pay with Peer” link; do not stack two primary actions for the same checkout. The restart toggle reads “Cancel this request and start again”. Keep the confirmation explaining that this stops the Eupova request only and does not cancel or refund a Peer checkout or bank transfer.
+
+### New checkout handoff
+
+On the reviewed funding draft, use “Pay with Peer” after the existing consent checkbox. Create the checkout once, check the stored link and current status, then navigate to Peer in the same tab. Do not require another action just to open a successfully created checkout. On failure or an unresolved creation outcome, retain the saved request and recovery controls; never automatically create a replacement.
