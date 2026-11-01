@@ -2,6 +2,7 @@ import React,{useEffect,useState} from 'react';
 import {Button,Modal,Field,Check,Notice} from './ui';
 import {api,gbp} from './api';
 import {CheckoutOrder} from './SimpleFunding';
+import FundingCosts from './FundingCosts';
 const amount=raw=>Number(raw).toLocaleString('en-GB',{maximumFractionDigits:6});
 export function TestFunding({state,act,busy,error,onClose,open,selected}){
  const [agentId,setAgentId]=useState(selected??state.agents[0]?.id??''),[value,setValue]=useState('25'),[quote,setQuote]=useState(null),[loading,setLoading]=useState(false),[localError,setLocalError]=useState(''),[confirmed,setConfirmed]=useState(false),[requestId,setRequestId]=useState(''),[now,setNow]=useState(Date.now());
@@ -18,7 +19,8 @@ export function TestFunding({state,act,busy,error,onClose,open,selected}){
    <Field label="Test funding amount" hint="Choose £2 to £1,000. This is an example amount, not a payment request."><div className="money-input"><span>£</span><input aria-label="Test funding amount" required disabled={loading} inputMode="decimal" pattern="[0-9]+([.][0-9]{1,2})?" value={value} onChange={e=>setValue(e.target.value)}/></div></Field>
    <Button className="full" disabled={loading||!agentId}>{loading?'Preparing example…':'Review test quote'}</Button>
   </form>:<>
-   <dl className="details"><div><dt>Test payment</dt><dd>{gbp(quote.pence)} · Wise</dd></div><div><dt>Example exchange rate</dt><dd>£1 = 1.25 USDC</dd></div><div><dt>Converted amount</dt><dd>{amount(quote.grossUsdc)} USDC</dd></div><div><dt>Example fee deducted</dt><dd>{amount(quote.feeUsdc)} USDC</dd></div><div><dt>Expected test receipt</dt><dd>{amount(quote.netUsdc)} USDC</dd></div><div><dt>Destination</dt><dd>{quote.agent.name} · Base</dd></div></dl>
+   <FundingCosts requestedPence={quote.pence} currency="GBP" simulated testQuote={quote}/>
+   <dl className="details"><div><dt>Destination</dt><dd>{quote.agent.name} · USDC on Base</dd></div></dl>
    <code className="checkout-address">{quote.agent.address}</code>
    <p className="fine-print">Illustrative rate and fee, not a Peer offer. The test fee is deducted from the converted amount. Wallet ownership has not been verified.</p>
    <p role="status">{expired?'This test quote has expired. Get a new quote.':`Valid until ${new Date(quote.expiresAt).toLocaleTimeString('en-GB')}.`}</p>
