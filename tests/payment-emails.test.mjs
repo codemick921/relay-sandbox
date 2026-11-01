@@ -99,3 +99,18 @@ test('resolving a dispute does not reannounce an arrival already present in the 
  const f=await fixture(),baseline=planPaymentEmail({...f.base,order:{...f.base.order,chargebackStatus:'OPEN'},previous:null});
  assert.equal(baseline.snapshot.arrived,true);assert.equal(f.run({previous:baseline.snapshot}).decision,'arrival_already_recorded');
 });
+
+test('deployed sample controls work without APIs, storage, mail or customer data',async()=>{
+ const {createPaymentEmailSamples}=await import('../shared/payment-email-samples.mjs');const samples=createPaymentEmailSamples();
+ assert.equal(samples.preview('arrival').message,null);
+ const second=createPaymentEmailSamples();second.save({arrival:true,attention:true});
+ const arrival=second.preview('arrival');assert.equal(arrival.message.amount,'11.88125 USDC');assert.match(arrival.message.html,/Sample email. Not sent/);
+ assert.equal(second.preview('arrival').message,null);assert.equal(second.preview('attention').message.paymentTitle,'Payment details need review');
+ assert.equal(createPaymentEmailSamples().preview('arrival').message,null);
+});
+test('sample controls reject arbitrary events and do not take account recipients',async()=>{
+ const {createPaymentEmailSamples}=await import('../shared/payment-email-samples.mjs'),s=createPaymentEmailSamples();
+ assert.throws(()=>s.save({arrival:true,attention:true,email:'other@example.test'}));
+ for(const kind of ['__proto__','toString','other'])assert.throws(()=>s.preview(kind));
+ const source=await readFile(new URL('../shared/payment-email-samples.mjs',import.meta.url),'utf8');assert.doesNotMatch(source,/fetch\(|localStorage|sessionStorage|\/api\//);
+});

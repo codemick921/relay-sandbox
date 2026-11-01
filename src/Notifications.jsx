@@ -31,7 +31,7 @@ function UpdateCard({notice:n,busy,mutate,open,onWallets}){
   </div>
  </article>;
 }
-export default function Notifications({inbox,agents,open,onWallets,emailPreview=false}){
+export default function Notifications({inbox,agents,open,onWallets}){
  const {data,error,busy,refresh,mutate,filter,page,setPage,setFilter}=inbox;
  const [section,setSection]=useState('inbox'),[message,setMessage]=useState('');
  async function mark(body){setMessage('');if(await mutate('read',body))setMessage(body.all?'All updates marked as read.':body.read?'Update marked as read.':'Update marked as unread.');}
@@ -39,7 +39,7 @@ export default function Notifications({inbox,agents,open,onWallets,emailPreview=
   <div className="updates-top"><div><span className="updates-top-icon"><Icon name="activity" size={25}/></span><div><h2>{data?`${data.unread} unread ${data.unread===1?'update':'updates'}`:'Your updates'}</h2><p>Payment progress, wallet alerts and reminders.</p></div></div><Button secondary disabled={busy} onClick={()=>refresh()}>Refresh updates</Button></div>
   <div className="updates-sections" role="group" aria-label="Notification sections">{[['inbox','Inbox','activity'],['reminders','Reminders','clock'],['preferences','Preferences','check'],['emails','Email updates','activity']].map(([key,label,icon])=><button key={key} type="button" aria-pressed={section===key} onClick={()=>setSection(key)}><Icon name={icon} size={18}/>{label}</button>)}</div>
   <p className="updates-channel"><Icon name="info" size={17}/>These updates appear in Eupova. They are not sent by email or phone.</p>
-  {section==='emails'&&<PaymentEmails sampleEnabled={emailPreview} onPayment={id=>open('payment-help',id)}/>}
+  {section==='emails'&&<PaymentEmails/>}
   {error&&<Notice error>{error} Your saved updates are retained. Try refreshing again.</Notice>}
   <p className="updates-feedback" role="status">{message}</p>
   {!data?<section className="updates-empty" aria-live="polite"><Icon name="activity" size={32}/><h2>{busy?'Loading your updates…':'Updates are unavailable'}</h2><p>{busy?'Your saved notifications will appear here.':'Refresh to try loading your notifications again.'}</p></section>:<>
