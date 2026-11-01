@@ -1,6 +1,11 @@
 // Narrow, read-only estimate for the independently checked standard Pro configuration.
 // A dashboard headline alone never supplies this calculation. No payment authorisation.
 import {createHash} from 'node:crypto';
+import {supportsFunding} from '../shared/fiat.mjs';
+// Standard Pro software fees are uniform across fiat apps. Keep this explicit:
+// Venmo purchase-protection deductions/held payouts need separate tracker support.
+// PayPal/N26/crypto are not activated by extending an informational estimate.
+const estimateRails=new Set(['wise','revolut','cashapp','zelle','monzo','chime']);
 export const merchantFeeKey=m=>createHash('sha256').update(JSON.stringify([m?.id,m?.environment,m?.tier,m?.merchantConfig])).digest('hex');
 export function selectedNetEstimate(merchant,order,payment){
  try{
@@ -13,8 +18,13 @@ export function selectedNetEstimate(merchant,order,payment){
   // Current settings cannot establish an older order's pricing. Withhold instead of guessing.
   const configured=Date.parse(c.updatedAt??c.createdAt),created=Date.parse(order.createdAt);
   if(!Number.isFinite(configured)||!Number.isFinite(created)||configured>created)return null;
-  if(payment.status!=='CREATED'||payment.rail!=='wise'||payment.orderId!==order.id||payment.netSettledUsdcAmount!=null||!Array.isArray(payment.penalties)||payment.penalties.length)return null;
-  if(!q||q.amountAdjustment!=null||q.crossCurrency!=null||q.sellerAutomatedReleaseAvailable!==true||s?.processorName!=='wise')return null;
+  if(payment.status!=='CREATED'||!estimateRails.has(payment.rail)||!supportsFunding(payment.rail,payment.currency)||payment.orderId!==order.id||payment.netSettledUsdcAmount!=null||!Array.isArray(payment.penalties)||payment.penalties.length)return null;
+  if(!q||q.amountAdjustment!=null||q.crossCurrency!=null||s?.processorName!==payment.rail)return null;
+  if(order.enabledRails?.length!==1||order.enabledRails[0]!==payment.rail)return null;
+  // SAR is a release/verification capability, not proof that pricing exists.
+  // Preserve the existing Wise seller-verification guard; other fiat apps may use buyer proof.
+  if(typeof q.sellerAutomatedReleaseAvailable!=='boolean'||payment.rail==='wise'&&!q.sellerAutomatedReleaseAvailable)return null;
+  if(payment.payout?.status!=null||payment.payout?.releaseEligibleAt!=null||payment.payout?.releasedAt!=null)return null;
   if(typeof s.amount!=='string'||!/^\d{1,18}$/.test(s.amount))return null;
   const gross=BigInt(s.amount);if(gross<=0n)return null;
   // Floor net at six decimals; actual per-recipient fee rounding may differ by micro-USDC.

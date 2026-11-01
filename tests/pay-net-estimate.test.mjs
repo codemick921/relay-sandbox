@@ -43,3 +43,23 @@ test('reader binds the estimate to stable fee config; reconfiguration withholds 
   const result=await reader.refresh(f.l);assert.equal(!!result.verification.payIn.receiveEstimate,!change);assert.equal(calls.length,5);
  }
 });
+
+// Synthetic contracts exercise method support; they are not live settlement evidence.
+const methodCases=[['wise','GBP',true],['revolut','GBP',false],['revolut','EUR',false],['revolut','USD',false],['cashapp','USD',true],['cashapp','USD',false],['zelle','USD',false],['monzo','GBP',false],['chime','USD',false]];
+function methodFixture(rail,currency,sar){const f=fixture();f.l.quote={pence:1000,currency,platform:rail};f.o.enabledRails=[rail];f.o.requestedFiat={amount:'10',currency};f.p.rail=rail;f.p.currency=currency;f.p.quote.signalIntent.processorName=rail;f.p.quote.sellerAutomatedReleaseAvailable=sar;return f;}
+test('existing fiat methods expose the same conditional estimate without requiring seller automation on buyer-proof methods',()=>{
+ for(const [rail,currency,sar] of methodCases){const f=methodFixture(rail,currency,sar),v=observation(f);assert.equal(v.status,'within_peer_limit',rail);assert.equal(v.receiveEstimate?.netUsdcRaw,'2424937',rail);const c=fundingCosts({requestedPence:1000,currency,verification:{payIn:v},now});assert.equal(c.reviewPair?.receive,'2.424937 USDC',rail);assert.equal(c.reviewPair?.kind,'estimate');assert.equal(v.paymentAuthorised,false);}
+});
+test('new method estimates remain bound to their currency, exact rail, quote and supported payout semantics',()=>{
+ const changes=[f=>f.p.rail='venmo',f=>{f.p.rail='paypal';f.p.quote.signalIntent.processorName='paypal'},f=>{f.p.rail='relay_8453';f.p.quote.signalIntent.processorName='relay_8453'},f=>f.o.enabledRails=['wise'],f=>f.o.enabledRails.push('wise'),f=>f.p.currency='ARS',f=>f.p.quote.signalIntent.processorName='wise',f=>delete f.p.quote.sellerAutomatedReleaseAvailable,f=>f.p.payout={status:'HELD'},f=>f.p.payout={releaseEligibleAt:'2026-12-01T00:00:00Z'},f=>f.p.quote.crossCurrency={},f=>f.p.quote.amountAdjustment={},f=>f.p.penalties=[{kind:'PURCHASE_PROTECTION',penaltyBps:299}]];
+ for(const change of changes){const f=methodFixture('revolut','GBP',false);change(f);assert.equal(selectedNetEstimate(f.m,f.o,f.p),null,String(change));}
+ for(const rail of ['venmo','paypal','n26','new_app']){const f=methodFixture(rail,'USD',true);assert.equal(selectedNetEstimate(f.m,f.o,f.p),null,rail);}
+ const f=methodFixture('wise','GBP',false);assert.equal(selectedNetEstimate(f.m,f.o,f.p),null);
+});
+test('each added method survives the complete GET-only observer and loses its estimate when fee configuration changes',async()=>{
+ for(const rail of ['revolut','cashapp','zelle','monzo','chime'])for(const changed of [false,true]){
+  const currency=['revolut','monzo'].includes(rail)?'GBP':'USD',f=methodFixture(rail,currency,false);f.p.quoteExpiresAt=new Date(Date.now()+60000).toISOString();let profiles=0;const calls=[];
+  const reader=createLiveReadService({apiKey:'fixture',merchantId:'merchant',rpc:rpc(),fetcher:async(url,options)=>{assert.equal(options.method,'GET');calls.push(url);let data;if(url.endsWith('/me')){data=structuredClone(f.m);if(++profiles===2&&changed)data.merchantConfig.platformReferralFeeConfig.valueBps=600;}else if(url.endsWith('/payments'))data={payments:[f.p]};else data={merchant:{id:'merchant',environment:'LIVE'},order:f.o,currentPayment:f.p};return new Response(JSON.stringify({success:true,responseObject:data}));}});
+  const result=await reader.refresh(f.l);assert.equal(!!result.verification.payIn.receiveEstimate,!changed,rail);assert.equal(calls.length,5);assert.equal(result.verification.payIn.paymentAuthorised,false);
+ }
+});
