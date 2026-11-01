@@ -23,5 +23,5 @@ export function resolveResume(target,state){
  return {kind:'resume-unavailable'};
 }
 export function canContinueCheckout(draft,order,live){
- return !!(live&&draft?.status==='bound'&&!draft.stoppedAt&&!draft.supersededBy&&draft.cancellationState!=='requested'&&order&&!paymentAttemptState(order)&&!order.reviewRequired&&!order.trackingError&&['checkout_ready','checkout_partial'].includes(order.status)&&(!order.chargebackStatus||order.chargebackStatus==='NONE'));
+ return !!(live&&draft?.status==='bound'&&!draft.stoppedAt&&!draft.trackingOnlyAt&&!draft.supersededBy&&draft.cancellationState!=='requested'&&order&&!paymentAttemptState(order)&&!order.reviewRequired&&!order.trackingError&&['checkout_ready','checkout_partial'].includes(order.status)&&(!order.chargebackStatus||order.chargebackStatus==='NONE'));
 }

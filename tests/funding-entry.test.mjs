@@ -37,3 +37,10 @@ test('entry derivation is read-only and uses only the supplied account state',()
  const s=state(),before=JSON.stringify(s);fundingEntry(s);assert.equal(JSON.stringify(s),before);
  const other={...state(),fundingDrafts:[{id:'other',status:'draft'}]};assert.equal(fundingEntry(other).id,'other');assert.equal(fundingEntry(s).kind,'fund');
 });
+
+test('paid tracking-only requests retain history but no longer hijack new funding; unacknowledged paid requests still do',()=>{
+ const s=state();s.fundingDrafts=[{id:'paid',status:'bound'}];s.orders=[{id:'paid',kind:'checkout',source:'live',status:'checkout_confirming'}];
+ assert.equal(fundingEntry(s).id,'paid');s.fundingDrafts[0].trackingOnlyAt='today';s.orders[0].trackingOnly=true;
+ assert.equal(activeFundingDraft(s),undefined);assert.equal(fundingEntry(s).kind,'fund');assert.equal(s.orders[0].status,'checkout_confirming');
+ s.fundingDrafts.push({id:'new',status:'draft'});assert.equal(fundingEntry(s).id,'new');
+});

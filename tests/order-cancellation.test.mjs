@@ -12,7 +12,7 @@ import {createLiveFunding} from '../hosted/live-funding.mjs';
 import {createHostedServer} from '../hosted/server.mjs';
 import {local,remote,payment,rpc} from './fixtures/live-evidence.mjs';
 const envelope=data=>new Response(JSON.stringify({success:true,responseObject:data}));
-async function setup(){
+async function setup({pending=false}={}){
  const f=await fixture(),drafts=createFundingDrafts(f.store),tracker=createLiveStore(f.pool,{merchantId:'merchant'});await drafts.migrate();await tracker.migrate();
  const accounts=createAccounts(f.store),login=await accounts.signup({email:'cancel@example.test',name:'Cancellation fixture',password:'lantern river meadow fixture',acceptSandbox:true}),owner=(await accounts.session(login.token)).owner;
  const agent={...local().agent,id:randomUUID(),network:'Base',token:'USDC'};await f.store.addAgent(owner,agent);
@@ -21,7 +21,7 @@ async function setup(){
  await drafts.bind(claim,{merchantId:'merchant',providerOrderId:'peer-order',requestedUsdcAmount:'12.5',checkoutUrl:'https://pay.peer.xyz/?order=peer-order&token=fixture'},tracker);
  let status='CREATED',payments=[];const calls=[];
  const fetcher=async(url,options)=>{calls.push(options.method);assert.equal(options.method,'GET');if(url.endsWith('/me'))return envelope({id:'merchant',environment:'LIVE'});if(url.endsWith('/payments'))return envelope({payments});return envelope({merchant:{id:'merchant',environment:'LIVE'},order:{...remote(),id:'peer-order',status,remainingUsdcAmount:status==='FULFILLED'?'0':'12.5',notes:{relayOrderId:id}},currentPayment:payments.at(-1)??null});};
- const reader=createLiveReadService({apiKey:'fixture',merchantId:'merchant',rpc:rpc(),fetcher}),funding=createCustomerFunding({drafts,tracker,reader,connection:{environment:'LIVE',merchantId:'merchant',apiKey:'fixture'},origin:'https://relay.example',fetcher});
+ const reader=createLiveReadService({apiKey:'fixture',merchantId:'merchant',rpc:rpc(pending?{getBlock:async({blockTag})=>({hash:"0x"+"ef".repeat(32),number:blockTag==='finalized'?119n:120n})}:{}),fetcher}),funding=createCustomerFunding({drafts,tracker,reader,connection:{environment:'LIVE',merchantId:'merchant',apiKey:'fixture'},origin:'https://relay.example',fetcher});
  const worker=createLiveFunding({drafts,tracker,reader}).createWorker();
  return {...f,drafts,tracker,accounts,login,owner,agent,id,next,reader,funding,calls,worker,set:(s,p=[])=>{status=s;payments=p;}};
 }
@@ -122,3 +122,59 @@ test('provider outage leaves the existing request active and unknown creation ca
  await f.funding.stop(f.owner,{id:f.id,confirmNoPayment:true});const next=await f.next('10'),claim=await f.drafts.claim(f.owner,next.id,'merchant');await f.drafts.unresolved(claim);
  await assert.rejects(f.funding.stop(f.owner,{id:next.id,confirmNoPayment:true}),/reconciled/);await assert.rejects(f.next('12'),/existing/);
  }finally{await f.worker.stop();await f.close();}});
+
+
+test('paid request can track separately while one new draft is prepared; delivery stays on original',async()=>{
+ const f=await setup({pending:true});try{
+  f.set('FULFILLED',[payment()]);await f.worker.tick();
+  const before=await f.tracker.owned(f.owner,f.id);assert.equal(before.status,'checkout_confirming');
+  const input={id:f.id,confirmSeparate:true};
+  await Promise.all([f.drafts.trackSeparately(f.owner,input),f.drafts.trackSeparately(f.owner,input)]);
+  const old=await f.drafts.review(f.owner,f.id);assert.ok(old.tracking_only_at);assert.equal(old.stopped_at,null);assert.equal(old.status,'bound');assert.equal(old.superseded_by,null);assert.equal(old.provider_id,'peer-order');
+  assert.deepEqual(await f.tracker.owned(f.owner,f.id),before); // Not even the worker lease/schedule is changed.
+  assert.equal((await f.pool.query("SELECT * FROM relay_funding_audit WHERE event='paid_request_kept_tracking_customer_started_separately'")).rows.length,1);
+  const fresh=await Promise.allSettled([f.next('30'),f.next('40')]);assert.equal(fresh.filter(x=>x.status==='fulfilled').length,1);
+  const next=fresh.find(x=>x.status==='fulfilled').value;assert.notEqual(next.id,f.id);
+  await assert.rejects(f.drafts.checkout(f.owner,f.id),/tracking only/);await assert.rejects(f.funding.checkout(f.owner,f.id),/tracking only/);await assert.rejects(f.funding.start(f.owner,{id:f.id,confirm:true,consent:true}),/tracking only/);
+  await assert.rejects(f.pool.query('UPDATE relay_funding_drafts SET tracking_only_at=NULL WHERE id=$1',[f.id]),/cannot be reopened/);
+  const restarted=createFundingDrafts(f.store);await restarted.migrate();assert.ok((await restarted.list(f.owner)).find(x=>x.id===f.id).trackingOnlyAt);
+  const claim=await f.tracker.claimNext({orderId:f.id});assert.ok(claim);
+  const verified=await f.reader.refresh(liveOrderView(claim));
+  const completed=structuredClone(verified);completed.status='checkout_received';completed.verification.receivedRaw=completed.verification.expectedNetRaw;
+  for(const p of completed.verification.payments){p.deliveryStatus='finalized';p.receipt.finalized=true;}
+  completed.delivery={finalized:true,chainId:8453,tokenAddress:completed.verification.payments[0].receipt.tokenAddress,recipient:old.agent.address,amountRaw:completed.verification.expectedNetRaw,receipts:completed.verification.payments.map(p=>p.receipt)};
+  await f.tracker.apply(claim,completed);await f.drafts.closeVerified(f.id);
+  assert.equal((await f.drafts.review(f.owner,f.id)).status,'closed');assert.equal((await f.drafts.review(f.owner,next.id)).status,'draft');
+  assert.equal((await f.pool.query('SELECT order_id FROM relay_live_payments')).rows[0].order_id,f.id);assert.ok(f.calls.every(x=>x==='GET'));
+ }finally{await f.worker.stop();await f.close();}
+});
+
+test('separate tracking preserves review holds and never treats unknown, partial or unmatched payment evidence as fully paid',async()=>{
+ const f=await setup({pending:true});try{
+  const input={id:f.id,confirmSeparate:true};await assert.rejects(f.drafts.trackSeparately(f.owner,input),/not been recorded/);
+  await assert.rejects(f.drafts.trackSeparately(f.owner,{id:f.id}),/Confirm/);await assert.rejects(f.drafts.trackSeparately(f.owner,{...input,paid:true}),/Unsupported/);
+  await assert.rejects(f.drafts.trackSeparately('customer:'+randomUUID(),input),/not found/);
+  f.set('FULFILLED',[payment()]);await f.worker.tick();
+  await f.pool.query("UPDATE relay_live_orders SET result=jsonb_set(result,'{verification,providerFulfilled}','false'::jsonb) WHERE id=$1",[f.id]);
+  await assert.rejects(f.drafts.trackSeparately(f.owner,input),/not been recorded/);
+  await f.pool.query("UPDATE relay_live_orders SET result=jsonb_set(result,'{verification,providerFulfilled}','true'::jsonb),review_required=true,status='checkout_review' WHERE id=$1",[f.id]);
+  const before=await f.tracker.owned(f.owner,f.id);await f.drafts.trackSeparately(f.owner,input);assert.deepEqual(await f.tracker.owned(f.owner,f.id),before);await f.next('30');
+ }finally{await f.worker.stop();await f.close();}
+ const g=await setup({pending:true});try{
+  g.set('FULFILLED',[payment()]);await g.worker.tick();await g.pool.query('DELETE FROM relay_live_payments WHERE order_id=$1',[g.id]);
+  await assert.rejects(g.drafts.trackSeparately(g.owner,{id:g.id,confirmSeparate:true}),/incomplete/);await assert.rejects(g.next('30'),/existing/);
+ }finally{await g.worker.stop();await g.close();}
+});
+
+test('track-separately HTTP requires ownership and same origin and creates no provider request',async()=>{
+ const f=await setup({pending:true});let server;try{
+  f.set('FULFILLED',[payment()]);await f.worker.tick();f.calls.length=0;
+  const live={store:f.tracker,funding:f.funding,simulated:false,status:async()=>({paymentsEnabled:true}),policy:{status:async()=>({})}};
+  server=createHostedServer({store:f.store,fundingDrafts:f.drafts,liveObservation:live,config:{origin:'https://relay.example',host:'relay.example',testers:[]},paymentsDisabled:true,allowHttpForTests:true});await new Promise(r=>server.listen(0,'127.0.0.1',r));
+  const req=(data,token=f.login.token,origin='https://relay.example')=>new Promise((resolve,reject)=>{const q=http.request({hostname:'127.0.0.1',port:server.address().port,path:'/api/funding/track-separately',method:'POST',headers:{host:'relay.example',origin,'content-type':'application/json',cookie:'__Host-relay_sandbox='+token}},r=>{let b='';r.on('data',x=>b+=x);r.on('end',()=>resolve({status:r.statusCode,data:JSON.parse(b)}));});q.on('error',reject);q.end(JSON.stringify(data));});
+  const input={id:f.id,confirmSeparate:true};assert.equal((await req(input,'')).status,401);assert.equal((await req(input,f.login.token,'https://evil.example')).status,403);assert.equal((await req({id:f.id})).status,400);
+  const other=await f.accounts.signup({email:'other-separate@example.test',name:'Other',password:'lantern river meadow fixture',acceptSandbox:true});assert.equal((await req(input,other.token)).status,404);
+  const result=await req(input);assert.equal(result.status,200);assert.ok(result.data.fundingDrafts[0].trackingOnlyAt);assert.equal(result.data.orders[0].trackingOnly,true);assert.equal(result.data.orders[0].stoppedInRelay,false);assert.equal(result.data.orders[0].status,'checkout_confirming');assert.deepEqual(f.calls,[]);
+  assert.equal((await req(input)).status,200);await f.next('35');
+ }finally{if(server)await new Promise(r=>server.close(r));await f.worker.stop();await f.close();}
+});

@@ -1,3 +1,4 @@
+import {hasRecordedPayment} from '../shared/paid-request.mjs';
 import FundingCompatibility,{fundingAssets} from './FundingCompatibility';
 import {fundingCompatibility} from '../shared/funding-compatibility.mjs';
 import {fundingCatalog,methodLabel,formatFiat,minimumMinor,supportsFunding} from '../shared/fiat.mjs';
@@ -65,28 +66,28 @@ export function LiveFunding({state,act,busy,error,onClose,open,selected,fundingP
 }
 export function FundingDraft({state,draft,act,busy,error,onClose,open}){
  const live=state.liveFunding?.paymentsEnabled===true;
- const [consent,setConsent]=useState(false),[link,setLink]=useState(null),[localError,setError]=useState(''),[opening,setOpening]=useState(false),[cancelOpen,setCancelOpen]=useState(false),[noPayment,setNoPayment]=useState(false);
- useEffect(()=>{setLink(null);setConsent(false);setError('');setCancelOpen(false);setNoPayment(false);},[draft?.id,draft?.status,draft?.cancellationState,draft?.stoppedAt,state.orders.find(o=>o.id===draft?.id)?.status,state.orders.find(o=>o.id===draft?.id)?.trackingError,state.orders.find(o=>o.id===draft?.id)?.reviewRequired]);
+ const [consent,setConsent]=useState(false),[link,setLink]=useState(null),[localError,setError]=useState(''),[opening,setOpening]=useState(false),[cancelOpen,setCancelOpen]=useState(false),[noPayment,setNoPayment]=useState(false),[separate,setSeparate]=useState(false);
+ useEffect(()=>{setLink(null);setConsent(false);setError('');setCancelOpen(false);setNoPayment(false);setSeparate(false);},[draft?.id,draft?.status,draft?.cancellationState,draft?.stoppedAt,draft?.trackingOnlyAt,state.orders.find(o=>o.id===draft?.id)?.status,state.orders.find(o=>o.id===draft?.id)?.trackingError,state.orders.find(o=>o.id===draft?.id)?.reviewRequired]);
  if(!draft)return <Modal title="Funding request" onClose={onClose}><Notice>This request is no longer available in your account.</Notice></Modal>;
  const draftOnly=draft.status==='draft',cancelled=draft.status==='cancelled',bound=draft.status==='bound',closed=draft.status==='closed';
  const tracked=state.orders.find(o=>o.id===draft.id),ready=canContinueCheckout(draft,tracked,live);
  async function resume(){setOpening(true);setError('');try{const r=await api('funding/resume',{id:draft.id,confirm:true});setLink(r.checkoutUrl);}catch(e){setError(e.message);}finally{setOpening(false);}}
  return <Modal title="Your funding request" className="fund-request-modal" onClose={busy?()=>{}:onClose}>
   {state.account&&<button className="text-button" onClick={()=>open('payment-help',draft.id)}>Payment help and downloadable record</button>}
-  <Notice>{draft.stoppedAt?'Stopped in Eupova. You can start a new funding request. The old Peer checkout may still be open; do not pay it.':cancelled?(draft.cancellationState==='confirmed'?'Peer has confirmed cancellation. You can create a new request with a different amount.':'Draft cancelled. No checkout was created.'):draftOnly?'Saved in Eupova. No checkout has been created yet.':closed?'The funds arrived in your wallet. Open the receipt to see the confirmed transfer.':bound?(draft.cancellationState==='requested'?'Your cancellation request is saved. The order is not cancelled yet.':paymentAttemptState(tracked)?'Your funding request is saved. Review its status below.':'Your Peer checkout is saved. Use this request to continue the same payment.'):'Eupova has not confirmed whether Peer created this checkout. Keep this request while Eupova checks; do not pay a replacement.'}</Notice>
+  <Notice>{draft.trackingOnlyAt&&!closed&&!cancelled?'This paid request is still tracking. Follow its progress in Activity while you fund another wallet or amount.':draft.stoppedAt?'Stopped in Eupova. You can start a new funding request. The old Peer checkout may still be open; do not pay it.':cancelled?(draft.cancellationState==='confirmed'?'Peer has confirmed cancellation. You can create a new request with a different amount.':'Draft cancelled. No checkout was created.'):draftOnly?'Saved in Eupova. No checkout has been created yet.':closed?'The funds arrived in your wallet. Open the receipt to see the confirmed transfer.':bound?(draft.cancellationState==='requested'?'Your cancellation request is saved. The order is not cancelled yet.':paymentAttemptState(tracked)?'Your funding request is saved. Review its status below.':'Your Peer checkout is saved. Use this request to continue the same payment.'):'Eupova has not confirmed whether Peer created this checkout. Keep this request while Eupova checks; do not pay a replacement.'}</Notice>
   {tracked&&<TrackingNotice order={tracked}/>}
-  {!draft.stoppedAt&&draft.cancellationState==='requested'&&<Notice>Your earlier cancellation request is awaiting review. If you have not paid, you can stop the request in Eupova and start again below.</Notice>}
-  {!draft.stoppedAt&&draft.cancellationState==='blocked'&&<Notice error>Peer cancellation is unavailable. If you have not paid, Eupova can check whether you can stop this request and start again.</Notice>}
+  {!draft.stoppedAt&&!draft.trackingOnlyAt&&!hasRecordedPayment(tracked)&&draft.cancellationState==='requested'&&<Notice>Your earlier cancellation request is awaiting review. If you have not paid, you can stop the request in Eupova and start again below.</Notice>}
+  {!draft.stoppedAt&&!draft.trackingOnlyAt&&!hasRecordedPayment(tracked)&&draft.cancellationState==='blocked'&&<Notice error>Peer cancellation is unavailable. If you have not paid, Eupova can check whether you can stop this request and start again.</Notice>}
   {(error||localError)&&<Notice error>{error||localError}</Notice>}
   <dl className="details"><div><dt>Requested funding</dt><dd>{formatFiat(draft.pence,draft.currency)}</dd></div><div><dt>Pay with</dt><dd>{methodLabel(draft.rail)} · {draft.currency??'GBP'}</dd></div><div><dt>Agent</dt><dd>{draft.agent.name}</dd></div><div><dt>Receives</dt><dd>USDC on Base</dd></div></dl>
   {draftOnly&&<FundingCompatibility requestSummary agent={draft.agent} rail={draft.rail} currency={draft.currency} amountMinor={draft.pence} walletCurrent={draft.walletCurrent}/>}
   <FundingCosts setupOnly={draftOnly&&!tracked&&!draft.stoppedAt} currency={draft.currency} expiry={paymentAttemptState(tracked)} reviewNoticeShown requestedPence={draft.pence} verification={tracked?.verification} simulated={!!tracked?.fixture||!!tracked?.journey} stopped={!!draft.stoppedAt} ended={cancelled||closed} review={!!tracked?.reviewRequired||tracked?.status==='checkout_review'} trackingError={!!tracked?.trackingError}/>
   <p>Receiving address</p><code className="checkout-address">{draft.agent.address}</code>
   {!draft.walletCurrent&&draftOnly&&<Notice error>The saved wallet has changed. Cancel this draft and review the updated address.</Notice>}
-  {!draft.supersededBy&&<FundingInstructions currency={draft.currency} preview={!live||draftOnly} rail={draft.rail} requestedPence={draft.pence} stage={draft.stoppedAt?'stopped':closed||cancelled?'closed':draftOnly?'ready':tracked?.status==='checkout_partial'?'partial':ready?'ready':'tracking'}/>}
-  <PhoneResume key={draft.id} id={draft.id} trackingOnly={!!draft.stoppedAt||closed||cancelled||(!draftOnly&&!ready)}/>
+  {!draft.supersededBy&&<FundingInstructions currency={draft.currency} preview={!live||draftOnly} rail={draft.rail} requestedPence={draft.pence} stage={closed||cancelled?'closed':draft.trackingOnlyAt?'tracking':draft.stoppedAt?'stopped':draftOnly?'ready':tracked?.status==='checkout_partial'?'partial':ready?'ready':'tracking'}/>}
+  <PhoneResume key={draft.id} id={draft.id} trackingOnly={!!draft.trackingOnlyAt||!!draft.stoppedAt||closed||cancelled||(!draftOnly&&!ready)}/>
   {live&&ready&&<Notice>Already paid or scheduled it? Open the same checkout only to complete verification. Do not send another transfer.</Notice>}
-  {draft.stoppedAt?null:draft.supersededBy?<Button onClick={()=>open('funding-draft',draft.supersededBy)}>Open replacement request</Button>:live&&draftOnly?<>
+  {draft.stoppedAt||draft.trackingOnlyAt?null:draft.supersededBy?<Button onClick={()=>open('funding-draft',draft.supersededBy)}>Open replacement request</Button>:live&&draftOnly?<>
    <Check checked={consent} onChange={e=>setConsent(e.target.checked)}>Create a real Peer checkout and share this amount, receiving address and order reference with Peer. I will review the final payment details before paying.</Check>
    <Button className="full spaced" disabled={busy||!consent||!draft.walletCurrent} onClick={()=>act('funding/checkout',{id:draft.id,confirm:true,consent:true})}>{busy?'Creating checkout…':'Create real Peer checkout'}</Button>
   </>:live&&ready?<>
@@ -95,8 +96,14 @@ export function FundingDraft({state,draft,act,busy,error,onClose,open}){
   </>:!live&&!closed&&!cancelled&&<Button className="full" disabled>Payments disabled</Button>}
   {(bound||closed||draft.cancellationState==='confirmed')&&<Button secondary className="full spaced" onClick={()=>open('order',draft.id)}>Track payment and wallet delivery</Button>}
   {draftOnly&&<Button secondary className="full spaced" disabled={busy} onClick={async()=>{if(await act('funding/cancel',{id:draft.id}))open('live-fund',draft.agent.id);}}>Cancel draft and choose another amount</Button>}
-  {(closed||cancelled||draft.stoppedAt)&&<Button className="full spaced" onClick={()=>open('live-fund',draft.agent.id)}>Create a new funding request</Button>}
-  {bound&&!draft.supersededBy&&!draft.stoppedAt&&!tracked?.verification?.payments?.some(p=>p.status==='SETTLED')&&!tracked?.reviewRequired&&<>
+  {(closed||cancelled||draft.stoppedAt||draft.trackingOnlyAt)&&<Button className="full spaced" onClick={()=>open('live-fund',draft.agent.id)}>Create a new funding request</Button>}
+  {bound&&!draft.supersededBy&&!draft.stoppedAt&&!draft.trackingOnlyAt&&hasRecordedPayment(tracked)&&<section className="checkout-setup">
+   <h3>Fund another amount</h3><p>Your payment is recorded. This request will keep tracking in Activity until its delivery is resolved. Starting a separate request does not cancel or refund it.</p>
+   <Check checked={separate} disabled={busy} onChange={e=>setSeparate(e.target.checked)}>I want to add more funds. I am not paying again for this request.</Check>
+   {error&&<Notice error>{error}</Notice>}
+   <Button className="full spaced" disabled={busy||!separate} onClick={async()=>{if(await act('funding/track-separately',{id:draft.id,confirmSeparate:true}))open('live-fund',draft.agent.id);}}>{busy?'Opening new request…':'Start a new funding request'}</Button>
+  </section>}
+  {bound&&!draft.supersededBy&&!draft.stoppedAt&&!draft.trackingOnlyAt&&!tracked?.verification?.payments?.some(p=>p.status==='SETTLED')&&!tracked?.reviewRequired&&<>
    <Button secondary className="full spaced" disabled={busy} onClick={()=>setCancelOpen(!cancelOpen)}>Stop this request and start again</Button>
    {cancelOpen&&<section className="checkout-setup"><h3>Choose a new amount</h3><p>This stops the request in Eupova and lets you start a new one immediately. It does not cancel the Peer checkout, cancel a bank transfer or refund money. Do not use the old payment link or instructions.</p><p>If you have already sent or scheduled payment, keep tracking this order instead. Eupova will continue checking the old order for any late funds.</p>
     {(error||localError)&&<Notice error>{error||localError}</Notice>}

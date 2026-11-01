@@ -30,7 +30,7 @@ test('resume resolution uses only the signed-in owner state and does not follow 
 test('a phone link cannot restore checkout controls for a stopped, expired, completed or held request',()=>{
  const draft={status:'bound'},order={status:'checkout_ready',chargebackStatus:'NONE'};
  assert.equal(canContinueCheckout(draft,order,true),true);assert.equal(canContinueCheckout(draft,{...order,status:'checkout_partial'},true),true);
- for(const update of [{stoppedAt:'now'},{supersededBy:'replacement'},{status:'draft'},{status:'closed'},{status:'cancelled'},{status:'unresolved'},{cancellationState:'requested'}])assert.equal(canContinueCheckout({...draft,...update},order,true),false);
+ for(const update of [{trackingOnlyAt:'now'},{stoppedAt:'now'},{supersededBy:'replacement'},{status:'draft'},{status:'closed'},{status:'cancelled'},{status:'unresolved'},{cancellationState:'requested'}])assert.equal(canContinueCheckout({...draft,...update},order,true),false);
  for(const update of [{status:'checkout_cancelled'},{status:'checkout_received'},{status:'checkout_review'},{status:'checkout_confirming'},{trackingError:'offline'},{reviewRequired:true},{chargebackStatus:'OPEN'}])assert.equal(canContinueCheckout(draft,{...order,...update},true),false);
  assert.equal(canContinueCheckout(draft,order,false),false);
 });

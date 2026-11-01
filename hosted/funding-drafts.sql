@@ -28,14 +28,17 @@ ALTER TABLE relay_funding_drafts DROP CONSTRAINT IF EXISTS relay_funding_currenc
 ALTER TABLE relay_funding_drafts ADD CONSTRAINT relay_funding_currency_rail CHECK((rail='venmo' AND currency IN ('USD')) OR (rail='revolut' AND currency IN ('AED','AUD','CAD','CHF','CNY','CZK','DKK','EUR','GBP','HKD','HUF','JPY','MXN','NOK','NZD','PLN','RON','SAR','SEK','SGD','THB','TRY','USD','ZAR')) OR (rail='cashapp' AND currency IN ('USD')) OR (rail='wise' AND currency IN ('AED','AUD','CAD','CHF','CNY','CZK','DKK','EUR','GBP','HKD','HUF','IDR','ILS','INR','JPY','KES','MXN','MYR','NOK','NZD','PHP','PLN','RON','SEK','SGD','THB','TRY','UGX','USD','VND','ZAR')) OR (rail='zelle' AND currency IN ('USD')) OR (rail='monzo' AND currency IN ('GBP')) OR (rail='chime' AND currency IN ('USD')));
 ALTER TABLE relay_funding_drafts ADD COLUMN IF NOT EXISTS superseded_by uuid REFERENCES relay_funding_drafts(id) DEFERRABLE INITIALLY DEFERRED;
 ALTER TABLE relay_funding_drafts ADD COLUMN IF NOT EXISTS stopped_at timestamptz;
+ALTER TABLE relay_funding_drafts ADD COLUMN IF NOT EXISTS tracking_only_at timestamptz;
 DROP INDEX IF EXISTS relay_funding_one_active;
-CREATE UNIQUE INDEX relay_funding_one_active ON relay_funding_drafts(owner) WHERE status NOT IN ('cancelled','closed') AND superseded_by IS NULL AND stopped_at IS NULL;
+CREATE UNIQUE INDEX relay_funding_one_active ON relay_funding_drafts(owner) WHERE status NOT IN ('cancelled','closed') AND superseded_by IS NULL AND stopped_at IS NULL AND tracking_only_at IS NULL;
 CREATE TABLE IF NOT EXISTS relay_funding_audit (
  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, draft_id uuid NOT NULL REFERENCES relay_funding_drafts(id),
  event text NOT NULL, at timestamptz NOT NULL DEFAULT now()
 );
 CREATE OR REPLACE FUNCTION relay_funding_immutable() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
+ IF OLD.tracking_only_at IS NOT NULL AND NEW.tracking_only_at IS DISTINCT FROM OLD.tracking_only_at THEN RAISE EXCEPTION 'Tracking-only request cannot be reopened'; END IF;
+ IF NEW.tracking_only_at IS DISTINCT FROM OLD.tracking_only_at AND (OLD.status<>'bound' OR NEW.status<>'bound' OR OLD.stopped_at IS NOT NULL OR OLD.superseded_by IS NOT NULL) THEN RAISE EXCEPTION 'Only a bound paid request can become tracking-only'; END IF;
  IF OLD.stopped_at IS NOT NULL AND NEW.stopped_at IS DISTINCT FROM OLD.stopped_at THEN RAISE EXCEPTION 'Stopped request cannot be reopened'; END IF;
  IF NEW.stopped_at IS DISTINCT FROM OLD.stopped_at AND OLD.status<>'bound' THEN RAISE EXCEPTION 'Only a bound request can be stopped'; END IF;
  IF NEW.superseded_by IS DISTINCT FROM OLD.superseded_by AND (OLD.superseded_by IS NOT NULL OR OLD.status<>'bound' OR NEW.status<>'bound' OR NEW.superseded_by=OLD.id) THEN RAISE EXCEPTION 'Immutable supersession'; END IF;
