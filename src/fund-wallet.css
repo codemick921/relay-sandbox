@@ -113,3 +113,6 @@
 .fund-final-review .fund-review-facts>div:first-child{background:#f4f0fa;border:0;border-radius:12px;padding:16px;margin-bottom:4px;align-items:center}
 .fund-final-review .fund-review-facts>div:first-child dd{font-family:EupovaDisplay,system-ui,sans-serif;font-size:26px;color:#183d30}
 .fund-wizard .fund-step-actions{position:sticky;bottom:0;z-index:2;background:#fff;box-shadow:0 -12px 18px rgba(255,255,255,.96);padding:16px 0 12px}
+/* Keep the payment fieldset title inside its lavender surface. */
+.fund-wizard .fund-form-section--payment legend{float:left;width:100%;padding:0;margin:0 0 20px}
+.fund-wizard .fund-form-section--payment .fund-payment-pair{clear:both}
