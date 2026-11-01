@@ -1,4 +1,7 @@
 import {Brand} from './Brand.jsx';
+import AccessArtwork,{AccessRibbon} from './AccessArtwork';
+import AccessPassword from './AccessPassword';
+import './access.css';
 import {FundingIntroduction} from './FundingHome';
 import AccountSecurity from './AccountSecurity';
 import AccountEmail from './AccountEmail';
@@ -52,7 +55,10 @@ export default function Access(){
  const customer=access?.customerAccounts,effectiveMode=customer?mode:'tester';
  const emailEnabled=access?.emailSendingEnabled,localEmail=access?.localEmailPreview;
  const title={security:'Account security',signup:'Create your Eupova account',recover:'Use your recovery code',forgot:'Reset your password',reset:'Choose a new password',confirmEmail:'Verify your email'}[mode]??'Welcome to Eupova';
- return <main className="sandbox-login"><section className="panel"><Brand/><h1>{recovery?'Save your recovery code':title}</h1><p>Save your agent wallets and track your funding. Review the payment mode before creating a checkout.</p>
+ const illustrated=!!access&&!access.authenticated&&!recovery&&!link&&!hasResume&&['signin','signup','tester'].includes(mode);
+ return <main className={`sandbox-login auth-page ${illustrated?'auth-page--illustrated':'auth-page--compact'}`}><div className="auth-shell">
+ {illustrated&&<AccessArtwork/>}
+ <section className="panel auth-panel" aria-labelledby="auth-title"><div className="auth-panel-top"><Brand/>{illustrated&&<AccessRibbon className="auth-mobile-ribbon"/>}</div><h1 id="auth-title">{recovery?'Save your recovery code':title}</h1><p>Save your agent wallets and track your funding. Review the payment mode before creating a checkout.</p>
  {hasResume&&!access?.authenticated&&<Notice>Sign in to the same Eupova account to resume your saved request. Opening this link does not create an order or send money.</Notice>}
  {error&&<Notice error>{error}</Notice>}{message&&<Notice>{message}</Notice>}
  {localEmail&&<Notice>Local email preview: messages stay in this test app. Nothing is sent to an inbox.</Notice>}
@@ -74,11 +80,11 @@ export default function Access(){
  </>}
  <form onSubmit={submit}>
  {effectiveMode==='tester'?<Field label="Tester access code" hint="Existing tester workspaces stay separate from customer accounts."><input type="password" autoComplete="current-password" required value={code} onChange={e=>setCode(e.target.value)}/></Field>:<>
- {mode==='signup'&&<Field label="Your name"><input autoComplete="name" required minLength={2} maxLength={60} value={name} onChange={e=>setName(e.target.value)}/></Field>}
- {!['security','reset'].includes(mode)&&<Field label="Email address"><input type="email" autoComplete="username" required maxLength={254} value={email} onChange={e=>setEmail(e.target.value)}/></Field>}
+ {mode==='signup'&&<Field label="Your name"><input id="auth-name" name="name" autoComplete="name" required minLength={2} maxLength={60} value={name} onChange={e=>setName(e.target.value)}/></Field>}
+ {!['security','reset'].includes(mode)&&<Field label="Email address"><input id="auth-email" name="email" type="email" spellCheck="false" autoComplete="username" required maxLength={254} value={email} onChange={e=>setEmail(e.target.value)}/></Field>}
  {mode==='security'&&<Field label="Current password"><input type="password" autoComplete="current-password" required maxLength={128} value={currentPassword} onChange={e=>setCurrentPassword(e.target.value)}/></Field>}
  {mode==='recover'&&<Field label="Recovery code"><input autoComplete="off" type="password" required minLength={64} maxLength={64} value={code} onChange={e=>setCode(e.target.value.trim())}/></Field>}
- {mode!=='forgot'&&<Field label={['recover','security','reset'].includes(mode)?'New password':'Password'} hint={mode==='signin'?undefined:'Use 15 to 128 characters. A password manager can generate one for you.'}><input type="password" autoComplete={mode==='signin'?'current-password':'new-password'} required minLength={mode==='signin'?1:15} maxLength={128} value={password} onChange={e=>setPassword(e.target.value)}/></Field>}
+ {mode!=='forgot'&&<AccessPassword key={effectiveMode} id={mode==='signin'?'auth-password':'auth-new-password'} name="password" label={['recover','security','reset'].includes(mode)?'New password':'Password'} hint={mode==='signin'?undefined:'Use 15 to 128 characters. A password manager can generate one for you.'} autoComplete={mode==='signin'?'current-password':'new-password'} required minLength={mode==='signin'?1:15} maxLength={128} value={password} onChange={e=>setPassword(e.target.value)}/>}
  {mode==='signup'&&<Field label="Invitation code (optional)" hint="Invited to test? Enter your code to start in simulation mode."><input autoComplete="off" spellCheck="false" maxLength={36} value={inviteCode} onChange={e=>setInviteCode(e.target.value)}/></Field>}
  {mode==='signup'&&<><p className="fine-print">{emailEnabled?'After signing up, save your recovery code and verify your email.':'Email sending is not connected yet. Save the recovery code shown after sign-up to protect your access.'}</p><Check required checked={accepted} onChange={e=>setAccepted(e.target.checked)}>I understand that saving a wallet does not verify ownership. I must review each checkout before making a payment.</Check></>}
  {mode==='forgot'&&<Notice>{emailEnabled?(localEmail?'Test password recovery is available after test verification. View reset previews from Account security while signed in. If you cannot sign in, use your saved recovery code.':'Email recovery is available for accounts with a verified email address. If you have not verified yours, use your saved recovery code.'):'Email sending is not connected yet. You can reset your password using your saved recovery code.'}</Notice>}
@@ -91,5 +97,5 @@ export default function Access(){
  {customer&&<div className="auth-links">{access.authenticated?<button type="button" className="text-button" disabled={busy} onClick={()=>{setLink(null);switchMode('signin');}}>Back to my wallets</button>:<><button type="button" className="text-button" disabled={busy} onClick={()=>switchMode(mode==='forgot'?'recover':'forgot')}>{mode==='forgot'?'Use a recovery code':'Forgot your password?'}</button><button type="button" className="text-button" disabled={busy} onClick={()=>{setLink(null);switchMode(mode==='tester'?'signin':'tester');}}>{mode==='tester'?'Use customer sign-in':'Existing tester access'}</button></>}</div>}
  </>}
  {!access?.authenticated&&!hasResume&&!link&&!recovery&&access?.customerAccounts&&<button type="button" className="text-button funding-auth-back" disabled={busy} onClick={()=>switchMode('welcome')}>Back to Eupova</button>}
- </section></main>;
+ </section></div></main>;
 }

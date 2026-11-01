@@ -61,3 +61,13 @@ Use the product showcase until genuine approved testimonials exist. Current scen
 ## Provenance and limits
 
 Implemented source: src/Welcome.jsx and src/welcome.css. Research and original artwork evidence: ../evidence/premium-home in the connected-funding workspace. Visual direction draws on first-party Wise brand/type case studies, Mercury’s product presentation and W3C carousel guidance; exact implementations are original to Eupova. Opus 5.5 High provided the recorded art-direction synthesis, then local implementation adapted it to verified product capabilities. No measured conversion lift or user-study result is claimed.
+
+## Sign-in application — 1 November 2026
+
+Implemented for local review, not yet approved for publication. Mickel requested a brighter and more sophisticated sign-in using the previous pages’ design elements. The desktop layout pairs an original ribbon illustration on mint with a white form. Lavender and pale-lime background washes add colour without reducing form contrast. Space Grotesk supplies heading character; Manrope remains the form typeface. Artwork edges fade into the mint surface rather than creating a hard image strip.
+
+At 900px and below, remove the large side panel and keep a small decorative ribbon beside the logo. Give the form normal document scrolling, safe-area-aware outer space, 16px inputs, 44px minimum action targets and violet keyboard focus. The form remains the first task; no carousel, GIF, fabricated balances or decorative success states. Keep recovery, email verification and account security in a quieter single-panel layout with prominent notices.
+
+Use AccessPassword for the reviewed show/hide control: explicit labels, password-manager autocomplete, no form submission from the toggle, hidden on mode change, and cursor restoration cancelled if typing resumes. Do not broaden this visual change into credential-policy or recovery-flow changes. Retain invitation codes, recovery acknowledgement, tester separation, saved requests and payment settings.
+
+Verified locally in isolated Chromium at 1440×900, 768×1024, 393×852, 393×660, 320×568 and 852×393; enlarged desktop layout and keyboard paths were also checked. Physical iPhone browser toolbar and WebKit behaviour remain unverified. This design is a hypothesis for clarity and engagement; no conversion uplift has been measured.
