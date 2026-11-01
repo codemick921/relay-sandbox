@@ -31,7 +31,7 @@ export function WalletPreferences({state,agentId,act,busy,error,onClose}){
  const wallet=state.walletBalances?.wallets.find(w=>w.agentId===agentId),agent=state.agents.find(a=>a.id===agentId);
  const [enabled,setEnabled]=useState(wallet?.alertsEnabled??false),[threshold,setThreshold]=useState(inputUsdc(wallet?.thresholdRaw??'10000000')),[target,setTarget]=useState(inputUsdc(wallet?.targetRaw??'50000000'));
  if(!wallet||!agent)return <Modal title="Balance alerts" onClose={onClose}><Notice>Wallet not available.</Notice></Modal>;
- return <Modal title={`Balance alerts · ${agent.name}`} onClose={busy?()=>{}:onClose}><p>Show a reminder in Eupova when this wallet balance falls below the amount you choose. Alerts use a fresh USDC balance and do not trigger payments or emails.</p>{error&&<Notice error>{error}</Notice>}
+ return <Modal className="agent-editor" title={`Balance alerts · ${agent.name}`} onClose={busy?()=>{}:onClose}><p>Show a reminder in Eupova when this wallet balance falls below the amount you choose. Alerts use a fresh USDC balance and do not trigger payments or emails.</p>{error&&<Notice error>{error}</Notice>}
   <form onSubmit={async e=>{e.preventDefault();if(await act('wallet-balances/preferences',{agentId,enabled,threshold,target}))onClose();}}>
    <Check checked={enabled} onChange={e=>setEnabled(e.target.checked)}>Show low-balance alerts in Eupova</Check>
    <Field label="Alert below (USDC)"><input required inputMode="decimal" value={threshold} onChange={e=>setThreshold(e.target.value)}/></Field>

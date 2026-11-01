@@ -7,7 +7,7 @@ export default function WalletEditor({state,agent,act,busy,error,onClose,onSaved
  const [name,setName]=useState(agent?.name??'Research assistant'),[address,setAddress]=useState(agent?.address??''),[own,setOwn]=useState(false),[password,setPassword]=useState('');
  const customer=!!state.account,edited=!!agent,check=walletAddressCheck(address);
  const canSave=check.valid&&own&&name.trim().length>=2&&name.trim().length<=60&&(!customer||password.length>0)&&!busy;
- return <Modal title={edited?'Edit saved wallet':'Add your agentic wallet'} onClose={busy?()=>{}:onClose}>
+ return <Modal className="agent-editor" title={edited?'Edit saved wallet':'Add your agentic wallet'} onClose={busy?()=>{}:onClose}>
   <Notice>{edited?'Changes apply to future requests only. Existing drafts, payments and receipts keep their original destination. Cancel an unsubmitted draft and review a new one to use the updated wallet.':'Save the address that should receive USDC on the Base network. Eupova does not verify who owns it and cannot spend from it.'}</Notice>
   <FundingTerms/>
   {error&&<Notice error>{error}</Notice>}

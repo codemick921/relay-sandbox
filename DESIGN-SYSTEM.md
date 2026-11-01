@@ -132,3 +132,12 @@ Activity, Funding history and Payment help share one customer navigation entry: 
 Keep the existing Manrope/Space Grotesk typography, forest actions, mint status panel, lavender record heading and lime receiving-wallet card. Payment progress is an evidence checklist rather than an invented duration or percentage. Provider confirmation and wallet arrival have separate indicators. Recorded arrival without complete confirmation is not automatically a partial payment. Unknown amounts remain unavailable, never zero.
 
 Request detail prioritises current status and next step, then amounts, progress and destination. Recovery guidance and references expand on demand; existing receipts and request controls remain available. Back retains the list tab, search and page. Background refresh retains the visible list until fresh data arrives. These views read existing records; they do not change payment state or settings.
+
+
+## My agents directory (1 November 2026)
+
+Use one card per saved wallet, combining its existing balance snapshot and management controls. Keep the exact receiving address visible and selectable; copying it reports success or failure. Search names and addresses locally. The Needs attention filter includes low, stale and unavailable balances without treating unknown values as zero.
+
+Reuse the forest actions, alternating mint/lavender card headings, lime icon tile and existing typography. Use two columns on wide screens and one on mobile, with touch controls at least 44px high. Keep Add wallet visible above the directory. Wallet editing and alert dialogs use the same mint header and rounded white surface.
+
+Funding buttons retain the shared funding-entry checks and existing-request review. Editing retains password and full-address confirmation. No wallet connection, ownership badge, deletion, automatic payment or new permissions are introduced. Balance refresh requests an existing check; it does not guarantee a new reading immediately.
