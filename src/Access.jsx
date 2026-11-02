@@ -11,6 +11,7 @@ import React,{useState,useEffect,useCallback} from 'react';
 import App from './App';
 import {api} from './api';
 import {Button,Field,Notice,Check} from './ui';
+function notifyConnectionLogout(){try{const channel=new BroadcastChannel('eupova-auth-events');channel.postMessage('ended');channel.close();}catch{}}
 export default function Access(){
  const [hasResume,setHasResume]=useState(()=>!!resumeTarget(window.location));
  const [access,setAccess]=useState(null),[error,setError]=useState(''),[message,setMessage]=useState(''),[busy,setBusy]=useState(false),[mode,setMode]=useState(()=>resumeTarget(window.location)?'signin':'welcome');
@@ -29,7 +30,7 @@ export default function Access(){
   const readLink=()=>{const resume=!!resumeTarget(window.location);setHasResume(resume);if(resume)setMode(current=>current==='welcome'?'signin':current);const hash=window.location.hash;if(hash.startsWith('#verify-email=')||hash.startsWith('#reset-password=')){window.history.replaceState(null,'',window.location.pathname+window.location.search);openLink(hash);}};
   readLink();window.addEventListener('hashchange',readLink);
   api('access').then(a=>active&&setAccess(a)).catch(e=>{if(!active)return;if(e.status===404)setAccess({hostedSandbox:false,authenticated:true});else setError('Eupova is temporarily unavailable. Please try again.');});
-  const expired=()=>{clearSecrets();setHasResume(!!resumeTarget(window.location));setMode('signin');setAccess(previous=>({...previous,hostedSandbox:true,authenticated:false,account:null}));};window.addEventListener('relay-session-expired',expired);
+  const expired=()=>{notifyConnectionLogout();clearSecrets();setHasResume(!!resumeTarget(window.location));setMode('signin');setAccess(previous=>({...previous,hostedSandbox:true,authenticated:false,account:null}));};window.addEventListener('relay-session-expired',expired);
   return()=>{active=false;window.removeEventListener('hashchange',readLink);window.removeEventListener('relay-session-expired',expired);};
  },[]);
  async function action(route,data={}){
@@ -50,7 +51,7 @@ export default function Access(){
    if(result.recoveryCode){setRecovery(result.recoveryCode);setSaved(false);}else setMode(link?.purpose==='verify-email'?'confirmEmail':'signin');
   }catch(e){setError(e.message);}finally{setBusy(false);}
  }
- async function signout(preserveVerification=false){try{await api('logout',{});clearSecrets();setHasResume(!!resumeTarget(window.location));if(!(preserveVerification===true&&link?.purpose==='verify-email'))setLink(null);setMode('signin');setAccess({...access,authenticated:false,account:null});setError('');setMessage('');}catch{setError('Sign-out could not be confirmed. Please retry.');}}
+ async function signout(preserveVerification=false){try{await api('logout',{});notifyConnectionLogout();clearSecrets();setHasResume(!!resumeTarget(window.location));if(!(preserveVerification===true&&link?.purpose==='verify-email'))setLink(null);setMode('signin');setAccess({...access,authenticated:false,account:null});setError('');setMessage('');}catch{setError('Sign-out could not be confirmed. Please retry.');}}
  if(access?.authenticated&&!recovery&&!['security','confirmEmail','reset','forgot'].includes(mode))return <>{access.hostedSandbox&&<div className="sandbox-access-bar"><span>{access.account?`${access.account.name} · Your agent wallet account`:access.adminPaymentHealth?'Admin workspace · saved payment evidence':'Private tracking sandbox · simulated payments'}</span>{access.account&&<button onClick={()=>switchMode('security')}>{access.account.emailVerified?'Account security':'Account security · email unverified'}</button>}<button onClick={signout}>Sign out</button>{error&&<span role="alert">{error}</span>}</div>}<App/></>;
  if(access&&!access.authenticated&&access.customerAccounts&&!recovery&&!link&&!hasResume&&mode==='welcome')return <FundingIntroduction previewMode={!!access.localEmailPreview && !!access.previewMode} onFund={()=>switchMode('signup')} onSignIn={()=>switchMode('signin')}/>;
  const customer=access?.customerAccounts,effectiveMode=customer?mode:'tester';

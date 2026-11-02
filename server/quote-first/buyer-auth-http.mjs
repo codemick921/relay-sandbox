@@ -72,9 +72,9 @@ export function createBuyerAuthHttp({origin,store,enabled=()=>false,issueEnabled
 
 // Reading these NEW flags never changes existing payment flags. No key is parsed
 // unless development auth is explicitly enabled; invalid config closes this route only.
-export function configuredBuyerAuthHttp({origin,store,env=process.env,clock=Date.now}={}){
+export function configuredBuyerAuthHttp({origin,store,env=process.env,clock=Date.now,legacyTokenAllowed=true}={}){
  const enabled=()=>env.EUPOVA_BUYER_AUTH_DEV_ENABLED==='true';
- const issueEnabled=()=>enabled()&&env.EUPOVA_BUYER_AUTH_DEV_TOKEN_ENABLED==='true';
+ const issueEnabled=()=>legacyTokenAllowed&&enabled()&&env.EUPOVA_BUYER_AUTH_DEV_TOKEN_ENABLED==='true';
  if(!enabled())return createBuyerAuthHttp({enabled});
  try{
   if(env.EUPOVA_BUYER_AUTH_APP_ID!==developmentAppId||env.EUPOVA_BUYER_AUTH_ENVIRONMENT!=='development')

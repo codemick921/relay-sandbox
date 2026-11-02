@@ -1,3 +1,4 @@
+import {liveConnectionStatus} from './privy-connection-client.mjs';
 import React,{useEffect,useRef,useState} from 'react';
 import {Button,Icon,Check} from './ui';
 import {readBuyerConnectionStatus} from './buyer-connection.mjs';
@@ -47,12 +48,13 @@ export default function BuyerConnection(){
  useEffect(()=>{
   const controller=new AbortController();let active=true;
   const hide=()=>{active=false;controller.abort();setData(null);setFailed(false);};
-  const load=async()=>{try{const value=await readBuyerConnectionStatus({signal:controller.signal});if(!active)return;setData(value);setFailed(false);}catch{if(active)setFailed(true);}};
+  const load=async()=>{try{const live=await liveConnectionStatus(controller.signal);const value=live??await readBuyerConnectionStatus({signal:controller.signal});if(!active)return;setData(value);setFailed(false);}catch{if(active)setFailed(true);}};
   const timeout=setTimeout(()=>controller.abort(),10000);load().finally(()=>clearTimeout(timeout));
   window.addEventListener('relay-session-expired',hide);
   return()=>{active=false;controller.abort();clearTimeout(timeout);window.removeEventListener('relay-session-expired',hide);};
  },[refresh]);
  useEffect(()=>{if(!data)return;const timer=setTimeout(()=>setData(null),Math.max(0,data.expiresAt-Date.now()));return()=>clearTimeout(timer);},[data]);
  if(!data)return null;
+ if(data.connection==='available'&&!failed)return <section className="security-card buyer-connection"><header className="buyer-connection-heading"><h2>Privy connection test</h2><span className="buyer-connection-label">Development only</span></header><p>Test your Eupova sign-in with Privy. No wallet or payment will be created.</p><a className="btn" href="/buyer-connection-test">Open connection test</a></section>;
  return <BuyerConnectionCard state={failed?'unavailable':'disabled'} onRefresh={()=>setRefresh(v=>v+1)}/>;
 }
