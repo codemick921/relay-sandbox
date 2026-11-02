@@ -1,4 +1,5 @@
 import {createAdmin,isAccountAdmin} from './admin.mjs';
+import {webTrackingEnabled} from './tracking-worker.mjs';
 import {configuredWalletFlowHttp} from '../server/quote-first/wallet-flow-http.mjs';
 import {createAgentCallbacks} from './agent-callbacks.mjs';
 import {configuredWalletSetupClaims} from '../server/quote-first/wallet-setup-claim-http.mjs';
@@ -413,7 +414,7 @@ if(process.argv[1]===fileURLToPath(import.meta.url)){
  const server=createHostedServer({agentCallbacks,store,config,tracking,ramp,walletBalances,peerConnection,fundingDrafts,liveObservation,buyerAuth,buyerStatus,buyerConnection,targetCalculator,personalisedQuotes,walletSetup,walletSetupClaims,walletBootstrap,walletFlow,accountMail,paymentsDisabled:true,pay:{readiness:async()=>({ready:false})}});server.listen(Number(process.env.PORT??10000),'0.0.0.0',()=>console.log('Eupova hosted sandbox ready.'));
  // One read at startup, no polling. Until verified, the receiver returns 503.
  if(peerConnection)void peerConnection.checkIdentity();
- if(liveObservation)void liveObservation.start();
+ if(liveObservation&&webTrackingEnabled(process.env))void liveObservation.start();
  walletBalances?.start();agentCallbacks.start();
  let closing=false;for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>{if(closing)return;closing=true;server.close(async()=>{await agentCallbacks.stop();await walletBalances?.stop();await liveObservation?.stop();await tracking.close();await store.close();process.exit(0);});setTimeout(()=>process.exit(1),25000).unref();});
 }

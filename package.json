@@ -18,7 +18,8 @@
     "test:tracking": "node --import ./tests/fixtures/offline-guard.mjs --test tests/hosted-live.test.mjs",
     "deploy:export": "node scripts/export-deployment.mjs",
     "preview:tracking": "node hosted/tracking-preview.mjs",
-    "test:postgres": "node scripts/test-postgres.mjs"
+    "test:postgres": "node scripts/test-postgres.mjs",
+    "worker:tracking": "node hosted/tracking-worker.mjs"
   },
   "dependencies": {
     "@privy-io/react-auth": "3.51.0",
