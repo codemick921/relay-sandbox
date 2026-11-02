@@ -1,5 +1,6 @@
 // Experimental server-only read adapter. No keys, checkout creation or signing methods.
 import {buildQuoteRequest,normaliseQuoteResponse,QuoteError} from './direct-quote.mjs';
+import {quoteIntegration} from './quote-review.mjs';
 const ORIGIN='https://api.zkp2p.xyz';
 const LIMIT=512*1024;
 export function createQuoteReader({policy,fetchImpl=globalThis.fetch,clock=Date.now}){
@@ -37,5 +38,5 @@ export async function getQuotesByMethod(reader,input,methods){
  return results.map((r,index)=>r.status==='fulfilled'?{method:methods[index],...customerQuoteView(r.value)}:{method:methods[index],status:'unavailable',reason:r.reason instanceof QuoteError?r.reason.code:'quote_provider_unavailable',offers:[],canCreatePayment:false});
 }
 export function customerQuoteView(read){
- return {status:read.result.status,checkedAt:read.result.checkedAt,offers:read.result.offers.map(q=>({id:q.fingerprint,youPay:q.youPay,youReceive:q.youReceive,fee:q.fee,exchangeRate:q.exchangeRate,spreadBps:q.spreadBps,validUntil:q.validUntil,conditions:q.conditions,verification:q.verification,reserved:false,canExecute:false})),canCreatePayment:false};
+ return {status:read.result.status,checkedAt:read.result.checkedAt,offers:read.result.offers.map(q=>({id:q.fingerprint,integration:quoteIntegration(q.terms.orchestrator),youPay:q.youPay,youReceive:q.youReceive,fee:q.fee,exchangeRate:q.exchangeRate,spreadBps:q.spreadBps,validUntil:q.validUntil,conditions:q.conditions,verification:q.verification,reserved:false,canExecute:false})),canCreatePayment:false};
 }

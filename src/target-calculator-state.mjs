@@ -1,17 +1,24 @@
-export const initialCalculatorState=()=>({phase:'idle',generation:0,rows:[],selected:null,message:'',checkedAt:null});
+export const initialCalculatorState=()=>({phase:'idle',generation:0,rows:[],selected:null,plan:null,message:'',checkedAt:null});
 export function calculatorReducer(state,event){
  switch(event.type){
  case 'edit':return {...initialCalculatorState(),generation:state.generation+1};
- case 'search':return {...state,phase:'loading',generation:state.generation+1,message:''};
+ case 'search':return {...state,phase:'loading',generation:state.generation+1,plan:null,message:''};
  case 'result':{
   if(event.generation!==state.generation)return state;
   const match=state.selected&&event.rows.find(r=>r.method===state.selected.method)?.offers?.find(o=>o.id===state.selected.offer.id);
   return {...state,phase:'ready',rows:event.rows,checkedAt:event.checkedAt,selected:match?{...state.selected,offer:match}:null,message:state.selected?(match?'The quoted terms still match. This does not reserve an offer.':'The offer changed or is no longer available. Review the latest results.'):''};
  }
- case 'failure':return event.generation===state.generation?{...state,phase:'error',rows:[],selected:null,message:event.message}:state;
+ case 'review':return state.selected?{...state,phase:'reviewing',generation:state.generation+1,plan:null,message:''}:state;
+ case 'reviewed':{
+  if(event.generation!==state.generation||state.phase!=='reviewing')return state;
+  const r=event.result,match=r.status==='terms_match'&&r.offer?.id===state.selected?.offer.id&&r.offer.validUntil>r.checkedAt;
+  return {...state,phase:'ready',rows:r.rows,checkedAt:r.checkedAt,selected:match?{...state.selected,offer:r.offer}:null,plan:match?r:null,message:match?'':r.status==='terms_changed'?'The offer changed. Choose an estimate to review its new terms.':r.status==='could_not_verify'?'The offer could not be verified. Try again shortly.':r.status==='refresh_required'?'This estimate needs a refresh. Check prices again to continue.':'This offer is no longer available. Check the latest estimates.'};
+ }
+ case 'review-back':return {...state,phase:'ready',plan:null,generation:state.generation+1,message:''};
+ case 'failure':return event.generation===state.generation?{...state,phase:'error',rows:[],selected:null,plan:null,message:event.message}:state;
  case 'select':{const row=state.rows.find(r=>r.method===event.method),offer=row?.offers?.find(o=>o.id===event.id);return state.phase==='ready'&&offer&&offer.validUntil>event.now?{...state,selected:{method:event.method,offer},message:''}:state;}
- case 'back':return {...state,selected:null,message:''};
- case 'expire':return state.phase==='ready'&&state.rows.some(r=>r.offers?.length)&&state.rows.every(r=>r.offers.every(o=>o.validUntil<=event.now))?{...state,phase:'expired',selected:null,message:'These prices need a refresh. Check again for a current estimate.'}:state;
+ case 'back':return {...state,selected:null,plan:null,generation:state.generation+1,message:''};
+ case 'expire':if(state.plan&&state.selected?.offer.validUntil<=event.now)return {...state,phase:'expired',plan:null,selected:null,message:'This review expired. Refresh prices before continuing.'};return state.phase==='ready'&&state.rows.some(r=>r.offers?.length)&&state.rows.every(r=>r.offers.every(o=>o.validUntil<=event.now))?{...state,phase:'expired',selected:null,message:'These prices need a refresh. Check again for a current estimate.'}:state;
  default:return state;
  }
 }

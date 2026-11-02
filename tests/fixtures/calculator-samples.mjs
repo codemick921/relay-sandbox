@@ -2,7 +2,7 @@ import samples from './public-calculator-quotes.json' with {type:'json'};
 import {calculatorPolicy,calculatorInput} from '../../server/quote-first/target-calculator.mjs';
 import {normaliseQuoteResponse,buildQuoteRequest,BASE_USDC} from '../../server/quote-first/direct-quote.mjs';
 import {customerQuoteView} from '../../server/quote-first/quote-reader.mjs';
-export function calculatorSamples(input,scenario='available',now=Date.now()){
+export function calculatorSamples(input,scenario='available',now=Date.now(),changed=false){
  const value=calculatorInput(input);
  if(!['available','none','invalid','expiry','failure'].includes(scenario))throw Error('Unknown sample');
  if(scenario==='failure')throw Error('Provider unavailable');
@@ -15,6 +15,7 @@ export function calculatorSamples(input,scenario='available',now=Date.now()){
   for(const q of r.quotes){
    const net=BigInt(built.context.amountRaw),gross=net*10000n/9905n,fee=gross-net;
    q.tokenAmount=String(net);q.signalIntentAmount=String(gross);q.intent.amount=String(gross);q.totalFeeAmount=String(fee);q.zkp2pFeeAmount=String(fee);q.managerFeeAmount='0';q.intent.fiatCurrencyCode=r.fiat.currencyCode;
+   if(changed){q.conversionRate=String(BigInt(q.conversionRate)*11n/10n);q.intent.conversionRate=q.conversionRate;}
    q.fiatAmount=String((gross*BigInt(q.conversionRate)+10n**18n-1n)/10n**18n);
    if(scenario==='invalid')q.totalFeeAmount='1';
   }

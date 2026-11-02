@@ -2,6 +2,7 @@
 import {keccak256,toBytes} from 'viem';
 import {fundingCatalog} from '../../shared/fiat.mjs';
 import {BASE_USDC,decimalUnits,QuoteError} from './direct-quote.mjs';
+import {reviewInput,compareSelectedQuote} from './quote-review.mjs';
 import {createQuoteReader,getQuotesByMethod} from './quote-reader.mjs';
 export const calculatorMethods=fundingCatalog.methods.filter(m=>m.checkoutSupported).map(({id,label,currencies})=>({id,label,currencies}));
 export const calculatorCurrencies=fundingCatalog.currencies.filter(c=>calculatorMethods.some(m=>m.currencies.includes(c.code)));
@@ -16,9 +17,14 @@ export function calculatorInput(input){
 }
 export function createTargetCalculator({fetchImpl,clock=Date.now}={}){
  const reader=createQuoteReader({policy:calculatorPolicy,fetchImpl,clock});
- return Object.freeze({async quotes(input){
+ const calculator={async quotes(input){
   const value=calculatorInput(input);
   const rows=await getQuotesByMethod(reader,{amount:value.amount,currency:value.currency,amountMode:'receive',chainId:8453,token:BASE_USDC,buyer:'0x0000000000000000000000000000000000000001',recipient:'0x0000000000000000000000000000000000000002'},value.methods);
   return {rows,input:{amount:value.amount,currency:value.currency,method:value.method},source:'peer_public_quote',route:'peer_direct',checkedAt:clock(),eligibility:'example_addresses',reserved:false,canCreatePayment:false};
- }});
+ },async review(input){
+  const {offerId,target}=reviewInput(input,calculatorInput);
+  const refreshed=await calculator.quotes(target);
+  return compareSelectedQuote(offerId,refreshed,{now:clock()});
+ }};
+ return Object.freeze(calculator);
 }
