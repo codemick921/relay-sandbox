@@ -56,7 +56,7 @@ export function createPrivyAccessVerifier({appId,trustedJwks,clock=Date.now,maxL
   }catch{const error=new QuoteError('privy_access_invalid');Object.defineProperty(error,'verificationReason',{value:reason});throw error;}
  };
 }
-export function createPrivyUserReader({appId,readOnlySecret,credentialAccess,fetchImpl=globalThis.fetch,timeoutMs=4000,maxBytes=65536,includeInventory=false}={}){
+export function createPrivyUserReader({appId,readOnlySecret,credentialAccess,fetchImpl=globalThis.fetch,timeoutMs=4000,maxBytes=65536,includeInventory=false,includeNativeIdentity=false}={}){
  // credentialAccess is an operator assertion. Verify the secret's access level in
  // Privy's dashboard before installation; the code cannot infer it from the key.
  check(/^[a-z0-9]{10,80}$/.test(appId??'')&&credentialAccess==='read-only'&&typeof readOnlySecret==='string'&&readOnlySecret.length>=16&&readOnlySecret.length<=512&&!/[\r\n:]/.test(readOnlySecret)&&Number.isInteger(timeoutMs)&&timeoutMs>0&&timeoutMs<=5000&&Number.isInteger(maxBytes)&&maxBytes>0&&maxBytes<=65536,'privy_reader_configuration');
@@ -76,7 +76,7 @@ export function createPrivyUserReader({appId,readOnlySecret,credentialAccess,fet
    check(data&&data.id===did&&Array.isArray(data.linked_accounts)&&data.linked_accounts.length<=100&&data.linked_accounts.every(a=>a&&typeof a==='object'&&!Array.isArray(a)&&typeof a.type==='string'),'privy_user_unavailable');
    check(data.is_guest===false&&(data.frozen_at===undefined||data.frozen_at===null),'privy_user_unavailable');
    // Do not retain email, phone, MFA methods, metadata or unrelated account data.
-   return {id:data.id,linkedAccounts:data.linked_accounts.filter(a=>includeInventory||['custom_auth','wallet'].includes(a.type)).map(a=>!['custom_auth','wallet'].includes(a.type)?{type:a.type}:a.type==='custom_auth'?{type:a.type,subject:a.custom_user_id}:{type:a.type,address:a.address,chainType:a.chain_type,walletClientType:a.wallet_client_type,connectorType:a.connector_type,userCanSign:a.user_can_sign,delegated:a.delegated,imported:a.imported})};
+   return {id:data.id,linkedAccounts:data.linked_accounts.filter(a=>includeInventory||['custom_auth','wallet'].includes(a.type)).map(a=>!['custom_auth','wallet'].includes(a.type)?{type:a.type,...includeNativeIdentity&&a.type==='email'&&typeof a.address==='string'&&a.address.length<=254&&/^[^@\s]+@[^@\s]+$/.test(a.address)?{loginHint:a.address[0]+'…@'+a.address.split('@')[1]}:{}}:a.type==='custom_auth'?{type:a.type,subject:a.custom_user_id}:{type:a.type,address:a.address,chainType:a.chain_type,walletClientType:a.wallet_client_type,connectorType:a.connector_type,userCanSign:a.user_can_sign,delegated:a.delegated,imported:a.imported})};
   };
   try{return await Promise.race([work(),new Promise((_,reject)=>{timer=setTimeout(()=>{abort.abort();reject(new QuoteError('privy_user_unavailable'));},timeoutMs);})]);}
   catch{throw new QuoteError('privy_user_unavailable');}finally{clearTimeout(timer);abort.abort();}

@@ -1,0 +1,16 @@
+import React,{useEffect,useState} from 'react';
+import {createRoot} from 'react-dom/client';
+import {createNativeRequests,validNativeStatus} from './native-privy-client.mjs';
+import mark from './assets/eupova-mark.png';
+import './styles.css';
+import './wallet-setup.css';
+import './wallet-flow.css';
+import './native-privy.css';
+const request=createNativeRequests();
+function Page(){
+ const[status,setStatus]=useState(null),[error,setError]=useState(false),[consent,setConsent]=useState(false),[Sdk,setSdk]=useState(null),[busy,setBusy]=useState(false);
+ useEffect(()=>{let active=true;request('status').then(v=>{if(active)setStatus(v);}).catch(()=>{if(active)setError(true);});return()=>{active=false;};},[]);
+ async function connect(){if(!consent||!validNativeStatus(status)||busy)return;setBusy(true);try{const fresh=await request('status');if(!validNativeStatus(fresh)||fresh.appId!==status.appId)throw Error();const mod=await import('./NativePrivySdk.jsx');setStatus(fresh);setSdk(()=>mod.default);}catch{setError(true);setConsent(false);}finally{setBusy(false);}}
+ return <main className="wallet-flow-page native-privy-page"><header className="wallet-flow-header"><a className="brand" href="/"><img src={mark} alt=""/>Eupova</a><a href="/">Back to Eupova</a></header><section className="wallet-flow-intro"><span className="wallet-setup-kicker">Your buying wallet</span><h1>Connect with confidence.</h1><p>Keep your Eupova login. Verify with Privy to link your buying-wallet identity and check access when you return.</p></section><ol className="wallet-setup-steps"><li>1 · Verify sign-in</li><li>2 · Review connection</li><li>3 · Check access</li></ol>{Sdk?<Sdk initial={status} request={request}/>:<section className="wallet-flow-card"><h2>{error?'Sign-in check unavailable':!status?'Checking access…':status.enabled?'Connect your Privy account':'Native sign-in is awaiting activation'}</h2><p>This connection is separate from your saved receiving wallets and your payment accounts.</p>{validNativeStatus(status)&&!error?<><label className="wallet-setup-consent"><input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)}/><span>I want to verify with Privy. Privy will process my sign-in details; I will review the account before linking it to Eupova.</span></label><button className="btn" disabled={!consent||busy} onClick={connect}>{busy?'Opening sign-in…':'Continue to secure sign-in'}</button></>:<p>The connection screen is installed. Live sign-in needs the native Privy app and secure account-link storage to be configured first.</p>}</section>}<section className="wallet-flow-card native-recovery-guide"><h2>Access and recovery</h2><p>Use the same Privy account when you return. A fresh sign-in can check that the same buying wallet is still available.</p><ul><li>Keep access to your sign-in email and any passkeys you add.</li><li>Do not create another wallet if a connection or setup result is uncertain.</li><li>A sign-in check does not prove that export or every browser recovery scenario works.</li></ul><p className="fine-print">This flow does not create wallets, sign transactions, send funds or create Peer checkouts. Eupova never asks for your private key.</p></section></main>;
+}
+createRoot(document.getElementById('root')).render(<Page/>);

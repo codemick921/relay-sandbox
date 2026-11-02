@@ -1,4 +1,5 @@
 import {createAdmin,isAccountAdmin} from './admin.mjs';
+import {configuredNativePrivy} from '../server/quote-first/native-privy-http.mjs';
 import {webTrackingEnabled} from './tracking-worker.mjs';
 import {configuredWalletFlowHttp} from '../server/quote-first/wallet-flow-http.mjs';
 import {createAgentCallbacks} from './agent-callbacks.mjs';
@@ -47,7 +48,7 @@ const dist=fileURLToPath(new URL('../dist/',import.meta.url));
 const uuid=v=>typeof v==='string'&&/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(v);
 async function body(req,max=16384){let size=0;const chunks=[];for await(const chunk of req){size+=chunk.length;if(size>max)throw new InputError('Request too large.',413);chunks.push(chunk);}return Buffer.concat(chunks);}
 const send=(res,status,data)=>{res.writeHead(status,{'Content-Type':'application/json'});res.end(JSON.stringify(data));};
-export function createHostedServer({store,config,pay=createSandboxPayService(),staticRoot=dist,allowHttpForTests=false,tracking=null,paymentsDisabled=false,localPreview=false,accountMail=null,customerAccountsEnabled=true,peerConnection=null,fundingDrafts=null,liveObservation=null,ramp=null,walletBalances=null,buyerAuth=null,buyerStatus=null,buyerConnection=null,targetCalculator=null,personalisedQuotes=null,walletSetup=null,walletSetupClaims=null,walletBootstrap=null,walletFlow=null,agentCallbacks=null}){
+export function createHostedServer({store,config,pay=createSandboxPayService(),staticRoot=dist,allowHttpForTests=false,tracking=null,paymentsDisabled=false,localPreview=false,accountMail=null,customerAccountsEnabled=true,peerConnection=null,fundingDrafts=null,liveObservation=null,ramp=null,walletBalances=null,buyerAuth=null,buyerStatus=null,buyerConnection=null,targetCalculator=null,personalisedQuotes=null,walletSetup=null,walletSetupClaims=null,walletBootstrap=null,walletFlow=null,nativePrivy=null,agentCallbacks=null}){
  const origin=new URL(config.origin),mail=accountMail??createAccountMail(store),accounts=customerAccountsEnabled?createAccounts(store,{mail,adminEmails:config.accountAdmins??[]}):null;
  if(fundingDrafts&&!paymentsDisabled)throw Error('Funding preparation requires payments to remain disabled.');
  if(tracking?.journey&&(!tracking.simulated||!tracking.journey.simulated||!paymentsDisabled))throw Error('Test funding requires simulated tracking and disabled payments.');
@@ -111,6 +112,7 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
    }
    const url=new URL(req.url,config.origin);
    if(handlePublicBuyerJwks(req,res))return;
+   if(nativePrivy&&await nativePrivy(req,res))return;
    if(walletFlow&&await walletFlow(req,res))return;
    if(walletBootstrap&&await walletBootstrap(req,res))return;
    if(walletSetupClaims&&await walletSetupClaims(req,res))return;
@@ -401,6 +403,7 @@ if(process.argv[1]===fileURLToPath(import.meta.url)){
  const walletBootstrap=configuredWalletBootstrapHttp({store,origin:config.origin,staticRoot:dist});
  const walletSetup=configuredWalletSetupObserver({store,origin:config.origin});
  const walletSetupClaims=configuredWalletSetupClaims({store,origin:config.origin});
+ const nativePrivy=configuredNativePrivy({store,origin:config.origin,staticRoot:dist});
  const walletFlow=configuredWalletFlowHttp({store,origin:config.origin,staticRoot:dist,claimsAvailable:()=>walletSetupClaims.available?.()===true});
  const personalisedQuotes=configuredPersonalisedQuotes({store,origin:config.origin});
  const targetCalculator=configuredTargetCalculator({store,origin:config.origin});
@@ -411,7 +414,7 @@ if(process.argv[1]===fileURLToPath(import.meta.url)){
  const accountMail=configuredAccountMail(store);
  const adminAccounts=createAccounts(store,{mail:accountMail,adminEmails:config.accountAdmins});
  for(const email of config.accountAdmins){const result=await adminAccounts.provisionAdmin(email);console.info(result.created?'Configured admin account created; setup email queued.':'Configured admin account exists; credentials preserved.');}
- const server=createHostedServer({agentCallbacks,store,config,tracking,ramp,walletBalances,peerConnection,fundingDrafts,liveObservation,buyerAuth,buyerStatus,buyerConnection,targetCalculator,personalisedQuotes,walletSetup,walletSetupClaims,walletBootstrap,walletFlow,accountMail,paymentsDisabled:true,pay:{readiness:async()=>({ready:false})}});server.listen(Number(process.env.PORT??10000),'0.0.0.0',()=>console.log('Eupova hosted sandbox ready.'));
+ const server=createHostedServer({agentCallbacks,store,config,tracking,ramp,walletBalances,peerConnection,fundingDrafts,liveObservation,buyerAuth,buyerStatus,buyerConnection,targetCalculator,personalisedQuotes,walletSetup,walletSetupClaims,walletBootstrap,walletFlow,nativePrivy,accountMail,paymentsDisabled:true,pay:{readiness:async()=>({ready:false})}});server.listen(Number(process.env.PORT??10000),'0.0.0.0',()=>console.log('Eupova hosted sandbox ready.'));
  // One read at startup, no polling. Until verified, the receiver returns 503.
  if(peerConnection)void peerConnection.checkIdentity();
  if(liveObservation&&webTrackingEnabled(process.env))void liveObservation.start();

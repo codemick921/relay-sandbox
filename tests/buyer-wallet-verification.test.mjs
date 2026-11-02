@@ -126,3 +126,14 @@ test('normal login idle renewal preserves quote context while shortening and cha
  const f=fixture(),a=await f.resolve(f.actor,walletId);f.session.expiresAt+=60000;const b=await f.resolve(f.actor,walletId);assert.equal(b.buyer.reference,a.buyer.reference);assert.equal(b.session.expiresAt,a.session.expiresAt);
  f.session.expiresAt=now+30000;const c=await f.resolve(f.actor,walletId);assert.notEqual(c.buyer.reference,b.buyer.reference);assert.equal(c.session.expiresAt,now+30000);
 });
+
+test('native identity review exposes only an opt-in masked email hint',async()=>{
+ const payload={id:did,is_guest:false,linked_accounts:[{type:'email',address:'private@example.test',phone_number:'secret'}]};
+ const options={appId,readOnlySecret:'sample-read-only-secret',credentialAccess:'read-only',includeInventory:true,fetchImpl:async()=>Response.json(payload)};
+ assert.deepEqual((await createPrivyUserReader(options)(did)).linkedAccounts,[{type:'email'}]);
+ const native=await createPrivyUserReader({...options,includeNativeIdentity:true})(did);
+ assert.deepEqual(native.linkedAccounts,[{type:'email',loginHint:'p…@example.test'}]);
+ assert.doesNotMatch(JSON.stringify(native),/private@example|phone_number|secret/);
+ payload.linked_accounts[0].address='invalid address';
+ assert.deepEqual((await createPrivyUserReader({...options,includeNativeIdentity:true})(did)).linkedAccounts,[{type:'email'}]);
+});
