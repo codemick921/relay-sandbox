@@ -51,7 +51,7 @@ export function createRealWalletSetupAdapter({enabled=()=>false,getLease,getSdkS
      if(g!==generation||!identityMatches(getSdkState(),l,{empty:true})||permit?.state!=='consumed'||permit.durable!==true||permit.leaseId!==l.id||permit.context!==l.context||permit.maxDispatches!==1||permit.recoveryReviewed!==true||!Number.isSafeInteger(permit.expiresAt)||permit.expiresAt<=clock()+1000||permit.expiresAt>l.expiresAt)throw fail('permit_unavailable');
      change({phase:'creating',canRetry:false});dispatched=true;
      // Immediate identity guard above; callback address is deliberately ignored.
-     await bounded(()=>{leaseNow(l);if(g!==generation||!identityMatches(getSdkState(),l,{empty:true}))throw fail('access_changed');return createWallet({createAdditional:false});});
+     await bounded(()=>{leaseNow(l);if(g!==generation||permit.expiresAt<=clock()+1000||!identityMatches(getSdkState(),l,{empty:true}))throw fail('access_changed');return createWallet({createAdditional:false});});
      if(g!==generation||!active)return state;
      return await inspectResult(l,g);
     });

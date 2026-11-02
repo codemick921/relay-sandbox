@@ -29,3 +29,5 @@ test('a shared lease object mutated during the claim cannot authorise SDK creati
  const a=createRealWalletSetupAdapter({...f.options,getLease:()=>f.lease,claimDispatch:async()=>{const permit=await claim();f.lease.context='b'.repeat(64);return permit;}});
  assert.equal((await a.create({consent:true})).phase,'unknown');assert.equal(f.calls,0);
 });
+
+test('permission expiry immediately before SDK dispatch stops creation and retains consumed attempt',async()=>{const f=fixture();const a=createRealWalletSetupAdapter({...f.options,onChange:s=>{if(s.phase==='creating')f.advance(10000);}});assert.equal((await a.create({consent:true})).phase,'unknown');assert.equal(f.calls,0);assert.equal(f.shared.claimed,true);await a.create({consent:true});assert.equal(f.calls,0);});

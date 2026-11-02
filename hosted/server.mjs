@@ -1,3 +1,4 @@
+import {configuredWalletSetupClaims} from '../server/quote-first/wallet-setup-claim-http.mjs';
 import {configuredWalletSetupObserver} from '../server/quote-first/wallet-setup-http.mjs';
 import {configuredPersonalisedQuotes} from '../server/quote-first/personalised-quote-http.mjs';
 import {configuredTargetCalculator} from '../server/quote-first/target-calculator-http.mjs';
@@ -41,7 +42,7 @@ const dist=fileURLToPath(new URL('../dist/',import.meta.url));
 const uuid=v=>typeof v==='string'&&/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(v);
 async function body(req,max=16384){let size=0;const chunks=[];for await(const chunk of req){size+=chunk.length;if(size>max)throw new InputError('Request too large.',413);chunks.push(chunk);}return Buffer.concat(chunks);}
 const send=(res,status,data)=>{res.writeHead(status,{'Content-Type':'application/json'});res.end(JSON.stringify(data));};
-export function createHostedServer({store,config,pay=createSandboxPayService(),staticRoot=dist,allowHttpForTests=false,tracking=null,paymentsDisabled=false,localPreview=false,accountMail=null,customerAccountsEnabled=true,peerConnection=null,fundingDrafts=null,liveObservation=null,ramp=null,walletBalances=null,buyerAuth=null,buyerStatus=null,buyerConnection=null,targetCalculator=null,personalisedQuotes=null,walletSetup=null}){
+export function createHostedServer({store,config,pay=createSandboxPayService(),staticRoot=dist,allowHttpForTests=false,tracking=null,paymentsDisabled=false,localPreview=false,accountMail=null,customerAccountsEnabled=true,peerConnection=null,fundingDrafts=null,liveObservation=null,ramp=null,walletBalances=null,buyerAuth=null,buyerStatus=null,buyerConnection=null,targetCalculator=null,personalisedQuotes=null,walletSetup=null,walletSetupClaims=null}){
  const origin=new URL(config.origin),mail=accountMail??createAccountMail(store),accounts=customerAccountsEnabled?createAccounts(store,{mail}):null;
  if(fundingDrafts&&!paymentsDisabled)throw Error('Funding preparation requires payments to remain disabled.');
  if(tracking?.journey&&(!tracking.simulated||!tracking.journey.simulated||!paymentsDisabled))throw Error('Test funding requires simulated tracking and disabled payments.');
@@ -102,6 +103,7 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
    }
    const url=new URL(req.url,config.origin);
    if(handlePublicBuyerJwks(req,res))return;
+   if(walletSetupClaims&&await walletSetupClaims(req,res))return;
    if(walletSetup&&await walletSetup(req,res))return;
    if(personalisedQuotes&&await personalisedQuotes(req,res))return;
    if(targetCalculator&&await targetCalculator(req,res))return;
@@ -367,12 +369,13 @@ if(process.argv[1]===fileURLToPath(import.meta.url)){
  const walletBalances=liveObservation?createWalletBalances(store,{rpc:createReceiptRpc(process.env.BASE_RPC_URL||'https://mainnet.base.org')}):null;
  if(walletBalances)await walletBalances.migrate();
  const walletSetup=configuredWalletSetupObserver({store,origin:config.origin});
+ const walletSetupClaims=configuredWalletSetupClaims({store,origin:config.origin});
  const personalisedQuotes=configuredPersonalisedQuotes({store,origin:config.origin});
  const targetCalculator=configuredTargetCalculator({store,origin:config.origin});
  const buyerStatus=configuredBuyerStatusHttp({store,origin:config.origin});
  const buyerConnection=configuredBuyerConnectionHttp({store,origin:config.origin,staticRoot:dist});
  const buyerAuth=configuredBuyerAuthHttp({store,origin:config.origin,legacyTokenAllowed:false});
- const server=createHostedServer({store,config,tracking,ramp,walletBalances,peerConnection,fundingDrafts,liveObservation,buyerAuth,buyerStatus,buyerConnection,targetCalculator,personalisedQuotes,walletSetup,accountMail:configuredAccountMail(store),paymentsDisabled:true,pay:{readiness:async()=>({ready:false})}});server.listen(Number(process.env.PORT??10000),'0.0.0.0',()=>console.log('Eupova hosted sandbox ready.'));
+ const server=createHostedServer({store,config,tracking,ramp,walletBalances,peerConnection,fundingDrafts,liveObservation,buyerAuth,buyerStatus,buyerConnection,targetCalculator,personalisedQuotes,walletSetup,walletSetupClaims,accountMail:configuredAccountMail(store),paymentsDisabled:true,pay:{readiness:async()=>({ready:false})}});server.listen(Number(process.env.PORT??10000),'0.0.0.0',()=>console.log('Eupova hosted sandbox ready.'));
  // One read at startup, no polling. Until verified, the receiver returns 503.
  if(peerConnection)void peerConnection.checkIdentity();
  if(liveObservation)void liveObservation.start();

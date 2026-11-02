@@ -10,15 +10,15 @@
 - The observer accepts zero wallets or reports one eligible embedded Ethereum wallet as an unpinned candidate. Extra account types, multiple wallets, missing required fields, delegated/imported wallets and identity mismatches stop the process. A candidate is not quote authorisation, a signature, or proof of recovery.
 - The future SDK call is guarded by explicit consent, a fresh development lease, an independently observed empty inventory, a server-owned durable claim contract, same-browser coordination and a one-attempt journal. SDK callback addresses are ignored. A fresh server observation supplies the candidate.
 - Timeouts, rejected creation promises and uncertain dispatch outcomes do not permit a retry. The adapter snapshots the lease before awaiting work and checks identity again immediately before its sole SDK operation.
-- No schema migration, customer write, automatic pin, creation endpoint or signing endpoint was added. Existing payment flags and the authentication-only flow's rejection of any wallet remain unchanged.
+- The original adapter stage added no schema migration, customer write, automatic pin, creation endpoint or signing endpoint. The subsequent durable guard adds a manual-only schema and disabled claim/status routes, described in `privy-wallet-durable-guard.md`. Existing payment flags and the authentication-only flow's rejection of any wallet remain unchanged.
 
 ## Preparation is not activation
 
-The production durable claim is deliberately **not implemented**. The adapter requires a dependency that consumes a one-attempt permit atomically before dispatch; the only current implementation is a test fake. A `durable: true` response is a contract, not proof of a database transaction. Local storage and Web Locks are advisory and cannot prevent attempts from another device. There is no production fallback.
+The durable claim is now implemented in the disabled server preparation layer; see `privy-wallet-durable-guard.md`. The manual schema has only been applied to a new local sample database. No production claim database, lease or runtime role is connected. Local storage and Web Locks remain advisory; the server's permanent identity claims provide coordination between independent clients.
 
 The remaining implementation order is:
 
-1. Build a durable, single-use server claim keyed to the approved identity, with concurrency, restart and multi-device tests. Keep its endpoints disabled. It must fail closed after a consumed or uncertain attempt and have no automatic re-arm path.
+1. Prepare a separate restricted claim database and verified storage topology as part of a later approved activation. The code and sample database tests are complete, but production installation remains pending. Preserve consumed claims across rollback and restore.
 2. Prepare the wallet-bearing authentication bootstrap separately. Do not weaken the existing authentication-only screen, which intentionally rejects every wallet. A test must still be restricted by owner, subject, DID, origin, expiry and explicit user consent.
 3. Verify a genuinely read-only Privy credential, the pinned access-token public key and the live user-response field meanings. The existing signing secret must not be substituted for a read-only credential. No credential was created, read or installed in this task.
 4. Resolve recovery, re-entry and key-export behaviour for this development app and installed SDK. The dashboard shows TEE enabled, but that is not evidence of a user-held backup or independent recovery. With custom JWT authentication, access depends on Eupova's identity provider as well as Privy.
@@ -38,7 +38,9 @@ Recovery evidence can be attached with `EUPOVA_WALLET_RECOVERY_EVIDENCE` and its
 
 The observer returns only a classified result, optional candidate address, short validity window, hashed context and inert capability flags. It does not retain or return customer identity, tokens, recovery secrets or the raw Privy response. Requests are bounded by size, time and rate. Provider failures produce a generic unavailable result rather than stale ownership data.
 
-## Verification
+## Adapter-stage verification
+
+These are the earlier adapter results. The durable-guard task log records the later combined run.
 
 - Full offline regression run: 559 tests, 549 passed, 10 PostgreSQL-dependent tests skipped, zero failures. This run preceded the final immutable-lease hardening and two additional tests.
 - Final focused run: 29 tests, zero failures; includes the lease mutation check and the hosted listener's default-disabled routing boundary. Existing offline tests cover token forgery, pinned keys, access expiry, ownership and session boundaries.

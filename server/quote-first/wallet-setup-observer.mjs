@@ -32,7 +32,7 @@ export function recoveryEvidenceState(evidence,expectedHash,now,appId){
  if(Object.keys(evidence).length!==keys.length||Object.keys(evidence).some(k=>!keys.includes(k))||hash(evidence)!==expectedHash||evidence.appId!==appId||evidence.sdkVersion!=='3.51.0'||!Number.isSafeInteger(evidence.reviewedAt)||evidence.reviewedAt>now||!Number.isSafeInteger(evidence.expiresAt)||evidence.expiresAt<=now||evidence.expiresAt-evidence.reviewedAt>86400000||typeof evidence.evidenceReference!=='string'||!/^[a-zA-Z0-9_.-]{1,100}$/.test(evidence.evidenceReference)||![evidence.reentryReviewed,evidence.exportReviewed,evidence.noAdditionalSigners].every(v=>v===true))return 'not_verified';
  return 'operator_reviewed';
 }
-export function createWalletSetupObserver({enabled=()=>false,resolveSession,resolveEnrollment,verifyAccessToken,readPrivyUser,clock=Date.now,recoveryState=()=> 'not_verified'}={}){
+export function createWalletSetupVerification({enabled=()=>false,resolveSession,resolveEnrollment,verifyAccessToken,readPrivyUser,clock=Date.now,recoveryState=()=> 'not_verified'}={}){
  const valid=s=>s&&typeof s.owner==='string'&&typeof s.binding==='string'&&s.binding.length>=16&&Number.isSafeInteger(s.expiresAt)&&s.expiresAt>clock();
  return async actor=>{
   check(enabled()===true,'wallet_setup_disabled');
@@ -41,12 +41,17 @@ export function createWalletSetupObserver({enabled=()=>false,resolveSession,reso
   const enrollment=structuredClone(await resolveEnrollment(session.owner));
   check(enrollment&&enrollment.owner===session.owner&&enrollment.environment==='development'&&enrollment.buyingAddress===null&&enrollment.consent===true&&enrollment.expiresAt>clock(),'buyer_not_enrolled');
   const access=await verifyAccessToken(actor.accessToken);check(access.did===enrollment.privyDid&&access.expiresAt>clock(),'buyer_identity_mismatch');
-  const user=await readPrivyUser(access.did),result=classifySetupWallet(user,enrollment);
+  const user=await readPrivyUser(access.did),observedAt=clock(),result=classifySetupWallet(user,enrollment);
   const current=await resolveSession(actor.sessionToken),latest=await resolveEnrollment(session.owner);
   check(enabled()===true&&valid(current)&&hash(current)===hash(session)&&latest&&hash(latest)===hash(enrollment)&&latest.expiresAt>clock()&&access.expiresAt>clock(),'buyer_context_changed');
-  const observedAt=clock(),validUntil=Math.min(observedAt+30000,session.expiresAt,enrollment.expiresAt,access.expiresAt);
-  // No token/owner/subject/raw user response is returned or persisted.
-  return {...result,observedAt,validUntil,contextId:hash([session.binding,hash(actor.accessToken),enrollment,result,observedAt]),
-   recovery:recoveryState(),recoveryContentsMachineVerified:false,pinned:false,canQuote:false,canCreateWallet:false,canCreatePayment:false};
+  const validUntil=Math.min(observedAt+30000,session.expiresAt,enrollment.expiresAt,access.expiresAt);
+  // Internal frame only; it never crosses the HTTP observer boundary.
+  return {result,session,enrollment,access,observedAt,validUntil,contextId:hash([session.binding,hash(actor.accessToken),enrollment,result,observedAt]),recovery:recoveryState()};
  };
+}
+
+export function createWalletSetupObserver(options={}){
+ const verify=createWalletSetupVerification(options);
+ return async actor=>{const f=await verify(actor);return {...f.result,observedAt:f.observedAt,validUntil:f.validUntil,contextId:f.contextId,
+  recovery:f.recovery,recoveryContentsMachineVerified:false,pinned:false,canQuote:false,canCreateWallet:false,canCreatePayment:false};};
 }
