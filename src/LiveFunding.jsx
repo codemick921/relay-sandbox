@@ -13,7 +13,7 @@ import {paymentAttemptState} from '../shared/tracking-status.mjs';
 import FundingCosts from './FundingCosts';
 import {peerMethods} from './funding-options.mjs';
 import {inputPence} from './funding-costs.mjs';
-import {activeFundingDraft} from './funding-entry.mjs';
+import {fundingReviewAccess} from './funding-entry.mjs';
 import PhoneResume from './PhoneResume';
 import {canContinueCheckout} from './payment-resume.mjs';
 import React,{useState,useEffect,useRef,useContext} from 'react';
@@ -31,8 +31,9 @@ export function LiveFunding({state,act,busy,error,onClose,open,selected,fundingP
  const [agentId,setAgentId]=useDialogState('agentId',selected??state.agents[0]?.id??''),[amount,setAmount]=useDialogState('amount',fundingPreset?.amount??'25'),[rail,setRail]=useDialogState('rail',live?(available.some(m=>m.id===fundingPreset?.rail)?fundingPreset.rail:available[0]?.id??''):'wise'),[confirmed,setConfirmed]=useState(false),[requestId]=useDialogState('requestId',()=>crypto.randomUUID());
  const [targetAsset,setTargetAsset]=useDialogState('targetAsset','base-usdc'),[route,setRoute]=useDialogState('route','merchant');
  const validMethod=available.some(m=>m.id===rail);
- const agent=state.agents.find(a=>a.id===agentId),existing=activeFundingDraft(state);
+ const agent=state.agents.find(a=>a.id===agentId);
  const agentRequest=fundingPreset?.fundingRequestId?state.agentFundingRequests?.find(r=>r.id===fundingPreset.fundingRequestId):null;
+ const {existing,reviewOnly,intercept}=fundingReviewAccess(state,agentRequest,agent);
  const requestOK=!fundingPreset?.fundingRequestId||!!agentRequest&&requestState(agentRequest,agent)==='open';
  const compatibility=fundingCompatibility({agent,rail,currency,amountMinor:inputPence(amount),targetAsset,route});
  const [step,setStep]=useDialogState('fundingStep',1),[consent,setConsent]=useState(false),[opening,setOpening]=useState(false);
@@ -47,10 +48,10 @@ export function LiveFunding({state,act,busy,error,onClose,open,selected,fundingP
  // Any externally refreshed destination invalidates the user's acknowledgement.
  useEffect(()=>{setConsent(false);setConfirmed(false);},[agent?.address,agent?.network,agent?.token,live,state.paymentsDisabled]);
  const submit=async e=>{
-  e.preventDefault();if(locked||inFlight.current||existing)return;
+  e.preventDefault();if(locked||inFlight.current||intercept)return;
   if(step===1){if(walletOK&&requestOK)changeStep(2);return;}
   if(step===2){if(valid)changeStep(3);return;}
-  if(!valid||!confirmed||live&&(!consent||state.paymentsDisabled===true))return;
+  if(existing||!valid||!confirmed||live&&(!consent||state.paymentsDisabled===true))return;
   inFlight.current=true;setOpening(true);
   try{
    const result=await submitFundingJourney({selection:{requestId,agentId,amount,rail,currency,targetAsset,route,confirm:confirmed,...agentRequest?{fundingRequestId:agentRequest.id}:{}},agent,live,consent,act,resume:body=>api('funding/resume',body),isCurrent:()=>mounted.current});
@@ -62,10 +63,11 @@ export function LiveFunding({state,act,busy,error,onClose,open,selected,fundingP
  const nav={...navigation,busy:locked,backLabel:step>1?'Back to '+(step===3?'amount and method':'choose wallet'):navigation?.backLabel??'Back',back:step>1?()=>changeStep(step-1):navigation?.back??onClose};
  return <DialogNavigation.Provider value={nav}><Modal title={live?'Fund a wallet':'Prepare funding'} className="fund-wallet-modal fund-wizard" wide onClose={locked?()=>{}:onClose}>
   {error&&<Notice error>{error}</Notice>}
-  {existing&&!opening?<section className="fund-existing"><span className="fund-screen-icon"><Icon name="clock"/></span><h3>Continue your saved request</h3><p>Your request is saved. Open it to check the payment status and next step.</p><Button className="full" onClick={()=>open('funding-draft',existing.id)}>Review existing request<Icon name="arrow" size={18}/></Button></section>:<>
-  <ol className="fund-progress" aria-label="Funding steps">{['Choose wallet','Amount and method','Review and pay'].map((label,i)=><li key={label} aria-current={step===i+1?'step':undefined} className={step>i+1?'is-complete':''}><span>{step>i+1?<Icon name="check" size={17}/>:i+1}</span><strong>{label}</strong></li>)}</ol>
-  <div className="fund-screen-intro"><span className="fund-screen-icon"><Icon name={step===1?'wallet':step===2?'bank':'check'} size={26}/></span><div><p className="fund-step-count">Step {step} of 3</p><h3 ref={heading} tabIndex={-1}>{step===1?'Choose your receiving wallet.':step===2?'Choose how much to fund.':'Review your funding request.'}</h3><p>{step===1?'Use the receiving details from your agentic wallet.':step===2?'Choose your currency, payment method and amount.':live?'Check your details, then continue to Peer to review the offer and pay.':'Check your details before saving a draft. Payments are disabled.'}</p></div></div>
+  {intercept&&!opening?<section className="fund-existing"><span className="fund-screen-icon"><Icon name="clock"/></span><h3>Continue your saved request</h3><p>Your request is saved. Open it to check the payment status and next step.</p><Button className="full" onClick={()=>open('funding-draft',existing.id)}>Review existing request<Icon name="arrow" size={18}/></Button></section>:<>
+  <ol className="fund-progress" aria-label="Funding steps">{['Choose wallet','Amount and method',reviewOnly?'Review details':'Review and pay'].map((label,i)=><li key={label} aria-current={step===i+1?'step':undefined} className={step>i+1?'is-complete':''}><span>{step>i+1?<Icon name="check" size={17}/>:i+1}</span><strong>{label}</strong></li>)}</ol>
+  <div className="fund-screen-intro"><span className="fund-screen-icon"><Icon name={step===1?'wallet':step===2?'bank':'check'} size={26}/></span><div><p className="fund-step-count">Step {step} of 3</p><h3 ref={heading} tabIndex={-1}>{step===1?'Choose your receiving wallet.':step===2?'Choose how much to fund.':'Review your funding request.'}</h3><p>{step===1?'Use the receiving details from your agentic wallet.':step===2?'Choose your currency, payment method and amount.':reviewOnly?'Check your details. Your existing request stays unchanged.':live?'Check your details, then continue to Peer to review the offer and pay.':'Check your details before saving a draft. Payments are disabled.'}</p></div></div>
   {agentRequest&&<RequestTarget request={agentRequest}/>}
+  {reviewOnly&&<Notice>Another funding request is still open. You can review these details without changing it. Your existing request keeps tracking.</Notice>}
   {!requestOK&&<Notice error>This funding request is no longer available to prepare. Return to Funding requests to review it.</Notice>}
   {fundingPreset&&!agentRequest&&<Notice>Previous amount filled in. Review the current offer before paying again.</Notice>}
   <form onSubmit={submit}>
@@ -96,8 +98,9 @@ export function LiveFunding({state,act,busy,error,onClose,open,selected,fundingP
      {step===2&&<FundingCosts setupOnly requestedPence={inputPence(amount)} currency={currency}/>}
     </aside>
    </div>
-   {step===3&&<div className="fund-confirm"><Check checked={confirmed} disabled={locked} onChange={e=>setConfirmed(e.target.checked)}>This is my receiving wallet. I have checked the full address and amount.</Check>{live&&<Check checked={consent} disabled={locked} onChange={e=>setConsent(e.target.checked)}>Create a real Peer checkout and share this amount, receiving address and order reference with Peer. I will review the final payment details before paying.</Check>}</div>}
-   <div className="fund-step-actions"><p>{step<3?'No funding draft or Peer checkout is created until the final step.':live?'You’ll continue in Peer to review the offer and pay.':'Saving this draft sends nothing to Peer.'}</p><Button type="submit" disabled={locked||(step===1?!walletOK||!requestOK:!valid)||(step===3&&(!confirmed||live&&(!consent||state.paymentsDisabled===true)))}>{opening?(live?'Opening Peer…':'Saving…'):step===1?'Continue to amount':step===2?'Review and pay':live?'Pay with Peer':'Save funding draft'}<Icon name="arrow" size={18}/></Button></div>
+   {step===3&&reviewOnly&&<section className="fund-form-section fund-existing-review"><h3>Review before starting another payment</h3><p>Check your existing request in Payments before continuing. No new draft or checkout has been created.</p><Button type="button" secondary disabled={locked} onClick={()=>open('funding-draft',existing.id)}>Review existing request<Icon name="arrow" size={18}/></Button></section>}
+   {step===3&&!reviewOnly&&<div className="fund-confirm"><Check checked={confirmed} disabled={locked} onChange={e=>setConfirmed(e.target.checked)}>This is my receiving wallet. I have checked the full address and amount.</Check>{live&&<Check checked={consent} disabled={locked} onChange={e=>setConsent(e.target.checked)}>Create a real Peer checkout and share this amount, receiving address and order reference with Peer. I will review the final payment details before paying.</Check>}</div>}
+   <div className="fund-step-actions"><p>{step===3&&reviewOnly?'Review only · your existing request is unchanged.':step<3?'No funding draft or Peer checkout is created until the final step.':live?'You’ll continue in Peer to review the offer and pay.':'Saving this draft sends nothing to Peer.'}</p><Button type="submit" disabled={locked||(step===1?!walletOK||!requestOK:!valid)||(step===3&&(!!existing||!confirmed||live&&(!consent||state.paymentsDisabled===true)))}>{opening?(live?'Opening Peer…':'Saving…'):step===1?'Continue to amount':step===2?(reviewOnly?'Review details':'Review and pay'):reviewOnly?'Review existing request first':live?'Pay with Peer':'Save funding draft'}<Icon name="arrow" size={18}/></Button></div>
   </form></>}
  </Modal></DialogNavigation.Provider>;
 }

@@ -1,3 +1,4 @@
+import {requestState} from '../shared/funding-request.mjs';
 // Presentation routing only. Every write remains behind the existing server checks.
 export function activeFundingDraft(state) {
  return state.fundingDrafts?.find(d => !d.stoppedAt && !d.trackingOnlyAt && !d.supersededBy && !['cancelled','closed'].includes(d.status));
@@ -17,4 +18,11 @@ export function fundingEntry(state) {
  const label = live ? 'Fund a wallet' : test ? 'Try test funding' : 'Prepare funding';
  if (!state.agents?.length) return {kind:'wallet',label,needsWallet:true};
  return {kind:live||test?'fund':'live-fund',label};
+}
+
+// Reviewing an agent request is navigation only. Existing drafts still block writes.
+export function fundingReviewAccess(state,request,agent,now=Date.now()){
+ const existing=activeFundingDraft(state);
+ const reviewOnly=!!existing&&!!request&&requestState(request,agent,now)==='open';
+ return {existing,reviewOnly,intercept:!!existing&&!reviewOnly};
 }
