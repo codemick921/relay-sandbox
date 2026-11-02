@@ -18,6 +18,7 @@ export default function FundingOptions({state,open,onClose,selected,fundingPrese
     {!options.live&&options.prepare&&!options.existing&&<p>You can save a draft in Eupova. Preparing a draft does not create a Peer checkout or send money.</p>}
     {options.action&&<Button className="full" onClick={continueFunding}>{options.action.label}</Button>}
    </section>
+   {state.fundingCalculator?.enabled&&<section className="funding-option"><div className="funding-option-heading"><h3>Plan a USDC target</h3><span className="funding-option-status">Price comparison</span></div><p>Check direct Peer price estimates for the USDC you need. These prices are separate from merchant checkout.</p><Button secondary className="full" onClick={()=>open('target-calculator')}>Compare USDC target prices</Button></section>}
    <details className="funding-option-tests"><summary>Peer payment methods</summary><p>Choose a currency in the funding form to see matching methods. PayPal is excluded.</p><ul>{fundingCatalog.methods.map(m=><li key={m.id}><strong>{m.label}</strong>: {m.currencies.join(', ')}. {m.checkoutSupported?'Checkout integration available; Peer checks account access and offers.':'Not connected to Eupova checkout yet.'}</li>)}</ul></details>
    <section className="funding-option funding-option-unavailable" aria-labelledby="ramp-option-title">
     <div className="funding-option-heading"><h3 id="ramp-option-title">Ramp Network</h3><span className="funding-option-status">Not connected</span></div>

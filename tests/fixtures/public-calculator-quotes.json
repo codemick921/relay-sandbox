@@ -1,0 +1,628 @@
+{
+  "wise": {
+    "checkedAt": "2026-11-02T10:38:25.660263+00:00",
+    "status": 200,
+    "request": {
+      "exactTokenAmount": "25000000",
+      "paymentPlatforms": [
+        "wise"
+      ],
+      "fiatCurrency": "GBP",
+      "user": "0x0000000000000000000000000000000000000001",
+      "recipient": "0x0000000000000000000000000000000000000002",
+      "destinationChainId": 8453,
+      "destinationToken": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+      "mode": "eligible",
+      "quotePreference": "PREFER_SAR",
+      "referralFees": [],
+      "escrowAddresses": [
+        "0x777777779d229cdf3110e9de47943791c26300ef"
+      ]
+    },
+    "response": {
+      "success": true,
+      "message": "Quote fetched successfully",
+      "responseObject": {
+        "fiat": {
+          "currencyCode": "0x90832e2dc3221e4d56977c1aa8f6a6706b9ad6542fbbdaac13097d0fa5e42e67",
+          "currencyName": "GBP",
+          "currencySymbol": "\u00a3",
+          "countryCode": "gb"
+        },
+        "token": {
+          "token": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+          "decimals": 6,
+          "name": "USD Coin",
+          "symbol": "USDC",
+          "chainId": 8453
+        },
+        "quotes": [
+          {
+            "fiatAmount": "19413909",
+            "fiatAmountFormatted": "19.42 GBP",
+            "tokenAmount": "25000000",
+            "tokenAmountFormatted": "25.00 USDC",
+            "signalIntentAmount": "25239777",
+            "signalIntentAmountFormatted": "25.23 USDC",
+            "zkp2pFeeAmount": "239777",
+            "zkp2pFeeAmountFormatted": "0.24 USDC",
+            "serviceFeeBps": 95,
+            "takerReferralFeeBps": 0,
+            "takerReferralFeeAmount": "0",
+            "takerReferralFeeAmountFormatted": "0.00 USDC",
+            "managerFeeAmount": "0",
+            "managerFeeAmountFormatted": "0.00 USDC",
+            "totalFeeAmount": "239777",
+            "totalFeeAmountFormatted": "0.24 USDC",
+            "paymentMethod": "wise",
+            "payeeAddress": "0xf6B4b5C6f3F08cF00a443a381e6Ab50DcBdFB140",
+            "conversionRate": "769179069368003645",
+            "sellerAutomatedReleaseAvailable": true,
+            "depositSuccessRateBps": 3155,
+            "depositIntentStats": {
+              "totalIntents": 1329,
+              "signaledIntents": 1329,
+              "fulfilledIntents": 419,
+              "prunedIntents": 909
+            },
+            "whitelistEnabled": false,
+            "allowedGroupIds": [],
+            "disputeProtectionRequiresStake": false,
+            "intent": {
+              "depositId": 4488,
+              "processorName": "wise",
+              "amount": "25239777",
+              "toAddress": "0x0000000000000000000000000000000000000002",
+              "payeeDetails": "0x0c947bc04b1daa85c30da32f27ed20e52ab8123b1c7d2177ce640caaaf6ff777",
+              "processorIntentData": {},
+              "fiatCurrencyCode": "0x90832e2dc3221e4d56977c1aa8f6a6706b9ad6542fbbdaac13097d0fa5e42e67",
+              "chainId": "8453",
+              "escrowAddress": "0x777777779d229cdf3110e9de47943791c26300ef",
+              "managerFee": "0",
+              "managerFeeFormatted": "0%"
+            }
+          }
+        ],
+        "fees": {
+          "zkp2pFee": "9500000000000000",
+          "zkp2pFeeFormatted": "0.95%",
+          "swapFee": "0.00",
+          "swapFeeFormatted": "$0.00"
+        },
+        "quoteExpiresAt": "2026-11-02T11:38:25.706Z",
+        "orchestratorAddress": "0x74c55679268fafb493864915ad16a320ab8c40ba"
+      },
+      "statusCode": 200
+    }
+  },
+  "revolut": {
+    "checkedAt": "2026-11-02T10:38:27.527324+00:00",
+    "status": 200,
+    "request": {
+      "exactTokenAmount": "25000000",
+      "paymentPlatforms": [
+        "revolut"
+      ],
+      "fiatCurrency": "GBP",
+      "user": "0x0000000000000000000000000000000000000001",
+      "recipient": "0x0000000000000000000000000000000000000002",
+      "destinationChainId": 8453,
+      "destinationToken": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+      "mode": "eligible",
+      "quotePreference": "PREFER_SAR",
+      "referralFees": [],
+      "escrowAddresses": [
+        "0x777777779d229cdf3110e9de47943791c26300ef"
+      ]
+    },
+    "response": {
+      "success": true,
+      "message": "Quote fetched successfully",
+      "responseObject": {
+        "fiat": {
+          "currencyCode": "0x90832e2dc3221e4d56977c1aa8f6a6706b9ad6542fbbdaac13097d0fa5e42e67",
+          "currencyName": "GBP",
+          "currencySymbol": "\u00a3",
+          "countryCode": "gb"
+        },
+        "token": {
+          "token": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+          "decimals": 6,
+          "name": "USD Coin",
+          "symbol": "USDC",
+          "chainId": 8453
+        },
+        "quotes": [
+          {
+            "fiatAmount": "20431725",
+            "fiatAmountFormatted": "20.44 GBP",
+            "tokenAmount": "25000000",
+            "tokenAmountFormatted": "25.00 USDC",
+            "signalIntentAmount": "25239777",
+            "signalIntentAmountFormatted": "25.23 USDC",
+            "zkp2pFeeAmount": "239777",
+            "zkp2pFeeAmountFormatted": "0.24 USDC",
+            "serviceFeeBps": 95,
+            "takerReferralFeeBps": 0,
+            "takerReferralFeeAmount": "0",
+            "takerReferralFeeAmountFormatted": "0.00 USDC",
+            "managerFeeAmount": "0",
+            "managerFeeAmountFormatted": "0.00 USDC",
+            "totalFeeAmount": "239777",
+            "totalFeeAmountFormatted": "0.24 USDC",
+            "paymentMethod": "revolut",
+            "payeeAddress": "0x4b0657757A9E249016fb5c20c34A632650bA50EB",
+            "conversionRate": "809504962325161118",
+            "sellerAutomatedReleaseAvailable": false,
+            "depositSuccessRateBps": 5000,
+            "depositIntentStats": {
+              "totalIntents": 7,
+              "signaledIntents": 7,
+              "fulfilledIntents": 3,
+              "prunedIntents": 3
+            },
+            "whitelistEnabled": false,
+            "allowedGroupIds": [],
+            "disputeProtectionRequiresStake": false,
+            "intent": {
+              "depositId": 7899,
+              "processorName": "revolut",
+              "amount": "25239777",
+              "toAddress": "0x0000000000000000000000000000000000000002",
+              "payeeDetails": "0x8b20ad631056caa7f31fc2ff77c66ed9e9ab7f4e974dcacf1817b4248fb5a219",
+              "processorIntentData": {},
+              "fiatCurrencyCode": "0x90832e2dc3221e4d56977c1aa8f6a6706b9ad6542fbbdaac13097d0fa5e42e67",
+              "chainId": "8453",
+              "escrowAddress": "0x777777779d229cdf3110e9de47943791c26300ef",
+              "managerFee": "0",
+              "managerFeeFormatted": "0%"
+            }
+          },
+          {
+            "fiatAmount": "26501766",
+            "fiatAmountFormatted": "26.51 GBP",
+            "tokenAmount": "25000000",
+            "tokenAmountFormatted": "25.00 USDC",
+            "signalIntentAmount": "25239777",
+            "signalIntentAmountFormatted": "25.23 USDC",
+            "zkp2pFeeAmount": "239777",
+            "zkp2pFeeAmountFormatted": "0.24 USDC",
+            "serviceFeeBps": 95,
+            "takerReferralFeeBps": 0,
+            "takerReferralFeeAmount": "0",
+            "takerReferralFeeAmountFormatted": "0.00 USDC",
+            "managerFeeAmount": "0",
+            "managerFeeAmountFormatted": "0.00 USDC",
+            "totalFeeAmount": "239777",
+            "totalFeeAmountFormatted": "0.24 USDC",
+            "paymentMethod": "revolut",
+            "payeeAddress": "0xCe30f0f8d075be52269263229Ac5c36e33bA1A53",
+            "conversionRate": "1050000000000000000",
+            "sellerAutomatedReleaseAvailable": false,
+            "depositSuccessRateBps": 10000,
+            "depositIntentStats": {
+              "totalIntents": 0,
+              "signaledIntents": 0,
+              "fulfilledIntents": 0,
+              "prunedIntents": 0
+            },
+            "whitelistEnabled": false,
+            "allowedGroupIds": [],
+            "disputeProtectionRequiresStake": false,
+            "intent": {
+              "depositId": 7794,
+              "processorName": "revolut",
+              "amount": "25239777",
+              "toAddress": "0x0000000000000000000000000000000000000002",
+              "payeeDetails": "0xad407084d55ac78535ef2ad4e0427a452cc2aee3a1e8204ae6756233be047277",
+              "processorIntentData": {},
+              "fiatCurrencyCode": "0x90832e2dc3221e4d56977c1aa8f6a6706b9ad6542fbbdaac13097d0fa5e42e67",
+              "chainId": "8453",
+              "escrowAddress": "0x777777779d229cdf3110e9de47943791c26300ef",
+              "managerFee": "0",
+              "managerFeeFormatted": "0%"
+            }
+          }
+        ],
+        "fees": {
+          "zkp2pFee": "9500000000000000",
+          "zkp2pFeeFormatted": "0.95%",
+          "swapFee": "0.00",
+          "swapFeeFormatted": "$0.00"
+        },
+        "quoteExpiresAt": "2026-11-02T11:38:27.504Z",
+        "orchestratorAddress": "0x74c55679268fafb493864915ad16a320ab8c40ba"
+      },
+      "statusCode": 200
+    }
+  },
+  "monzo": {
+    "checkedAt": "2026-11-02T10:38:28.894852+00:00",
+    "status": 404,
+    "request": {
+      "exactTokenAmount": "25000000",
+      "paymentPlatforms": [
+        "monzo"
+      ],
+      "fiatCurrency": "GBP",
+      "user": "0x0000000000000000000000000000000000000001",
+      "recipient": "0x0000000000000000000000000000000000000002",
+      "destinationChainId": 8453,
+      "destinationToken": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+      "mode": "eligible",
+      "quotePreference": "PREFER_SAR",
+      "referralFees": [],
+      "escrowAddresses": [
+        "0x777777779d229cdf3110e9de47943791c26300ef"
+      ]
+    },
+    "response": {
+      "success": false,
+      "message": "No quotes found",
+      "responseObject": null,
+      "statusCode": 404,
+      "errorCode": "no_quotes_found"
+    }
+  },
+  "venmo": {
+    "checkedAt": "2026-11-02T10:38:59.000184+00:00",
+    "status": 200,
+    "request": {
+      "exactTokenAmount": "25000000",
+      "paymentPlatforms": [
+        "venmo"
+      ],
+      "fiatCurrency": "USD",
+      "user": "0x0000000000000000000000000000000000000001",
+      "recipient": "0x0000000000000000000000000000000000000002",
+      "destinationChainId": 8453,
+      "destinationToken": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+      "mode": "eligible",
+      "quotePreference": "PREFER_SAR",
+      "referralFees": [],
+      "escrowAddresses": [
+        "0x777777779d229cdf3110e9de47943791c26300ef"
+      ]
+    },
+    "response": {
+      "success": true,
+      "message": "Quote fetched successfully",
+      "responseObject": {
+        "fiat": {
+          "currencyCode": "0xc4ae21aac0c6549d71dd96035b7e0bdb6c79ebdba8891b666115bc976d16a29e",
+          "currencyName": "USD",
+          "currencySymbol": "$",
+          "countryCode": "us"
+        },
+        "token": {
+          "token": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+          "decimals": 6,
+          "name": "USD Coin",
+          "symbol": "USDC",
+          "chainId": 8453
+        },
+        "quotes": [
+          {
+            "fiatAmount": "30035335",
+            "fiatAmountFormatted": "30.04 USD",
+            "tokenAmount": "25000000",
+            "tokenAmountFormatted": "25.00 USDC",
+            "signalIntentAmount": "25239777",
+            "signalIntentAmountFormatted": "25.23 USDC",
+            "zkp2pFeeAmount": "239777",
+            "zkp2pFeeAmountFormatted": "0.24 USDC",
+            "serviceFeeBps": 95,
+            "takerReferralFeeBps": 0,
+            "takerReferralFeeAmount": "0",
+            "takerReferralFeeAmountFormatted": "0.00 USDC",
+            "managerFeeAmount": "0",
+            "managerFeeAmountFormatted": "0.00 USDC",
+            "totalFeeAmount": "239777",
+            "totalFeeAmountFormatted": "0.24 USDC",
+            "paymentMethod": "venmo",
+            "payeeAddress": "0xCcCfe6bD14976d3fc071B8B4f8bd1631839c57C8",
+            "conversionRate": "1190000000000000000",
+            "sellerAutomatedReleaseAvailable": true,
+            "depositSuccessRateBps": 3490,
+            "depositIntentStats": {
+              "totalIntents": 915,
+              "signaledIntents": 915,
+              "fulfilledIntents": 319,
+              "prunedIntents": 595
+            },
+            "whitelistEnabled": false,
+            "allowedGroupIds": [],
+            "disputeProtectionRequiresStake": true,
+            "intent": {
+              "depositId": 333,
+              "processorName": "venmo",
+              "amount": "25239777",
+              "toAddress": "0x0000000000000000000000000000000000000002",
+              "payeeDetails": "0x1f02a3c92271cc147429519f71d10413c2f99c4c722ab37f89df87e4e4b96354",
+              "processorIntentData": {},
+              "fiatCurrencyCode": "0xc4ae21aac0c6549d71dd96035b7e0bdb6c79ebdba8891b666115bc976d16a29e",
+              "chainId": "8453",
+              "escrowAddress": "0x777777779d229cdf3110e9de47943791c26300ef",
+              "managerFee": "0",
+              "managerFeeFormatted": "0%"
+            }
+          }
+        ],
+        "fees": {
+          "zkp2pFee": "9500000000000000",
+          "zkp2pFeeFormatted": "0.95%",
+          "swapFee": "0.00",
+          "swapFeeFormatted": "$0.00"
+        },
+        "quoteExpiresAt": "2026-11-02T11:38:59.041Z",
+        "orchestratorAddress": "0x74c55679268fafb493864915ad16a320ab8c40ba"
+      },
+      "statusCode": 200
+    }
+  },
+  "cashapp": {
+    "checkedAt": "2026-11-02T10:39:00.234612+00:00",
+    "status": 404,
+    "request": {
+      "exactTokenAmount": "25000000",
+      "paymentPlatforms": [
+        "cashapp"
+      ],
+      "fiatCurrency": "USD",
+      "user": "0x0000000000000000000000000000000000000001",
+      "recipient": "0x0000000000000000000000000000000000000002",
+      "destinationChainId": 8453,
+      "destinationToken": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+      "mode": "eligible",
+      "quotePreference": "PREFER_SAR",
+      "referralFees": [],
+      "escrowAddresses": [
+        "0x777777779d229cdf3110e9de47943791c26300ef"
+      ]
+    },
+    "response": {
+      "success": false,
+      "message": "No quotes found",
+      "responseObject": null,
+      "statusCode": 404,
+      "errorCode": "no_quotes_found"
+    }
+  },
+  "zelle": {
+    "checkedAt": "2026-11-02T10:39:01.702175+00:00",
+    "status": 200,
+    "request": {
+      "exactTokenAmount": "25000000",
+      "paymentPlatforms": [
+        "zelle"
+      ],
+      "fiatCurrency": "USD",
+      "user": "0x0000000000000000000000000000000000000001",
+      "recipient": "0x0000000000000000000000000000000000000002",
+      "destinationChainId": 8453,
+      "destinationToken": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+      "mode": "eligible",
+      "quotePreference": "PREFER_SAR",
+      "referralFees": [],
+      "escrowAddresses": [
+        "0x777777779d229cdf3110e9de47943791c26300ef"
+      ]
+    },
+    "response": {
+      "success": true,
+      "message": "Quote fetched successfully",
+      "responseObject": {
+        "fiat": {
+          "currencyCode": "0xc4ae21aac0c6549d71dd96035b7e0bdb6c79ebdba8891b666115bc976d16a29e",
+          "currencyName": "USD",
+          "currencySymbol": "$",
+          "countryCode": "us"
+        },
+        "token": {
+          "token": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+          "decimals": 6,
+          "name": "USD Coin",
+          "symbol": "USDC",
+          "chainId": 8453
+        },
+        "quotes": [
+          {
+            "fiatAmount": "25239777",
+            "fiatAmountFormatted": "25.24 USD",
+            "tokenAmount": "25000000",
+            "tokenAmountFormatted": "25.00 USDC",
+            "signalIntentAmount": "25239777",
+            "signalIntentAmountFormatted": "25.23 USDC",
+            "zkp2pFeeAmount": "239777",
+            "zkp2pFeeAmountFormatted": "0.24 USDC",
+            "serviceFeeBps": 95,
+            "takerReferralFeeBps": 0,
+            "takerReferralFeeAmount": "0",
+            "takerReferralFeeAmountFormatted": "0.00 USDC",
+            "managerFeeAmount": "0",
+            "managerFeeAmountFormatted": "0.00 USDC",
+            "totalFeeAmount": "239777",
+            "totalFeeAmountFormatted": "0.24 USDC",
+            "paymentMethod": "zelle",
+            "payeeAddress": "0xbC612307a1fb96993286597b795bE1434Cb9c3D2",
+            "conversionRate": "1000000000000000000",
+            "sellerAutomatedReleaseAvailable": false,
+            "depositSuccessRateBps": 3243,
+            "depositIntentStats": {
+              "totalIntents": 38,
+              "signaledIntents": 38,
+              "fulfilledIntents": 12,
+              "prunedIntents": 25
+            },
+            "whitelistEnabled": false,
+            "allowedGroupIds": [],
+            "disputeProtectionRequiresStake": false,
+            "intent": {
+              "depositId": 7784,
+              "processorName": "zelle",
+              "amount": "25239777",
+              "toAddress": "0x0000000000000000000000000000000000000002",
+              "payeeDetails": "0x26b63b14aeb245e27c9c4448fdc84cbfc1031830f6170a1dcfa6b8386e5e3dfe",
+              "processorIntentData": {},
+              "fiatCurrencyCode": "0xc4ae21aac0c6549d71dd96035b7e0bdb6c79ebdba8891b666115bc976d16a29e",
+              "chainId": "8453",
+              "escrowAddress": "0x777777779d229cdf3110e9de47943791c26300ef",
+              "managerFee": "0",
+              "managerFeeFormatted": "0%"
+            }
+          },
+          {
+            "fiatAmount": "27763755",
+            "fiatAmountFormatted": "27.77 USD",
+            "tokenAmount": "25000000",
+            "tokenAmountFormatted": "25.00 USDC",
+            "signalIntentAmount": "25239777",
+            "signalIntentAmountFormatted": "25.23 USDC",
+            "zkp2pFeeAmount": "239777",
+            "zkp2pFeeAmountFormatted": "0.24 USDC",
+            "serviceFeeBps": 95,
+            "takerReferralFeeBps": 0,
+            "takerReferralFeeAmount": "0",
+            "takerReferralFeeAmountFormatted": "0.00 USDC",
+            "managerFeeAmount": "0",
+            "managerFeeAmountFormatted": "0.00 USDC",
+            "totalFeeAmount": "239777",
+            "totalFeeAmountFormatted": "0.24 USDC",
+            "paymentMethod": "zelle",
+            "payeeAddress": "0xf6B4b5C6f3F08cF00a443a381e6Ab50DcBdFB140",
+            "conversionRate": "1100000000000000000",
+            "sellerAutomatedReleaseAvailable": false,
+            "depositSuccessRateBps": 3155,
+            "depositIntentStats": {
+              "totalIntents": 1329,
+              "signaledIntents": 1329,
+              "fulfilledIntents": 419,
+              "prunedIntents": 909
+            },
+            "whitelistEnabled": false,
+            "allowedGroupIds": [],
+            "disputeProtectionRequiresStake": false,
+            "intent": {
+              "depositId": 4488,
+              "processorName": "zelle",
+              "amount": "25239777",
+              "toAddress": "0x0000000000000000000000000000000000000002",
+              "payeeDetails": "0x343df0ade077031e875635f5a70c1e3b465e81939a6acda862a8706d54ddf701",
+              "processorIntentData": {},
+              "fiatCurrencyCode": "0xc4ae21aac0c6549d71dd96035b7e0bdb6c79ebdba8891b666115bc976d16a29e",
+              "chainId": "8453",
+              "escrowAddress": "0x777777779d229cdf3110e9de47943791c26300ef",
+              "managerFee": "0",
+              "managerFeeFormatted": "0%"
+            }
+          }
+        ],
+        "fees": {
+          "zkp2pFee": "9500000000000000",
+          "zkp2pFeeFormatted": "0.95%",
+          "swapFee": "0.00",
+          "swapFeeFormatted": "$0.00"
+        },
+        "quoteExpiresAt": "2026-11-02T11:39:01.737Z",
+        "orchestratorAddress": "0x74c55679268fafb493864915ad16a320ab8c40ba"
+      },
+      "statusCode": 200
+    }
+  },
+  "chime": {
+    "checkedAt": "2026-11-02T10:39:03.177256+00:00",
+    "status": 200,
+    "request": {
+      "exactTokenAmount": "25000000",
+      "paymentPlatforms": [
+        "chime"
+      ],
+      "fiatCurrency": "USD",
+      "user": "0x0000000000000000000000000000000000000001",
+      "recipient": "0x0000000000000000000000000000000000000002",
+      "destinationChainId": 8453,
+      "destinationToken": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+      "mode": "eligible",
+      "quotePreference": "PREFER_SAR",
+      "referralFees": [],
+      "escrowAddresses": [
+        "0x777777779d229cdf3110e9de47943791c26300ef"
+      ]
+    },
+    "response": {
+      "success": true,
+      "message": "Quote fetched successfully",
+      "responseObject": {
+        "fiat": {
+          "currencyCode": "0xc4ae21aac0c6549d71dd96035b7e0bdb6c79ebdba8891b666115bc976d16a29e",
+          "currencyName": "USD",
+          "currencySymbol": "$",
+          "countryCode": "us"
+        },
+        "token": {
+          "token": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+          "decimals": 6,
+          "name": "USD Coin",
+          "symbol": "USDC",
+          "chainId": 8453
+        },
+        "quotes": [
+          {
+            "fiatAmount": "31581303",
+            "fiatAmountFormatted": "31.59 USD",
+            "tokenAmount": "25000000",
+            "tokenAmountFormatted": "25.00 USDC",
+            "signalIntentAmount": "25239777",
+            "signalIntentAmountFormatted": "25.23 USDC",
+            "zkp2pFeeAmount": "239777",
+            "zkp2pFeeAmountFormatted": "0.24 USDC",
+            "serviceFeeBps": 95,
+            "takerReferralFeeBps": 0,
+            "takerReferralFeeAmount": "0",
+            "takerReferralFeeAmountFormatted": "0.00 USDC",
+            "managerFeeAmount": "25266",
+            "managerFeeAmountFormatted": "0.03 USDC",
+            "totalFeeAmount": "265043",
+            "totalFeeAmountFormatted": "0.27 USDC",
+            "paymentMethod": "chime",
+            "payeeAddress": "0x58741D67633f24e1E7fb411D74e7642422827760",
+            "conversionRate": "1251251251251251251",
+            "sellerAutomatedReleaseAvailable": false,
+            "depositSuccessRateBps": 3786,
+            "depositIntentStats": {
+              "totalIntents": 103,
+              "signaledIntents": 103,
+              "fulfilledIntents": 39,
+              "prunedIntents": 64
+            },
+            "whitelistEnabled": false,
+            "allowedGroupIds": [],
+            "disputeProtectionRequiresStake": false,
+            "intent": {
+              "depositId": 3768,
+              "processorName": "chime",
+              "amount": "25239777",
+              "toAddress": "0x0000000000000000000000000000000000000002",
+              "payeeDetails": "0x5470bf245214c728f831256701c624d1bd8f96047cc8948a6432bbc1973c3d93",
+              "processorIntentData": {},
+              "fiatCurrencyCode": "0xc4ae21aac0c6549d71dd96035b7e0bdb6c79ebdba8891b666115bc976d16a29e",
+              "chainId": "8453",
+              "escrowAddress": "0x777777779d229cdf3110e9de47943791c26300ef",
+              "managerFee": "1000000000000000",
+              "managerFeeFormatted": "0.1%"
+            }
+          }
+        ],
+        "fees": {
+          "zkp2pFee": "9500000000000000",
+          "zkp2pFeeFormatted": "0.95%",
+          "swapFee": "0.00",
+          "swapFeeFormatted": "$0.00"
+        },
+        "quoteExpiresAt": "2026-11-02T11:39:03.141Z",
+        "orchestratorAddress": "0x74c55679268fafb493864915ad16a320ab8c40ba"
+      },
+      "statusCode": 200
+    }
+  }
+}

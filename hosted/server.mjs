@@ -1,3 +1,4 @@
+import {configuredTargetCalculator} from '../server/quote-first/target-calculator-http.mjs';
 import {configuredBuyerConnectionHttp} from '../server/quote-first/buyer-connection-http.mjs';
 import {createAgentFundingRequests} from './agent-funding-requests.mjs';
 import {configuredBuyerAuthHttp} from '../server/quote-first/buyer-auth-http.mjs';
@@ -38,7 +39,7 @@ const dist=fileURLToPath(new URL('../dist/',import.meta.url));
 const uuid=v=>typeof v==='string'&&/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(v);
 async function body(req,max=16384){let size=0;const chunks=[];for await(const chunk of req){size+=chunk.length;if(size>max)throw new InputError('Request too large.',413);chunks.push(chunk);}return Buffer.concat(chunks);}
 const send=(res,status,data)=>{res.writeHead(status,{'Content-Type':'application/json'});res.end(JSON.stringify(data));};
-export function createHostedServer({store,config,pay=createSandboxPayService(),staticRoot=dist,allowHttpForTests=false,tracking=null,paymentsDisabled=false,localPreview=false,accountMail=null,customerAccountsEnabled=true,peerConnection=null,fundingDrafts=null,liveObservation=null,ramp=null,walletBalances=null,buyerAuth=null,buyerStatus=null,buyerConnection=null}){
+export function createHostedServer({store,config,pay=createSandboxPayService(),staticRoot=dist,allowHttpForTests=false,tracking=null,paymentsDisabled=false,localPreview=false,accountMail=null,customerAccountsEnabled=true,peerConnection=null,fundingDrafts=null,liveObservation=null,ramp=null,walletBalances=null,buyerAuth=null,buyerStatus=null,buyerConnection=null,targetCalculator=null}){
  const origin=new URL(config.origin),mail=accountMail??createAccountMail(store),accounts=customerAccountsEnabled?createAccounts(store,{mail}):null;
  if(fundingDrafts&&!paymentsDisabled)throw Error('Funding preparation requires payments to remain disabled.');
  if(tracking?.journey&&(!tracking.simulated||!tracking.journey.simulated||!paymentsDisabled))throw Error('Test funding requires simulated tracking and disabled payments.');
@@ -69,7 +70,7 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
   if(walletBalances&&owner.startsWith('customer:'))state.walletBalances=await walletBalances.state(owner);
   const testAccess=await invites.status(owner);
   if(testAccess){const canLive=!testAccess.revoked&&testAccess.allowLive&&testAccess.mode==='live';state={...state,testAccess:{...testAccess,realFundingAvailable:!!liveObservation?.funding},paymentsDisabled:state.paymentsDisabled||!canLive,liveFunding:state.liveFunding?{...state.liveFunding,paymentsEnabled:state.liveFunding.paymentsEnabled&&canLive}:undefined,fundingJourneyEnabled:state.fundingJourneyEnabled&&!testAccess.revoked&&testAccess.mode==='simulation'};}
-  return {...state,adminTestInvites:!!isInviteAdmin(owner)};
+  return {...state,...targetCalculator?.available()&&owner.startsWith('customer:')?{fundingCalculator:{enabled:true}}:{},adminTestInvites:!!isInviteAdmin(owner)};
  };
  const notifications=createCustomerNotifications(store,{scopes:[liveObservation?.store?.historyScope&&{...liveObservation.store.historyScope,simulated:false},tracking?.store?.historyScope&&{...tracking.store.historyScope,simulated:!!tracking.simulated}].filter(Boolean),simulatedBalances:!!walletBalances?.simulated});
  const handleTracking=tracking&&createLiveTrackingHandler({store:tracking.store,origin:config.origin,authenticate,rateLimit:(owner,kind)=>store.rate(kind==='read'?'read:'+owner:'mutation:'+owner,kind==='read'?120:30,60),simulated:!!tracking.simulated,localPreview,allowHttpForTests});
@@ -99,6 +100,7 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
    }
    const url=new URL(req.url,config.origin);
    if(handlePublicBuyerJwks(req,res))return;
+   if(targetCalculator&&await targetCalculator(req,res))return;
    if(buyerConnection&&await buyerConnection(req,res))return;
    if(buyerStatus&&await buyerStatus(req,res))return;
    if(buyerAuth&&await buyerAuth(req,res))return;
@@ -360,10 +362,11 @@ if(process.argv[1]===fileURLToPath(import.meta.url)){
  const ramp=createRampSimulation(store);await ramp.migrate();
  const walletBalances=liveObservation?createWalletBalances(store,{rpc:createReceiptRpc(process.env.BASE_RPC_URL||'https://mainnet.base.org')}):null;
  if(walletBalances)await walletBalances.migrate();
+ const targetCalculator=configuredTargetCalculator({store,origin:config.origin});
  const buyerStatus=configuredBuyerStatusHttp({store,origin:config.origin});
  const buyerConnection=configuredBuyerConnectionHttp({store,origin:config.origin,staticRoot:dist});
  const buyerAuth=configuredBuyerAuthHttp({store,origin:config.origin,legacyTokenAllowed:false});
- const server=createHostedServer({store,config,tracking,ramp,walletBalances,peerConnection,fundingDrafts,liveObservation,buyerAuth,buyerStatus,buyerConnection,accountMail:configuredAccountMail(store),paymentsDisabled:true,pay:{readiness:async()=>({ready:false})}});server.listen(Number(process.env.PORT??10000),'0.0.0.0',()=>console.log('Eupova hosted sandbox ready.'));
+ const server=createHostedServer({store,config,tracking,ramp,walletBalances,peerConnection,fundingDrafts,liveObservation,buyerAuth,buyerStatus,buyerConnection,targetCalculator,accountMail:configuredAccountMail(store),paymentsDisabled:true,pay:{readiness:async()=>({ready:false})}});server.listen(Number(process.env.PORT??10000),'0.0.0.0',()=>console.log('Eupova hosted sandbox ready.'));
  // One read at startup, no polling. Until verified, the receiver returns 503.
  if(peerConnection)void peerConnection.checkIdentity();
  if(liveObservation)void liveObservation.start();
