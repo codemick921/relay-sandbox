@@ -6,6 +6,7 @@ import {createPrivyAccessVerifier,createPrivyUserReader} from './privy-wallet-re
 import {createNativePrivyService,NativeError} from './native-privy.mjs';
 import {createNativePrivyStore} from './native-privy-store.mjs';
 import {connectionCsp} from './buyer-connection-http.mjs';
+import {nativeRegistryConnection} from './native-privy-database.mjs';
 import {developmentAppId} from './buyer-auth-http.mjs';
 export const nativePaths={page:'/buying-wallet-connect',status:'/api/native-privy/status',begin:'/api/native-privy/begin',review:'/api/native-privy/review',confirm:'/api/native-privy/confirm',recovery:'/api/native-privy/recovery'};
 const send=(res,status,value)=>{res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store',Vary:'Cookie, Origin, Authorization'});res.end(JSON.stringify(value));return true;};
@@ -39,10 +40,10 @@ export function configuredNativePrivy({origin,store,staticRoot,env=process.env})
  const resolveSession=createBuyerSessionReader(store),enabled=()=>env.EUPOVA_PRIVY_NATIVE_ENABLED==='true';let service=null,pool=null;
  if(enabled())try{
   const appId=env.EUPOVA_PRIVY_NATIVE_APP_ID;
-  if(!/^[a-z0-9]{10,80}$/.test(appId??'')||appId===developmentAppId||env.EUPOVA_PRIVY_NATIVE_CREDENTIAL_ACCESS!=='read-only'||!env.EUPOVA_PRIVY_NATIVE_DATABASE_URL)throw Error();
+  if(!/^[a-z0-9]{10,80}$/.test(appId??'')||appId===developmentAppId||env.EUPOVA_PRIVY_NATIVE_CREDENTIAL_ACCESS!=='read-only')throw Error();
   const verifyAccessToken=createPrivyAccessVerifier({appId,trustedJwks:JSON.parse(env.EUPOVA_PRIVY_NATIVE_PUBLIC_JWKS)});
   const readPrivyUser=createPrivyUserReader({appId,readOnlySecret:env.EUPOVA_PRIVY_NATIVE_READONLY_SECRET,credentialAccess:'read-only',includeInventory:true,includeNativeIdentity:true});
-  pool=new pg.Pool({connectionString:env.EUPOVA_PRIVY_NATIVE_DATABASE_URL,max:2,connectionTimeoutMillis:5000,statement_timeout:5000,idle_in_transaction_session_timeout:10000});
+  pool=new pg.Pool({connectionString:nativeRegistryConnection(env),max:2,connectionTimeoutMillis:5000,statement_timeout:5000,idle_in_transaction_session_timeout:10000});
   const db={query:(...a)=>pool.query(...a),transaction:async fn=>{const c=await pool.connect();try{await c.query('BEGIN');await c.query('SET LOCAL synchronous_commit=on');const value=await fn(c);await c.query('COMMIT');return value;}catch(e){await c.query('ROLLBACK').catch(()=>{});throw e;}finally{c.release();}}};
   service=createNativePrivyService({appId,store:createNativePrivyStore(db),resolveSession,verifyAccessToken,readPrivyUser,enabled});
  }catch{pool?.end().catch(()=>{});service=null;}

@@ -26,3 +26,10 @@ Pre-release baseline: commit 16aa92fc303fb70a6691b8a60b6246439b0c609f, Render de
 
 ## Verification
 Run npm run test:offline, npm run build and scripts/test-native-privy-browser.mjs (sample SDK only, external requests blocked). Hosted CI also runs the linking suite on native PostgreSQL using disposable TEST_DATABASE_URL. Never supply a production database URL to tests.
+
+## Native registry provisioning (2 November configuration follow-up)
+Alternatively to a dedicated full connection URL, configure EUPOVA_PRIVY_NATIVE_DB_PASSWORD with a newly generated 32-byte hex secret. The server derives the same internal database host/database from DATABASE_URL but replaces both username and password with the fixed eupova_native_auth_runtime role. No owner credential is reused by the registry pool. Keep EUPOVA_PRIVY_NATIVE_ENABLED=false while provisioning.
+
+Run `node scripts/provision-native-registry.mjs` once from Render internal Shell after installing the generated secret and deploying this helper. It creates the role and registry transactionally, refuses unexpected role privileges, memberships, unrelated table/sequence grants, schema creation and callable unrelated security-definer functions, then checks a connection as the runtime role. It never resets an existing role password or changes other schemas. A failed/unknown acknowledgement requires readback; re-running does not rotate credentials or rewrite customer rows. Output contains status only, never connection strings.
+
+The runtime secret belongs only in Render secret settings, never VITE variables or logs. Disabling native access is the immediate rollback; retain registry rows. The additional request to enable customer-initiated wallet creation requires a separate native creation/binding implementation and verification; the deployed sign-in/link endpoints alone do not enable it.
