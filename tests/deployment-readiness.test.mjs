@@ -41,8 +41,8 @@ test('recognition binds contract, chain, escrow and exact native token, without 
  for(const patch of [{chainId:1},{token:'0x'+'11'.repeat(20)},{escrow:'0x'+'22'.repeat(20)},{orchestrator:'0x'+'33'.repeat(20)}])assert.equal(recogniseQuoteDeployment({...context,...patch}).contractRecognised,false);
  assert.equal(recogniseQuoteDeployment().contractRecognised,false);assert.equal(v4.canReserve,false);assert.equal(v4.executionVerified,false);
 });
-test('two matching RPC snapshots preserve the source-verification gap and all disabled capabilities',async()=>{
- const f=fixture(),r=await f.run();assert.equal(r.status,'matches_snapshot');assert.equal(r.checks.length,42);assert.equal(r.sourceEvidenceComplete,false);assert.deepEqual(r.unverifiedSources,['signalPolicy']);
+test('two matching RPC snapshots retain source provenance and all disabled capabilities',async()=>{
+ const f=fixture(),r=await f.run();assert.equal(r.status,'matches_snapshot');assert.equal(r.checks.length,42);assert.equal(r.sourceEvidenceComplete,true);assert.deepEqual(r.unverifiedSources,[]);assert.equal(manifest.contracts.signalPolicy.sourceEvidence,'local_reproduction_match');
  assert.equal(r.canReserve,false);assert.equal(r.canExecute,false);assert.equal(r.buyerEligibilityVerified,false);assert.equal(r.scope,'deployment_snapshot_only');assert.equal(r.validUntil,now+60000);assert.equal(r.blockHash,blockHash);
  assert.equal(new Set(f.calls.map(c=>c.url)).size,2);assert.equal(f.calls.filter(c=>c.method==='eth_getStorageAt').length,42);
 });

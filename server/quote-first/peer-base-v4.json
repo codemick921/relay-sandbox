@@ -219,8 +219,8 @@
       "name": "IntentSignalPolicy",
       "address": "0x572f1eb9043a7217c998221d6d3bcfb3d69338cc",
       "runtimeCodeHash": "0xe1e22135baec89d97534187e2f8cddb2824c4b81d99fa99faa7c0f365e69c2ac",
-      "sourceVerified": false,
-      "sourceEvidence": "github_artifact_and_observed_code_only",
+      "sourceVerified": true,
+      "sourceEvidence": "local_reproduction_match",
       "abiHash": "0xe9766a6be444a5832c64f60bd78dc7284121f813e51c10e8911b2dfc218ba6b0",
       "readAbi": [
         {
@@ -249,7 +249,30 @@
           "stateMutability": "view",
           "type": "function"
         }
-      ]
+      ],
+      "reproduction": {
+        "status": "local_reproduction_match",
+        "sourceVerification": "recompiled_creation_and_runtime",
+        "compiler": "0.8.18+commit.87f61d96",
+        "compilerSha256": "d82bdcba2c386d60b33aca148a9cfdf097551f68c5e45d8ec01aebbafacf5075",
+        "address": "0x572f1eb9043a7217c998221d6d3bcfb3d69338cc",
+        "deploymentTransaction": "0x93ca8f6fef74e1714dbfffabade4fa51c1f4444ada9fcc93e5da89b3883ef994",
+        "deploymentBlock": 53251261,
+        "deploymentBlockHash": "0x73d056df3467ac97364f7517b20a7af219c3fcc5e45b6c47403fd21bb391cb42",
+        "runtimeCodeHash": "0xe1e22135baec89d97534187e2f8cddb2824c4b81d99fa99faa7c0f365e69c2ac",
+        "creationCodeHash": "0x24744dfa3f6ec0d023603a5c1f9fa4c2705e100bcc736f96df18157753996cbe",
+        "sourceCount": 14,
+        "constructorAddresses": {
+          "gatingService": "0x7ace8cf3cb5fea7103594da6c6478e69fd7717a4",
+          "whitelistPolicy": "0xf7069d157d1afb2cbe117e24f4262ae51eed390c"
+        },
+        "sources": [
+          "https://mainnet.base.org/",
+          "https://base-rpc.publicnode.com/"
+        ],
+        "independentExplorerVerification": false,
+        "canExecute": false
+      }
     },
     "settlementPolicy": {
       "name": "DisputeProtectionPolicyV2",

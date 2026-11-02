@@ -13,7 +13,7 @@ export default function QuotePlanReview({plan,method,now,onBack,onRefresh}){
   <dl className="target-breakdown"><div><dt>Protocol fees included</dt><dd>{compactAmount(offer.fee.displayAmount)} USDC</dd></div><div><dt>Rechecked at</dt><dd>{new Date(plan.checkedAt).toLocaleTimeString('en-GB')}</dd></div><div><dt>Refresh in</dt><dd>{Math.max(0,Math.ceil((offer.validUntil-now)/1000))} seconds</dd></div></dl>
   <ol className="target-plan-steps">
    <li><span className="target-step-number">1</span><div><strong>Selected terms rechecked</strong><p>The same offer, rate and fees were returned. Nothing is reserved.</p></div></li>
-   <li><span className="target-step-number">2</span><div><strong>Your wallet comes next</strong><p>This comparison uses example addresses. A buyer wallet and your receiving address still need checking.</p></div></li>
+   <li><span className="target-step-number">2</span>{plan.addressBinding==='server_resolved'?<div className="target-address-summary"><strong>Your wallet details</strong><p>Buying wallet</p><code>{plan.addressContext.buyer.address}</code><p>Receiving wallet · USDC on Base</p><code>{plan.addressContext.recipient.address}</code><p>These addresses were used for the quote. Eligibility and receiving-platform support still need checking.</p></div>:<div><strong>Your wallet comes next</strong><p>This comparison uses example addresses. A buyer wallet and your receiving address still need checking.</p></div>}</li>
    <li><span className="target-step-number">3</span><div><strong>Payment is not available here yet</strong><p>Eupova has not verified how to reserve this offer. Payment remains unavailable.</p></div></li>
   </ol>
   <details className="target-evidence"><summary>What still needs checking?</summary>

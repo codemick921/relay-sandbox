@@ -5,10 +5,11 @@ import {initialCalculatorState,calculatorReducer,calculatorMessage,compactAmount
 import {api} from './api';
 import './target-calculator.css';
 import QuotePlanReview from './QuotePlanReview';
+import {matchesAddressContext} from './personalised-quote-state.mjs';
 const liveReview=input=>api('funding-calculator/review',input);
 const methods=fundingCatalog.methods.filter(m=>m.checkoutSupported);
 const liveSearch=input=>api('funding-calculator/quotes',input);
-export default function TargetCalculator({searchQuotes=liveSearch,reviewQuote=liveReview,sample=false}){
+export default function TargetCalculator({searchQuotes=liveSearch,reviewQuote=liveReview,sample=false,addressContext=null}){
  const [amount,setAmount]=useState('25'),[currency,setCurrency]=useState('GBP'),[method,setMethod]=useState('all');
  const [state,dispatch]=useReducer(calculatorReducer,undefined,initialCalculatorState),[now,setNow]=useState(Date.now());
  const seq=useRef(0),alive=useRef(true),offset=useRef(0),results=useRef(null),review=useRef(null);
@@ -20,16 +21,16 @@ export default function TargetCalculator({searchQuotes=liveSearch,reviewQuote=li
   e?.preventDefault();if(['loading','reviewing'].includes(state.phase))return;
   const call=++seq.current,generation=state.generation+1;dispatch({type:'search'});
   try{const r=await searchQuotes({amount,currency,method});if(!alive.current||call!==seq.current)return;
-   if(r.canCreatePayment!==false||r.route!=='peer_direct'||!Array.isArray(r.rows)||!Number.isFinite(r.checkedAt))throw Error('invalid_response');
+   if((addressContext&&!matchesAddressContext(r,addressContext,r.checkedAt))||r.canCreatePayment!==false||r.route!=='peer_direct'||!Array.isArray(r.rows)||!Number.isFinite(r.checkedAt))throw Error('invalid_response');
    offset.current=Date.now()-r.checkedAt;setNow(r.checkedAt);dispatch({type:'result',generation,rows:r.rows,checkedAt:r.checkedAt});requestAnimationFrame(()=>results.current?.focus());
-  }catch(e){if(alive.current&&call===seq.current)dispatch({type:'failure',generation,message:e.status===429?'Please wait a minute before checking again.':e.status===400?'Enter a target from 0.01 to 10,000 USDC, with up to six decimal places.':'Prices could not be checked. Please try again shortly.'});}
+  }catch(e){if(alive.current&&call===seq.current)dispatch({type:'failure',generation,message:addressContext&&['sample_context_changed','address_context_changed','buyer_verification_expired','sign_in_required','buyer_wallet_needed'].includes(e.code)?'Your wallet details could not be confirmed. Recheck the wallet details before comparing prices.':e.status===429?'Please wait a minute before checking again.':e.status===400?'Enter a target from 0.01 to 10,000 USDC, with up to six decimal places.':'Prices could not be checked. Please try again shortly.'});}
  }
  async function reviewSelected(){
   if(!state.selected||['loading','reviewing'].includes(state.phase))return;
   const call=++seq.current,generation=state.generation+1;dispatch({type:'review'});
   try{const r=await reviewQuote({amount,currency,method:state.selected.method,offerId:state.selected.offer.id});
    if(!alive.current||call!==seq.current)return;
-   if(r.canCreatePayment!==false||r.reserved!==false||r.route!=='peer_direct'||r.eligibility!=='example_addresses'||!Array.isArray(r.rows)||!Number.isFinite(r.checkedAt)||!r.readiness)throw Error('invalid_review');
+   if(r.canCreatePayment!==false||r.reserved!==false||r.route!=='peer_direct'||(addressContext?!matchesAddressContext(r,addressContext,r.checkedAt):r.eligibility!=='example_addresses')||!Array.isArray(r.rows)||!Number.isFinite(r.checkedAt)||!r.readiness)throw Error('invalid_review');
    offset.current=Date.now()-r.checkedAt;setNow(r.checkedAt);dispatch({type:'reviewed',generation,result:r});
   }catch{if(alive.current&&call===seq.current)dispatch({type:'failure',generation,message:'The selected offer could not be rechecked. Refresh prices to try again.'});}
  }
@@ -45,7 +46,7 @@ export default function TargetCalculator({searchQuotes=liveSearch,reviewQuote=li
     <Field label="Pay in"><select value={currency} onChange={e=>edit(()=>{setCurrency(e.target.value);setMethod('all');})}>{fundingCatalog.currencies.filter(c=>methods.some(m=>m.currencies.includes(c.code))).map(c=><option key={c.code} value={c.code}>{c.code} · {c.name}</option>)}</select></Field>
     <Field label="Payment method"><select value={method} onChange={e=>edit(()=>setMethod(e.target.value))}><option value="all">Compare available methods</option>{available.map(m=><option key={m.id} value={m.id}>{m.label}</option>)}</select></Field>
     <Button className="full" disabled={loading}>{loading?'Checking current prices…':state.rows.length?'Refresh prices':'Compare prices'}<Icon name="arrow" size={18}/></Button>
-    <p className="fine-print">Uses example addresses. Your wallet details are not shared and your eligibility is not checked.</p>
+    <p className="fine-print">{addressContext?'Uses the wallet details you reviewed. Buyer eligibility still needs checking.':'Uses example addresses. Your wallet details are not shared and your eligibility is not checked.'}</p>
    </form>
    <div className="target-results" ref={results} tabIndex={-1} aria-busy={loading}>
     <div className="target-results-heading"><h3>Payment estimates</h3><span className="target-pill">Direct Peer · Base</span></div>
