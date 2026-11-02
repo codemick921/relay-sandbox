@@ -53,9 +53,11 @@ export function createAccountMail(store,{enabled=false,origin,deliver,preview=fa
       const result=await deliver({id:job.id,to:job.email,subject:message.subject,text:message.text});
       if(!result?.id)throw Error('Email acceptance not confirmed.');
       await store.query("UPDATE relay_account_mail SET state='accepted',provider_id=$2 WHERE id=$1",[job.id,String(result.id).slice(0,200)]);
+      if(job.setup)console.info('Admin setup email accepted by delivery provider.');
       if(preview){const items=previews.get(job.customer_id)??[];previews.set(job.customer_id,[{id:job.id,...message,purpose:job.purpose},...items].slice(0,3));}
      }catch{
       await store.query("UPDATE relay_account_mail SET state='unknown' WHERE id=$1",[job.id]);
+      if(job.setup)console.warn('Admin setup email delivery unconfirmed; no automatic retry.');
      }
     }
    }finally{running=false;}

@@ -410,7 +410,7 @@ if(process.argv[1]===fileURLToPath(import.meta.url)){
  const agentCallbacks=createAgentCallbacks(store,{allowed:(process.env.EUPOVA_AGENT_CALLBACK_URLS??'').split(',').map(x=>x.trim()).filter(Boolean),merchantId:liveObservation?.store?.historyScope?.merchantId??null});await agentCallbacks.migrate();
  const accountMail=configuredAccountMail(store);
  const adminAccounts=createAccounts(store,{mail:accountMail,adminEmails:config.accountAdmins});
- for(const email of config.accountAdmins)await adminAccounts.provisionAdmin(email);
+ for(const email of config.accountAdmins){const result=await adminAccounts.provisionAdmin(email);console.info(result.created?'Configured admin account created; setup email queued.':'Configured admin account exists; credentials preserved.');}
  const server=createHostedServer({agentCallbacks,store,config,tracking,ramp,walletBalances,peerConnection,fundingDrafts,liveObservation,buyerAuth,buyerStatus,buyerConnection,targetCalculator,personalisedQuotes,walletSetup,walletSetupClaims,walletBootstrap,walletFlow,accountMail,paymentsDisabled:true,pay:{readiness:async()=>({ready:false})}});server.listen(Number(process.env.PORT??10000),'0.0.0.0',()=>console.log('Eupova hosted sandbox ready.'));
  // One read at startup, no polling. Until verified, the receiver returns 503.
  if(peerConnection)void peerConnection.checkIdentity();
