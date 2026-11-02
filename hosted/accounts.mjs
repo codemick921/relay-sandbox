@@ -33,11 +33,11 @@ export async function verifyPassword(value,encoded){
 const view=row=>({id:row.id,name:row.name,email:row.email,emailVerified:!!row.email_verified_at});
 const owner=id=>'customer:'+id;
 const recovery=()=>randomBytes(32).toString('hex');
-export function createAccounts(store,{mail=createAccountMail(store)}={}){
+export function createAccounts(store,{mail=createAccountMail(store),adminEmails=[]}={}){
  async function limits(email,kind){await store.rate('accounts:global',60,900);await store.rate('accounts:'+kind+':'+digest(email),kind==='signup'?3:10,900);}
  async function issue(row,context){
   const token=randomBytes(32).toString('hex');
-  const saved=await store.query(`INSERT INTO relay_customer_sessions(token_hash,customer_id,version,client_label) SELECT $1,id,version,$4 FROM relay_customers WHERE id=$2 AND password_hash=$3 AND NOT disabled RETURNING token_hash`,[digest(token),row.id,row.password_hash,sessionLabel(context?.userAgent)]);
+  const saved=await store.query(`INSERT INTO relay_customer_sessions(token_hash,customer_id,version,client_label) SELECT $1,id,version,$4 FROM relay_customers WHERE id=$2 AND password_hash=$3 AND NOT disabled AND NOT setup_pending RETURNING token_hash`,[digest(token),row.id,row.password_hash,sessionLabel(context?.userAgent)]);
   if(!saved.rows.length)throw new InputError('Please sign in again.',401);
   return {token,account:view(row)};
  }
@@ -48,13 +48,28 @@ export function createAccounts(store,{mail=createAccountMail(store)}={}){
    const id=(await c.query('SELECT customer_id FROM relay_account_mail WHERE token_hash=$1 AND purpose=$2',[digest(token),purpose])).rows[0]?.customer_id;
    if(!id)throw invalid();
    const row=(await c.query('SELECT * FROM relay_customers WHERE id=$1 FOR UPDATE',[id])).rows[0];
-   if(!row||row.disabled||(purpose==='reset'&&!row.email_verified_at)||(purpose==='verify'&&row.email_verified_at))throw invalid();
+   if(!row||row.disabled||(purpose==='reset'&&!row.email_verified_at&&!row.setup_pending)||(purpose==='verify'&&row.email_verified_at))throw invalid();
    const used=await c.query(`UPDATE relay_account_mail SET consumed_at=now() WHERE token_hash=$1 AND purpose=$2 AND customer_id=$3 AND version=$4 AND consumed_at IS NULL AND expires_at>now() AND state IN ('sending','accepted','unknown') RETURNING id`,[digest(token),purpose,id,row.version]);
    if(!used.rows.length)throw invalid();
    return change(c,row);
   });
  }
  return {
+  // Called only by the configured server startup, never by a public action.
+  async provisionAdmin(email){
+   email=emailKey(email);if(!adminEmails.includes(email))throw new InputError('Admin provisioning is not configured.',403);
+   const existing=(await store.query('SELECT id FROM relay_customers WHERE email=$1',[email])).rows[0];
+   if(existing)return {created:false};
+   if(!mail.enabled||mail.preview)throw Error('Admin setup requires live account email delivery.');
+   const password=await hashPassword(randomBytes(48).toString('hex')),id=randomUUID();
+   return store.tx(async c=>{
+    const row=(await c.query("INSERT INTO relay_customers(id,email,name,password_hash,recovery_hash,setup_pending) VALUES($1,$2,$3,$4,$5,true) ON CONFLICT(email) DO NOTHING RETURNING *",[id,email,'Mickel',password,digest(recovery())])).rows[0];
+    if(!row)return {created:false};
+    await mail.enqueue(c,row,'reset');
+    await c.query("INSERT INTO relay_admin_audit(actor,event,target) VALUES('deployment','admin_account_invited',$1)",[email]);
+    return {created:true};
+   });
+  },
   async signup(input,_token,context){
    const email=emailKey(input.email);await limits(email,'signup');
    const name=typeof input.name==='string'?input.name.trim():'';
@@ -75,7 +90,7 @@ export function createAccounts(store,{mail=createAccountMail(store)}={}){
    const email=emailKey(input.email);await limits(email,'login');
    const row=(await store.query('SELECT * FROM relay_customers WHERE email=$1',[email])).rows[0];
    const valid=await verifyPassword(input.password,row?.password_hash??dummy);
-   if(!valid||!row||row.disabled)throw new InputError('Email or password not recognised.',401);
+   if(!valid||!row||row.disabled||row.setup_pending)throw new InputError('Email or password not recognised.',401);
    return issue(row,context);
   },
   async recover(input){
@@ -118,7 +133,7 @@ export function createAccounts(store,{mail=createAccountMail(store)}={}){
    if(!mail.enabled)throw new InputError('Email sending is not connected yet. Use your saved recovery code instead.',503);
    await store.rate('mail:global',60,3600);await store.rate('mail:reset:'+digest(email),3,900);
    await store.tx(async c=>{
-    const row=(await c.query('SELECT * FROM relay_customers WHERE email=$1 AND NOT disabled AND email_verified_at IS NOT NULL FOR UPDATE',[email])).rows[0];
+    const row=(await c.query('SELECT * FROM relay_customers WHERE email=$1 AND NOT disabled AND (email_verified_at IS NOT NULL OR setup_pending) FOR UPDATE',[email])).rows[0];
     if(row)await mail.enqueue(c,row,'reset');
    });return {message:mail.preview?'If this email belongs to a verified test account, a reset preview has been requested. View local test emails from that account’s security screen. No email will be sent.':'If this email belongs to a verified account, a password reset has been requested. Check your inbox and spam folder. You can also use your saved recovery code.'};
   },
@@ -136,7 +151,7 @@ export function createAccounts(store,{mail=createAccountMail(store)}={}){
    if(typeof input.linkToken!=='string'||!/^[a-f0-9]{64}$/.test(input.linkToken))throw new InputError('This link is invalid or has expired. Request a new one.',400);
    const password=await hashPassword(input.password),code=recovery();
    return consume(input.linkToken,'reset',async(c,row)=>{
-    const updated=(await c.query('UPDATE relay_customers SET password_hash=$2,recovery_hash=$3,recovery_saved_at=NULL,recovery_rotated_at=now(),version=version+1 WHERE id=$1 RETURNING *',[row.id,password,digest(code)])).rows[0];
+    const updated=(await c.query('UPDATE relay_customers SET password_hash=$2,recovery_hash=$3,recovery_saved_at=NULL,recovery_rotated_at=now(),version=version+1,email_verified_at=CASE WHEN setup_pending THEN now() ELSE email_verified_at END,setup_pending=false WHERE id=$1 RETURNING *',[row.id,password,digest(code)])).rows[0];
     await c.query('UPDATE relay_customer_sessions SET revoked=true WHERE customer_id=$1',[row.id]);
     await mail.enqueue(c,updated,'changed');
     return {recovered:true,recoveryCode:code};
@@ -144,7 +159,7 @@ export function createAccounts(store,{mail=createAccountMail(store)}={}){
   },
   async session(token){
    if(!/^[a-f0-9]{64}$/.test(token??''))return null;
-   const r=await store.query(`UPDATE relay_customer_sessions s SET last_seen_at=now() FROM relay_customers c WHERE s.token_hash=$1 AND s.customer_id=c.id AND s.version=c.version AND NOT s.revoked AND NOT c.disabled AND s.expires_at>now() AND s.last_seen_at>now()-interval '2 hours' RETURNING c.id,c.email,c.name,c.email_verified_at`,[digest(token)]);
+   const r=await store.query(`UPDATE relay_customer_sessions s SET last_seen_at=now() FROM relay_customers c WHERE s.token_hash=$1 AND s.customer_id=c.id AND s.version=c.version AND NOT s.revoked AND NOT c.disabled AND NOT c.setup_pending AND s.expires_at>now() AND s.last_seen_at>now()-interval '2 hours' RETURNING c.id,c.email,c.name,c.email_verified_at`,[digest(token)]);
    return r.rows[0]?{owner:owner(r.rows[0].id),account:view(r.rows[0])}:null;
   },
   async logout(token){await store.query('UPDATE relay_customer_sessions SET revoked=true WHERE token_hash=$1',[digest(token??'')]);}
