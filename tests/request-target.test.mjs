@@ -1,0 +1,12 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {requestTargetEvidence} from '../src/request-target.mjs';
+import {comparisonFixture,offer,now} from './fixtures/cost-comparison.mjs';
+const setup=async()=>{const {order}=await comparisonFixture();const draft={id:order.id,agent:order.agent,pence:2500,currency:'GBP',status:'closed'},request={draftId:order.id,agent:order.agent,targetRaw:'25000000'};return {request,order,draft};};
+test('target comparison uses bound final Base receipt and explains exact shortfall',async()=>{const {request,order,draft}=await setup();const result=requestTargetEvidence(request,order,draft,now);assert.equal(result.arrived,true);assert.equal(result.comparison.met,false);assert.equal(result.comparison.shortfall,'13.11875');assert.equal(requestTargetEvidence({...request,targetRaw:'11881250'},order,draft,now).comparison.met,true);});
+test('a different destination, unrelated order or simulation cannot supply the target comparison',async()=>{const {request,order,draft}=await setup();assert.equal(requestTargetEvidence(request,{...order,id:'other'},draft,now),null);assert.equal(requestTargetEvidence(request,{...order,agent:{...order.agent,address:'0x'+'2'.repeat(40)}},draft,now),null);assert.equal(requestTargetEvidence(request,{...order,fixture:true},draft,now),null);});
+test('missing or mismatched receipt never implies arrival even with a recorded settlement',async()=>{const {request,order,draft}=await setup();for(const delivery of [null,{...order.delivery,finalized:false},{...order.delivery,chainId:1},{...order.delivery,amountRaw:'1'}])assert.equal(requestTargetEvidence(request,{...order,delivery},draft,now).arrived,false);});
+test('fresh selected offer is an estimate; stale, changed currency or review withholds comparison',async()=>{const {request,order,draft}=await setup();const selected=offer(order,{checkedAt:new Date(now).toISOString(),expiresAt:new Date(now+60000).toISOString()}),candidate={...order,status:'checkout_ready',delivery:null,verification:{payments:[],payIn:selected}},d={...draft,status:'bound'};
+ const result=requestTargetEvidence(request,candidate,d,now);assert.equal(result.pair.kind,'estimate');assert.equal(result.arrived,false);assert.equal(result.comparison.shortfall,'13.11875');
+ assert.equal(requestTargetEvidence(request,candidate,d,now+31000),null);assert.equal(requestTargetEvidence(request,candidate,{...d,currency:'EUR'},now),null);assert.equal(requestTargetEvidence(request,{...candidate,reviewRequired:true},d,now),null);
+});

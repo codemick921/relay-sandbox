@@ -186,3 +186,7 @@ Use the customer-owned full-history read-only projection, with draft/order dedup
 Wallet balance spacing: leave 20px between the explanatory balance paragraph and the wallet-card grid, on desktop and mobile. Keep the wording and balance behaviour unchanged.
 
 Expanded returning-user guide: show the terminology explanation in the left column and the route diagram in the right column with aligned headings. Keep definitions visible while this outer guide is open. Stack text before diagram on narrow screens. Other terminology disclosures retain their existing behaviour.
+
+## Funding requests (2 November 2026)
+
+Keep requests within Payments rather than adding another main menu item. Use lavender request cards, the existing jade action buttons, and a prominent net-USDC target. State the purpose and review deadline. Treat customer-created requests, funding drafts, selected offers and wallet receipts as separate stages. Never describe a target as a quote or a saved wallet as connected. Keep destination guidance expandable, with explicit Base/Tempo and memo limitations. Preserve the three-step flow and its acknowledgements.

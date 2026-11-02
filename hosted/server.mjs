@@ -1,3 +1,4 @@
+import {createAgentFundingRequests} from './agent-funding-requests.mjs';
 import {createProfilePictures} from './profile-picture.mjs';
 import {createTestInvites} from './test-invites.mjs';
 import {checkoutRails,fundingCatalog} from '../shared/fiat.mjs';
@@ -43,6 +44,7 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
  if(liveObservation&&(!paymentsDisabled||localPreview||liveObservation.simulated!==false))throw Error('Live observation requires disabled payments and hosted reads.');
  const security=accounts&&createAccountSecurity(store,accounts,{mailEnabled:mail.enabled,mailPreview:!!mail.preview});
  const profiles=createProfilePictures(store);
+ const agentRequests=fundingDrafts?createAgentFundingRequests(store):null;
  const cookie=localPreview?'relay_local_preview':'__Host-relay_sandbox';
  const cookiePolicy=`${localPreview?'':'Secure; '}HttpOnly; SameSite=Strict; Path=/`;
  const getToken=req=>(req.headers.cookie??'').split(';').map(x=>x.trim()).find(x=>x.startsWith(cookie+'='))?.slice(cookie.length+1);
@@ -56,6 +58,7 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
   if(liveObservation){const [live,status,restrictedTest,revolutTest]=await Promise.all([liveObservation.store.state(owner),liveObservation.status(),liveObservation.policy.status(owner),liveObservation.revolutPolicy?.status(owner)]);state={...state,liveTracking:{...status,enabled:true},restrictedTest,revolutTest,orders:[...live.orders.map(o=>({...presentTrackedOrder(o,false),trackingPath:'wallet-tracking'})),...state.orders]};}
   if(ramp&&owner.startsWith('customer:'))state={...state,rampFunding:{mode:'simulation',paymentsEnabled:false,externalConnectionsEnabled:false},orders:[...await ramp.state(owner),...state.orders]};
   if(state.fundingDrafts)state.orders=state.orders.map(o=>({...o,stoppedInRelay:!!state.fundingDrafts.find(d=>d.id===o.id)?.stoppedAt,trackingOnly:!!state.fundingDrafts.find(d=>d.id===o.id)?.trackingOnlyAt}));
+  if(agentRequests&&owner.startsWith('customer:'))state.agentFundingRequests=await agentRequests.list(owner);
   if(walletBalances&&owner.startsWith('customer:'))state.walletBalances=await walletBalances.state(owner);
   const testAccess=await invites.status(owner);
   if(testAccess){const canLive=!testAccess.revoked&&testAccess.allowLive&&testAccess.mode==='live';state={...state,testAccess:{...testAccess,realFundingAvailable:!!liveObservation?.funding},paymentsDisabled:state.paymentsDisabled||!canLive,liveFunding:state.liveFunding?{...state.liveFunding,paymentsEnabled:state.liveFunding.paymentsEnabled&&canLive}:undefined,fundingJourneyEnabled:state.fundingJourneyEnabled&&!testAccess.revoked&&testAccess.mode==='simulation'};}
@@ -125,7 +128,7 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
     const decoded=decodeURIComponent(url.pathname);if(decoded!=='/'&&!/^\/assets\/[a-zA-Z0-9_.-]+\.(js|css|svg|png|webp|ttf|woff2)$/.test(decoded))throw new InputError('Not found.',404);
     const file=path.join(staticRoot,decoded==='/'?'index.html':decoded.slice(1));const data=await readFile(file);res.setHeader('Content-Type',({'.html':'text/html','.css':'text/css','.js':'text/javascript','.svg':'image/svg+xml','.png':'image/png','.webp':'image/webp','.ttf':'font/ttf','.woff2':'font/woff2'})[path.extname(file)]);return res.end(data);
    }
-   const allowed=new Set(['/api/profile','/api/operator/test-invites','/api/operator/test-invites/create','/api/operator/test-invites/revoke','/api/test-access/claim','/api/test-access/mode','/api/notifications','/api/notifications/sync','/api/notifications/read','/api/notifications/preferences','/api/notifications/reminder','/api/wallet-balances/preferences','/api/wallet-balances/refresh','/api/ramp-test/create','/api/ramp-test/advance','/api/revolut-test/checkout','/api/funding/drafts','/api/funding/cancel','/api/funding/stop','/api/funding/track-separately','/api/funding/request-cancellation','/api/funding/checkout','/api/funding/resume','/api/funding/availability','/api/test-funding/quote','/api/test-funding/create','/api/test-funding/action','/api/agents/update','/api/account/security','/api/account/revokeSession','/api/account/rotateRecovery','/api/account/confirmRecovery','/api/account/signup','/api/account/login','/api/account/recover','/api/account/password','/api/account/requestVerification','/api/account/requestReset','/api/account/verifyEmail','/api/account/resetPassword','/api/account/emailPreview','/api/access','/api/login','/api/logout','/api/state','/api/agents','/api/checkouts','/api/checkout-resume','/api/checkout-refresh','/api/checkout-setup']);
+   const allowed=new Set(['/api/agent-funding-requests/create','/api/agent-funding-requests/cancel','/api/profile','/api/operator/test-invites','/api/operator/test-invites/create','/api/operator/test-invites/revoke','/api/test-access/claim','/api/test-access/mode','/api/notifications','/api/notifications/sync','/api/notifications/read','/api/notifications/preferences','/api/notifications/reminder','/api/wallet-balances/preferences','/api/wallet-balances/refresh','/api/ramp-test/create','/api/ramp-test/advance','/api/revolut-test/checkout','/api/funding/drafts','/api/funding/cancel','/api/funding/stop','/api/funding/track-separately','/api/funding/request-cancellation','/api/funding/checkout','/api/funding/resume','/api/funding/availability','/api/test-funding/quote','/api/test-funding/create','/api/test-funding/action','/api/agents/update','/api/account/security','/api/account/revokeSession','/api/account/rotateRecovery','/api/account/confirmRecovery','/api/account/signup','/api/account/login','/api/account/recover','/api/account/password','/api/account/requestVerification','/api/account/requestReset','/api/account/verifyEmail','/api/account/resetPassword','/api/account/emailPreview','/api/access','/api/login','/api/logout','/api/state','/api/agents','/api/checkouts','/api/checkout-resume','/api/checkout-refresh','/api/checkout-setup']);
    const historyRoute=url.pathname==='/api/funding-overview'||url.pathname==='/api/funding-history'||url.pathname==='/api/funding-history/download'||/^\/api\/funding-history\/[a-f0-9-]{36}$/i.test(url.pathname);
    const recordRoute=url.pathname==='/api/payment-records'||/^\/api\/payment-records\/[a-f0-9-]{36}\/download$/i.test(url.pathname);
    if(!allowed.has(url.pathname)&&!recordRoute&&!historyRoute)throw new InputError('Not found.',404);
@@ -235,6 +238,11 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
    }
    if(recordRoute||historyRoute)throw new InputError('Method not allowed.',405);
    await store.rate('mutation:'+owner,30,60);
+   if(url.pathname.startsWith('/api/agent-funding-requests/')){
+    if(!customer||!agentRequests)throw new InputError('Customer funding requests are unavailable.',403);
+    const action=url.pathname.split('/').at(-1);if(!['create','cancel'].includes(action))throw new InputError('Not found.',404);
+    await agentRequests[action](owner,b);return send(res,200,{...await stateFor(owner),account:customer.account});
+   }
    if(url.pathname.startsWith('/api/wallet-balances/')){
     if(!customer||!walletBalances)throw new InputError('Customer wallet monitoring is unavailable.',403);
     await walletBalances[url.pathname.endsWith('/preferences')?'preferences':'refresh'](owner,b);

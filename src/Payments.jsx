@@ -1,3 +1,4 @@
+import AgentFundingRequests from './AgentFundingRequests';
 import React,{useEffect,useRef,useState} from 'react';
 import {api} from './api';
 import {Button,Icon,Notice} from './ui';
@@ -5,9 +6,9 @@ import PaymentRecovery from './PaymentRecovery';
 import FundingHistory from './FundingHistory';
 import {paymentTone} from '../shared/payment-views.mjs';
 import './payments.css';
-const tabs=[['in_progress','In progress'],['received','Completed'],['all','All payments'],['statements','Statements']];
+const tabs=[['in_progress','In progress'],['received','Completed'],['requests','Funding requests'],['all','All payments'],['statements','Statements']];
 const stamp=value=>value?new Date(value).toLocaleString('en-GB'):'Date unavailable';
-export default function Payments({state,open,selectedId,onSelect}){
+export default function Payments({state,open,selectedId,onSelect,act,busy,error}){
  const [tab,setTab]=useState('in_progress');
  const heading=useRef(null),returnFocus=useRef(null);
  const select=id=>{returnFocus.current=document.activeElement;onSelect(id);};
@@ -18,7 +19,7 @@ export default function Payments({state,open,selectedId,onSelect}){
    <h2 ref={heading} tabIndex={-1} className="payments-sr-only">Payment requests</h2>
    <div className="payments-toolbar">
    <div className="payments-tabs" role="tablist" aria-label="Payment views">{tabs.map(([key,label],i)=><button key={key} id={'payments-tab-'+key} type="button" role="tab" aria-selected={tab===key} aria-controls={'payments-panel-'+key} tabIndex={tab===key?0:-1} onClick={()=>chooseTab(key)} onKeyDown={e=>{let next;if(e.key==='ArrowRight')next=(i+1)%tabs.length;if(e.key==='ArrowLeft')next=(i+tabs.length-1)%tabs.length;if(e.key==='Home')next=0;if(e.key==='End')next=tabs.length-1;if(next!==undefined){e.preventDefault();chooseTab(tabs[next][0]);document.getElementById('payments-tab-'+tabs[next][0])?.focus();}}}>{label}</button>)}</div><Button onClick={()=>open('fund')}><Icon name="plus" size={18}/>Fund a wallet</Button></div>
-   {tabs.map(([key])=><div key={key} role="tabpanel" id={'payments-panel-'+key} aria-labelledby={'payments-tab-'+key} hidden={tab!==key}>{key==='statements'?tab==='statements'&&<FundingHistory open={(kind,id)=>kind==='payment-help'?select(id):open(kind,id)}/>:<PaymentList active={tab===key&&!selectedId} status={key} state={state} onSelect={select}/>}</div>)}
+   {tabs.map(([key])=><div key={key} role="tabpanel" id={'payments-panel-'+key} aria-labelledby={'payments-tab-'+key} hidden={tab!==key}>{key==='requests'?tab==='requests'&&<AgentFundingRequests {...{state,open,act,busy,error}}/>:key==='statements'?tab==='statements'&&<FundingHistory open={(kind,id)=>kind==='payment-help'?select(id):open(kind,id)}/>:<PaymentList active={tab===key&&!selectedId} status={key} state={state} onSelect={select}/>}</div>)}
   </div>
   {selectedId&&<section className="payments-detail-page"><PaymentRecovery key={selectedId} state={state} open={open} selectedId={selectedId} embedded onBack={back}/></section>}
  </div>;
