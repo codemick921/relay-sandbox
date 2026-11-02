@@ -1,6 +1,6 @@
 # Buying-wallet authentication check
 
-Status: built locally, disabled by default, not deployed or activated.
+Status: baseline 4ce5433 was deployed and its restricted test failed at an unknown stage. The diagnostic revision is local, remains disabled by default and has not been deployed or activated.
 
 ## Purpose
 
@@ -45,3 +45,17 @@ Feature flags: `EUPOVA_WALLET_AUTH_DEV_ENABLED`, `EUPOVA_BUYER_AUTH_DEV_ENABLED`
 Tests use sample identities, ephemeral sample keys and fake provider responses. The isolated headless browser replaces the Privy SDK with a fixture and rejects every external URL. This proves our UI lifecycle, not a real provider handshake.
 
 The baseline is b963306924fcd84d34bbf6aca06ed6ff68252c48. No schema migration accompanies this change. Keep the old checkout to recover the local build. A future operational rollback must also disable the new flag/token issuance; reverting code alone does not revoke already-issued provider sessions.
+
+
+## Diagnostic revision — 2 November 2026
+
+The next restricted test reports fixed stage/reason values for access, token issuance, provider sign-in, client identity, server access-token validation, wallet read, wallet match and final proof. No raw exceptions, provider responses, credentials, account IDs or addresses appear in diagnostics. The server rechecks the same authorised development session/enrolment before releasing failure details; ordinary users and disabled routes still receive generic responses. No diagnostic log endpoint or persistent customer write was added.
+
+SDK callback order matters: its onAuthenticated callback precedes the user/authenticated state commit. The controller now requires both a current authentication callback and matching observed state. A callback alone cannot start the server wallet check.
+
+A resolved SDK logout promise does not prove remote logout. The installed SDK catches remote destroy errors and clears local state. This revision observes ready=true, authenticated=false and user=null for one second, with no pending JWT exchange, before reporting browser disconnect. Late SDK completions remain incapable of issuing tokens or producing wallet proof and trigger bounded local cleanup. Failures expose Retry disconnect. Remote session revocation always remains unconfirmed; this page cannot prove it.
+
+The original live failure root cause is still unknown. This revision fixes misleading disconnect confirmation and exposes the stage for another separately authorised test. All existing identity, signature, consent, origin, expiry and disabled-feature checks remain. There is no wallet, payment or checkout capability.
+
+Primary reference: https://docs.privy.io/authentication/user-authentication/jwt-based-auth/usage
+Installed implementation inspected: @privy-io/react-auth 3.51.0 (custom JWT synchronisation and session destroy). Existing upstream SDK advisory families remain unchanged; no dependency upgrade was included.

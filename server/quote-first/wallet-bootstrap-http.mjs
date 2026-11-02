@@ -9,6 +9,7 @@ import {connectionCsp} from './buyer-connection-http.mjs';
 import {quoteTestEnrollment} from './buyer-wallet-resolver.mjs';
 import {classifySetupWallet} from './wallet-setup-observer.mjs';
 import {createPrivyAccessVerifier,createPrivyUserReader} from './privy-wallet-reader.mjs';
+import {walletAuthStep,WalletAuthFailure,safeWalletAuthDiagnostic} from '../../shared/wallet-auth-diagnostics.mjs';
 import publishedKeys from './buyer-auth-public-jwks.json' with {type:'json'};
 export const bootstrapPaths=Object.freeze({status:'/api/buyer-wallet-auth/status',token:'/api/buyer-wallet-auth/token',verify:'/api/buyer-wallet-auth/verify',page:'/buyer-wallet-auth-test'});
 const fingerprint=(s,e)=>createHash('sha256').update(JSON.stringify(['wallet-auth-v1',s,e])).digest('hex');
@@ -31,7 +32,7 @@ export function createWalletBootstrapHttp({origin,enabled=()=>false,resolveSessi
  return async(req,res)=>{
   const route=String(req.url??'').split('?')[0];if(!Object.values(bootstrapPaths).includes(route))return false;
   const hidden=()=>send(res,404,{error:'wallet_auth_disabled'});if(enabled()!==true)return hidden();
-  let timer;
+  let timer,diagnosticContext=null;
   try{
    const site=new URL(origin),page=route===bootstrapPaths.page,post=[bootstrapPaths.token,bootstrapPaths.verify].includes(route),verify=route===bootstrapPaths.verify;
    if(site.protocol!=='https:'||site.origin!==origin||![resolveSession,resolveEnrollment,issue,verifyAccessToken,readPrivyUser,document].every(f=>typeof f==='function'))fail();
@@ -49,17 +50,27 @@ export function createWalletBootstrapHttp({origin,enabled=()=>false,resolveSessi
    const read=async()=>{let size=0,chunks=[];for await(const part of req.iterator({destroyOnReturn:false})){const b=Buffer.from(part);size+=b.length;if(size>512)throw Error('size');chunks.push(b);}return JSON.parse(Buffer.concat(chunks).toString('utf8'));};
    let input;try{input=await Promise.race([read(),new Promise((_,reject)=>{timer=setTimeout(()=>{req.destroy();reject(Error('timeout'));},timeoutMs);})]);}catch{req.resume();return send(res,400,{error:'invalid_request'});}finally{clearTimeout(timer);}
    if(!input||Array.isArray(input)||Object.keys(input).sort().join(',')!=='consent,context,intent'||input.intent!=='wallet_auth'||input.consent!==true||input.context!==before.context)return send(res,409,{error:'context_changed'});
-   await unchanged(sessionToken,before);
-   if(!verify){const result=await issue(sessionToken,before.context);await unchanged(sessionToken,before);if(!result||typeof result.token!=='string'||result.token.length>8192||result.walletCreated!==false||!Number.isSafeInteger(result.expiresAt)||result.expiresAt<=clock()||result.expiresAt>Math.min(clock()+61000,before.expiresAt))fail();return send(res,200,{token:result.token,expiresAt:result.expiresAt,walletCreated:false});}
+   diagnosticContext={sessionToken,before};
+   const recheck=()=>walletAuthStep('server_permission',()=>unchanged(sessionToken,before));
+   await recheck();
+   if(!verify){const result=await walletAuthStep('token_issuance',()=>issue(sessionToken,before.context));await recheck();if(!result||typeof result.token!=='string'||result.token.length>8192||result.walletCreated!==false||!Number.isSafeInteger(result.expiresAt)||result.expiresAt<=clock()||result.expiresAt>Math.min(clock()+61000,before.expiresAt))fail();return send(res,200,{token:result.token,expiresAt:result.expiresAt,walletCreated:false});}
    const auth=req.headers.authorization;if(typeof auth!=='string'||auth.length>8200||!/^Bearer [a-zA-Z0-9_.-]+$/.test(auth))return send(res,401,{error:'sign_in_required'});
-   const access=await verifyAccessToken(auth.slice(7));if(access.did!==e.privyDid||access.expiresAt<=clock())fail();
-   const user=await readPrivyUser(access.did),observedAt=clock(),result=classifySetupWallet(user,e);
+   const access=await walletAuthStep('server_access_token',()=>verifyAccessToken(auth.slice(7)));if(access.did!==e.privyDid||access.expiresAt<=clock())throw new WalletAuthFailure('server_access_token','invalid');
+   const user=await walletAuthStep('server_inventory',()=>readPrivyUser(access.did)),observedAt=clock(),result=await walletAuthStep('server_identity',()=>classifySetupWallet(user,e));
    const matches=e.buyingAddress===null?result.status==='none':result.status==='candidate'&&result.candidate.address.toLowerCase()===e.buyingAddress;
-   await unchanged(sessionToken,before);
-   if(!matches||access.expiresAt<=clock())return send(res,409,{error:'wallet_not_recognised'});
-   const validUntil=Math.min(observedAt+15000,access.expiresAt,before.expiresAt);if(validUntil<=clock())fail();
+   await recheck();
+   if(!matches||access.expiresAt<=clock())return send(res,409,{error:'wallet_not_recognised',diagnostic:{stage:'server_identity',code:'not_recognised'}});
+   const validUntil=Math.min(observedAt+15000,access.expiresAt,before.expiresAt);if(validUntil<=clock())throw new WalletAuthFailure('proof_validation','invalid');
    return send(res,200,{status:e.buyingAddress===null?'no_wallet':'wallet_recognised',context:before.context,address:e.buyingAddress,observedAt,validUntil,canQuote:false,canCreateWallet:false,canCreatePayment:false});
-  }catch{return send(res,503,{error:'wallet_auth_unavailable'});}finally{clearTimeout(timer);}
+  }catch(error){
+   // Detailed stages are development-only and require the same still-authorised
+   // session/enrolment after failure. Disabled/ordinary customers get no detail.
+   let diagnostic=null;
+   if(diagnosticContext&&error instanceof WalletAuthFailure){
+    try{await unchanged(diagnosticContext.sessionToken,diagnosticContext.before);diagnostic=safeWalletAuthDiagnostic(error.diagnostic);}catch{}
+   }
+   return send(res,503,{error:'wallet_auth_unavailable',...(diagnostic?{diagnostic}:{})});
+  }finally{clearTimeout(timer);}
  };
 }
 export function configuredWalletBootstrapHttp({origin,store,staticRoot,env=process.env,clock=Date.now,privyFetch=globalThis.fetch,trustedKeys=publishedKeys}={}){
