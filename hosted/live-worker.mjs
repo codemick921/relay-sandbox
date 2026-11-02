@@ -13,7 +13,7 @@ export function createLiveWorker({store,pay,id=randomUUID(),clock=Date.now,maxBa
    try{
     await store.heartbeat(id);if(clock()<pauseUntil)return;
     for(let n=0;n<maxBatch&&!stopping;n++){
-     const claim=await store.claimNext();if(!claim)break;
+     const claim=await store.claimNext({preferRequested:n%5!==4});if(!claim)break;
      try{await store.apply(claim,await pay.refresh(liveOrderView(claim)));failures=0;}
      catch(error){const pending=error instanceof EvidencePendingError;await store.fail(claim,{review:error instanceof TrackingReviewError,pending,code:error.code,retryAfterSeconds:error.retryAfterSeconds});if(error instanceof TrackingRetryError){pauseUntil=clock()+error.retryAfterSeconds*1000;break;}if(!pending&&++failures>=5){pauseUntil=clock()+60000;break;}}
      await store.heartbeat(id);
