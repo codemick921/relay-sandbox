@@ -45,7 +45,7 @@ test('session rotation or kill switch after signing discards response token',asy
 });
 const initial={visible:true,environment:'development',connection:'available',appId:PRIVY_APP_ID,context:'c'.repeat(64),subject,expiresAt:now+300000};
 const user={id:'did:privy:sample',linkedAccounts:[{type:'custom_auth',customUserId:subject}]};
-function controller(options={}){return createConnectionSession({initial,clock:()=>now,status:async()=>initial,token:async()=>'test-token',logout:async()=>{},...options});}
+function controller(options={}){return createConnectionSession({initial,clock:()=>now,status:async()=>initial,token:async()=>({token:'test-token',expiresAt:now+60000}),logout:async()=>{},...options});}
 test('identity checks reject mismatches, wallets and missing custom auth',()=>{
  assert.equal(matchesPrivyIdentity(user,subject),true);
  for(const v of [null,{...user,wallet:{}},{...user,linkedAccounts:[]},{...user,linkedAccounts:[...user.linkedAccounts,{type:'wallet'}]}])assert.equal(matchesPrivyIdentity(v,subject),false);
@@ -54,13 +54,13 @@ test('identity checks reject mismatches, wallets and missing custom auth',()=>{
 test('client makes no token request before consent/start and single-flights SDK refresh',async()=>{
  let count=0,resolve;const c=controller({token:()=>{count++;return new Promise(r=>resolve=r);}});
  assert.equal(await c.getExternalJwt(),undefined);assert.equal(count,0);await c.start();
- const a=c.getExternalJwt(),b=c.getExternalJwt();assert.equal(a,b);await new Promise(r=>setImmediate(r));assert.equal(count,1);resolve('test-token');assert.equal(await a,'test-token');c.providerState(true,user);assert.equal(c.phase,'connected');await c.end();assert.equal(c.phase,'disconnected');
+ const a=c.getExternalJwt(),b=c.getExternalJwt();assert.equal(a,b);await new Promise(r=>setImmediate(r));assert.equal(count,1);resolve({token:'test-token',expiresAt:now+60000});assert.equal(await a,'test-token');c.providerState(true,user);assert.equal(c.phase,'connected');await c.end();assert.equal(c.phase,'disconnected');
 });
 test('cancel discards a late token and ends a late provider authentication',async()=>{
- let release,logouts=0;const c=controller({token:()=>new Promise(r=>release=r),logout:async()=>{logouts++;}});await c.start();const p=c.getExternalJwt();await new Promise(r=>setImmediate(r));await c.end();release('late-token');assert.equal(await p,undefined);c.providerState(true,user);await new Promise(r=>setImmediate(r));assert.ok(logouts>=2);assert.equal(c.active,false);
+ let release,logouts=0;const c=controller({token:()=>new Promise(r=>release=r),logout:async()=>{logouts++;}});await c.start();const p=c.getExternalJwt();await new Promise(r=>setImmediate(r));await c.end();release({token:'late-token',expiresAt:now+60000});assert.equal(await p,undefined);c.providerState(true,user);await new Promise(r=>setImmediate(r));assert.ok(logouts>=2);assert.equal(c.active,false);
 });
 test('session switch, expired lease and refresh failure terminate without additional issuance',async()=>{
- let valid=initial,tokens=0,logouts=0;const c=controller({status:async()=>valid,token:async()=>{tokens++;return 'x';},logout:async()=>{logouts++;}});await c.start();valid={...initial,context:'d'.repeat(64)};await c.refresh();assert.equal(c.active,false);assert.equal(await c.getExternalJwt(),undefined);assert.equal(tokens,0);assert.equal(logouts,1);
+ let valid=initial,tokens=0,logouts=0;const c=controller({status:async()=>valid,token:async()=>{tokens++;return {token:'x',expiresAt:now+60000};},logout:async()=>{logouts++;}});await c.start();valid={...initial,context:'d'.repeat(64)};await c.refresh();assert.equal(c.active,false);assert.equal(await c.getExternalJwt(),undefined);assert.equal(tokens,0);assert.equal(logouts,1);
  for(const patch of [{expiresAt:now},{appId:'other'},{expiresAt:now+1800001}])assert.equal(validLiveConnection({...initial,...patch},now),false);
 });
 test('logout failure is visible and can retry; provider identity is never trusted before token issuance',async()=>{
@@ -71,4 +71,49 @@ test('logout failure is visible and can retry; provider identity is never truste
 test('unresponsive provider logout times out visibly without re-enabling tokens',async()=>{
  const c=controller({logout:()=>new Promise(()=>{}),logoutTimeoutMs:5});await c.start();await c.end();
  assert.equal(c.phase,'cleanup_failed');assert.equal(c.active,false);assert.equal(await c.getExternalJwt(),undefined);
+});
+
+// Repeated SDK callbacks must not generate fresh jti values and reauthenticate in a loop.
+test('repeated provider callbacks reuse one JWT and stay below the unchanged issuance limit',async()=>{
+ let calls=0,checks=0;const diagnostics=[];
+ const c=controller({status:async()=>{checks++;return initial;},token:async()=>{if(++calls>6)throw Error('rate limited');return {token:'unique-'+calls,expiresAt:now+60000};},onDiagnostic:e=>diagnostics.push(e)});
+ await c.start();for(let i=0;i<100;i++){assert.equal(await c.getExternalJwt(),'unique-1');c.providerState(true,{...user});}
+ assert.equal(calls,1);assert.equal(checks,101);assert.equal(c.phase,'connected');
+ assert.deepEqual(diagnostics.map(e=>e.code),['token_received','connected']);await c.end();
+});
+test('JWT refresh is single-flight at expiry margin and cannot extend the test lease',async()=>{
+ let time=now,calls=0;const c=controller({clock:()=>time,token:async()=>({token:'unique-'+(++calls),expiresAt:time+60000})});
+ await c.start();assert.equal(await c.getExternalJwt(),'unique-1');time+=54999;assert.equal(await c.getExternalJwt(),'unique-1');time++;
+ const values=await Promise.all(Array.from({length:10},()=>c.getExternalJwt()));assert.ok(values.every(v=>v==='unique-2'));assert.equal(calls,2);
+ time=initial.expiresAt-5000;assert.equal(await c.getExternalJwt(),undefined);await new Promise(r=>setImmediate(r));assert.equal(c.active,false);assert.equal(c.phase,'expired');assert.equal(calls,2);
+});
+test('cached tokens are withheld when permission or session context changes',async()=>{
+ for(const invalid of [null,{...initial,context:'d'.repeat(64)},{...initial,subject:'33333333-3333-4333-8333-333333333333'}]){
+  let current=initial,calls=0;const c=controller({status:async()=>current,token:async()=>{calls++;return{token:'cached',expiresAt:now+60000}}});
+  await c.start();assert.equal(await c.getExternalJwt(),'cached');current=invalid;assert.equal(await c.getExternalJwt(),undefined);await new Promise(r=>setImmediate(r));assert.equal(c.active,false);assert.equal(calls,1);
+ }
+});
+test('a shortened lease invalidates a token whose expiry is now too late',async()=>{
+ let current=initial,calls=0;const c=controller({status:async()=>current,token:async()=>({token:'token-'+(++calls),expiresAt:Math.min(now+60000,current.expiresAt)})});
+ await c.start();assert.equal(await c.getExternalJwt(),'token-1');current={...initial,expiresAt:now+30000};assert.equal(await c.getExternalJwt(),'token-2');assert.equal(calls,2);await c.end();
+});
+test('malformed, expired, overlong or over-lease token responses fail closed',async()=>{
+ for(const value of ['old-string-shape',null,{}, {token:'',expiresAt:now+60000},{token:'x'.repeat(8193),expiresAt:now+60000},{token:'x',expiresAt:now},{token:'x',expiresAt:now+5000},{token:'x',expiresAt:now+61001}]){
+  const events=[],c=controller({token:async()=>value,onDiagnostic:e=>events.push(e)});await c.start();assert.equal(await c.getExternalJwt(),undefined);await new Promise(r=>setImmediate(r));assert.equal(c.active,false);assert.ok(events.some(e=>e.code==='token_response_invalid'));
+ }
+ const short={...initial,expiresAt:now+30000},c=controller({initial:short,status:async()=>short});await c.start();assert.equal(await c.getExternalJwt(),undefined);await new Promise(r=>setImmediate(r));assert.equal(c.active,false);
+});
+test('provider session loss clears connected state and cannot silently reconnect',async()=>{
+ let calls=0;const events=[],c=controller({token:async()=>{calls++;return{token:'sample',expiresAt:now+60000}},onDiagnostic:e=>events.push(e)});await c.start();c.providerState(false,null);assert.equal(c.active,true);
+ await c.getExternalJwt();c.providerState(true,user);assert.equal(c.phase,'connected');c.providerState(false,null);await new Promise(r=>setImmediate(r));
+ assert.equal(c.phase,'error');assert.equal(c.active,false);assert.equal(await c.getExternalJwt(),undefined);assert.equal(calls,1);assert.ok(events.some(e=>e.code==='provider_disconnected'));
+});
+test('diagnostics contain only allowlisted codes and relative times, never error payloads',async()=>{
+ const secret='private-token-and-customer-data',events=[];
+ const c=controller({token:async()=>{throw Object.assign(Error(secret),{code:secret,body:secret})},onDiagnostic:e=>events.push(e)});
+ await c.start();await c.getExternalJwt();await new Promise(r=>setImmediate(r));await c.end('error',secret);
+ assert.ok(events.some(e=>e.code==='token_request_failed'));assert.ok(!JSON.stringify(events).includes(secret));assert.ok(events.every(e=>Object.keys(e).sort().join(',')==='code,elapsedMs'));
+});
+test('late status failure after manual disconnect cannot replace the completed state',async()=>{
+ let reject,hold=false;const c=controller({status:()=>hold?new Promise((_,r)=>reject=r):Promise.resolve(initial)});await c.start();await c.getExternalJwt();c.providerState(true,user);hold=true;const refreshing=c.refresh();await c.end();reject(Error('offline'));await refreshing;assert.equal(c.phase,'disconnected');assert.equal(c.active,false);
 });
