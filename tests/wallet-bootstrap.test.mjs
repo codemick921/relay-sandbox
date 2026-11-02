@@ -105,3 +105,19 @@ test('pending SDK authentication and repeated stale users keep cleanup bounded',
  observed={ready:true,authenticated:true,user:clientUser};for(let i=0;i<5;i++){await c.providerState(true,clientUser);await new Promise(r=>setTimeout(r,15));}
  assert.equal(c.phase,'cleanup_failed');assert.equal(c.active,false);assert.equal(await c.getExternalJwt(),undefined);
 });
+
+ test('idle-session renewal beyond the approved lease preserves context; effective shortening and rotation invalidate it',async()=>{
+  let current={...session};
+  const h=createWalletBootstrapHttp({...base,resolveSession:async()=>({...current})});
+  const first=(await request(h)).body;
+  current.expiresAt+=60000;
+  assert.deepEqual((await request(h)).body,first);
+  assert.equal((await post(h,paths.verify,first.context,{headers:{authorization:'Bearer sample'}})).status,200);
+  current.expiresAt=now+120000;
+  assert.notEqual((await request(h)).body.context,first.context);
+  assert.equal((await post(h,paths.token,first.context)).status,409);
+  current={...session,binding:'r'.repeat(64)};
+  assert.equal((await post(h,paths.token,first.context)).status,409);
+  current=null;
+  assert.equal((await request(h)).status,404);
+ });

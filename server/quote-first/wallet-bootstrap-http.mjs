@@ -12,7 +12,9 @@ import {createPrivyAccessVerifier,createPrivyUserReader} from './privy-wallet-re
 import {walletAuthStep,WalletAuthFailure,safeWalletAuthDiagnostic} from '../../shared/wallet-auth-diagnostics.mjs';
 import publishedKeys from './buyer-auth-public-jwks.json' with {type:'json'};
 export const bootstrapPaths=Object.freeze({status:'/api/buyer-wallet-auth/status',token:'/api/buyer-wallet-auth/token',verify:'/api/buyer-wallet-auth/verify',page:'/buyer-wallet-auth-test'});
-const fingerprint=(s,e)=>createHash('sha256').update(JSON.stringify(['wallet-auth-v1',s,e])).digest('hex');
+// Routine activity may extend the login's idle expiry beyond the test lease.
+// Bind the effective lease, while rechecking the live session on every request.
+const fingerprint=(s,e)=>createHash('sha256').update(JSON.stringify(['wallet-auth-v1',{...s,expiresAt:Math.min(s.expiresAt,e.expiresAt)},e])).digest('hex');
 const headers={'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store',Pragma:'no-cache',Vary:'Cookie, Origin, Authorization','Referrer-Policy':'no-referrer','X-Content-Type-Options':'nosniff'};
 const send=(res,code,body)=>{res.writeHead(code,headers);res.end(JSON.stringify(body));return true;};
 const fail=()=>{throw Error('wallet_auth_unavailable');};
