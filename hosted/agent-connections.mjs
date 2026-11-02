@@ -1,3 +1,4 @@
+import {readAgentRequestProgress} from './agent-request-progress.mjs';
 import {randomBytes,randomUUID,timingSafeEqual} from 'node:crypto';
 import {digest} from './db.mjs';
 import {InputError} from '../server/validation.mjs';
@@ -10,7 +11,7 @@ const query=`SELECT k.*,a.data AS current_agent,a.funding_revision AS current_re
 const valid=(r,now)=>!!r&&!r.disabled&&r.current_version===r.customer_version&&!r.revoked_at&&new Date(r.expires_at).getTime()>now&&!!r.current_agent&&String(r.current_revision)===String(r.agent_revision)&&r.current_agent.address.toLowerCase()===r.agent.address.toLowerCase()&&r.current_agent.network==='Base'&&r.current_agent.token==='USDC';
 const view=(r,now)=>({id:r.id,name:r.name,agent:r.agent,maxTargetRaw:String(r.max_target_raw),dailyLimit:r.daily_limit,createdAt:r.created_at,expiresAt:r.expires_at,revokedAt:r.revoked_at,active:valid(r,now)});
 export async function validateRequestConnection(c,owner,id,now){const r=(await c.query(query+' WHERE k.owner=$1 AND k.id=$2',[owner,id])).rows[0];if(!valid(r,now))throw new InputError('This agent connection is no longer active. Review a new request before preparing payment.',409);return r;}
-export function createAgentConnections(base,security,{clock=Date.now}={}){
+export function createAgentConnections(base,security,{clock=Date.now,merchantId=null}={}){
  async function authenticate(c,token){
   const parts=typeof token==='string'?/^eupova_agent_([a-f0-9-]{36})\.([A-Za-z0-9_-]{43})$/.exec(token):null;
   if(!parts||!uuid(parts[1]))throw new InputError('Agent connection unavailable.',401);
@@ -53,6 +54,6 @@ export function createAgentConnections(base,security,{clock=Date.now}={}){
     const r=(await c.query('INSERT INTO relay_agent_funding_requests(id,owner,request_key,agent_id,agent,agent_revision,purpose,target_raw,expires_at,created_at,source_connection_id,source_name) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *',[randomUUID(),k.owner,key,k.agent_id,k.agent,k.agent_revision,purpose,target,new Date(now+input.expiresInHours*3600000),new Date(now),k.id,k.name])).rows[0];return machineView(r);
    });
   },
-  async status(token,id){await base.rate('agent-api:global',300,60);const k=await authenticate(base,token);await base.rate('agent-api:'+k.id,30,60);if(!uuid(id))throw new InputError('Request unavailable.',404);const r=(await base.query('SELECT * FROM relay_agent_funding_requests WHERE owner=$1 AND source_connection_id=$2 AND id=$3',[k.owner,k.id,id])).rows[0];if(!r)throw new InputError('Request unavailable.',404);return machineView(r);}
+  async status(token,id){await base.rate('agent-api:global',300,60);const k=await authenticate(base,token);await base.rate('agent-api:'+k.id,30,60);if(!uuid(id))throw new InputError('Request unavailable.',404);const r=(await base.query('SELECT * FROM relay_agent_funding_requests WHERE owner=$1 AND source_connection_id=$2 AND id=$3',[k.owner,k.id,id])).rows[0];if(!r)throw new InputError('Request unavailable.',404);return {...machineView(r),progress:await readAgentRequestProgress(base,r,{merchantId,now:clock()})};}
  };
 }
