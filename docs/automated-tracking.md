@@ -32,3 +32,17 @@ Existing review resolution uses the audited store operation with a fresh finalis
 A production queue held 43 requests, with 38 due while the old one-per-tick observer was healthy. A paid request waited several minutes for the next finality check. Regression tests reproduce this queue size, manual priority, FIFO fairness, restart persistence, a refresh during a check, and receipt idempotency. Arrival is established by the original transfer receipt even if the wallet immediately forwards the USDC elsewhere; it never depends on current wallet balance.
 
 Primary references: [Peer events](https://docs.pay.peer.xyz/webhooks/events), [payment fields](https://docs.pay.peer.xyz/api/payments), [settlement accounting](https://docs.pay.peer.xyz/guides/fees-settlement-refunds). Provider settlement fields may be refined; unsupported changes remain held for reconciliation rather than silently rewriting finalised evidence.
+
+## Dedicated worker and operational alerts
+
+The `worker:tracking` entry point reads existing Peer orders and validates exact native-USDC receipts on Base. It cannot create a checkout or execute a wallet transaction. PostgreSQL leases and generation fences remain the source of scheduling ownership; webhooks are wake-up hints, and Peerlytics is optional corroboration only. A 180-second cycle watchdog restarts a stuck process so expired leases can be recovered.
+
+Deploy `tracking.render.yaml` as a separate Blueprint. It creates only `eupova-payment-tracker` and references the existing database and Peer credentials inside Render. No signing, Privy or Resend credentials are assigned to this new process. Verify its heartbeat before setting `EUPOVA_TRACKING_ROLE=dedicated` on the web service. Omitted/`web` retains the existing tracker for rollback.
+
+The existing sandbox/mail worker independently monitors the tracker once configured with `EUPOVA_TRACKING_ALERTS_ENABLED=true`, `EUPOVA_TRACKING_MERCHANT_ID` and `EUPOVA_TRACKING_ALERT_TO=mickel@eupova.com`. It uses its existing Resend sender/key. These flags do not change account-email or customer payment-email preferences. A worker heartbeat older than three minutes, scheduled checks over five minutes late, or at least three failed attempts opens a durable incident. One email is queued per incident and one on recovery. Ordinary waiting-for-payment is not an overdue-payment alert.
+
+Email acceptance is recorded with the Resend ID. Retries retain the exact payload and idempotency key, and stop after 23 hours to avoid repeating mail beyond Resend's 24-hour deduplication window. Such exhausted items remain in the operational outbox for review. The monitor runs independently of tracker and web restarts, but a total Render/database outage or failed Resend delivery cannot be reliably reported through this same stack; external uptime monitoring remains a separate follow-up.
+
+Rollback: set web tracking role to `web`, redeploy the web service, verify a new tracking heartbeat, then suspend the dedicated tracker. Disable only `EUPOVA_TRACKING_ALERTS_ENABLED` if rolling back the monitor. Retain additive operational tables and all payment evidence. Preserve the newest Privy release; do not revert unrelated customer functionality.
+
+References: https://render.com/docs/background-workers ; https://render.com/docs/blueprint-spec ; https://render.com/docs/health-checks ; https://resend.com/docs/dashboard/emails/idempotency-keys

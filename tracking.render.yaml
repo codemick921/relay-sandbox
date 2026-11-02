@@ -1,0 +1,32 @@
+# Separate Blueprint: creates only the dedicated tracker. Does not manage existing services.
+services:
+  - type: worker
+    name: eupova-payment-tracker
+    runtime: node
+    region: frankfurt
+    plan: 0.5c-512mb
+    numInstances: 1
+    repo: https://github.com/codemick921/relay-sandbox
+    branch: main
+    buildCommand: npm ci --omit=dev
+    startCommand: npm run worker:tracking
+    autoDeployTrigger: off
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: EUPOVA_DEDICATED_TRACKING_ENABLED
+        value: "true"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: relay-sandbox-db
+          property: connectionString
+      - key: PEER_PAY_LIVE_API_KEY
+        fromService:
+          type: web
+          name: eupova
+          envVarKey: PEER_PAY_LIVE_API_KEY
+      - key: PEER_PAY_LIVE_MERCHANT_ID
+        fromService:
+          type: web
+          name: eupova
+          envVarKey: PEER_PAY_LIVE_MERCHANT_ID
