@@ -18,7 +18,7 @@ Amounts are decimal strings with up to six fractional places, positive and withi
 Response includes ID, purpose, targetUsdc, asset, network, timestamps and request status. `awaiting_review`, `funding_prepared`, `dismissed`, `expired` describe the request lifecycle only. **funding_prepared does not mean paid or delivered.**
 
 ## Read one submitted request
-`GET https://app.eupova.com/api/agent/v1/funding-requests/REQUEST_ID` with the same bearer key. A connection can read only requests it created. It cannot read customer records, checkout URLs, balances or payment endpoints. Browser-origin/cookie requests are rejected. No webhooks or remote callback URLs are accepted in this version.
+`GET https://app.eupova.com/api/agent/v1/funding-requests/REQUEST_ID` with the same bearer key. A connection can read only requests it created. It cannot read customer records, checkout URLs, balances or payment endpoints. Browser-origin/cookie requests are rejected. Optional signed status callbacks are documented in [AGENT-CALLBACKS.md](AGENT-CALLBACKS.md). They require an approved destination; existing keys do not subscribe automatically.
 
 ## Lifecycle and safety
 - New requests appear in Payments → Funding requests, attributed to the saved connection name. Purpose text is untrusted agent content, rendered as text.
@@ -30,4 +30,4 @@ Response includes ID, purpose, targetUsdc, asset, network, timestamps and reques
 - Schema changes are additive; old releases can run with the extra tables untouched. The payment worker needs no new code for this feature.
 
 ## Not yet covered
-No third-party agent platform has been connected or tested live. There is no automatic payment, wallet connection/signing, target-to-fiat conversion, push callback or guaranteed external platform credit. Actual iPhone and screen-reader testing are separate from browser viewport checks.
+No third-party agent platform has been connected or tested live. There is no automatic payment, wallet connection/signing, target-to-fiat conversion, guaranteed external platform credit. Actual iPhone and screen-reader testing are separate from browser viewport checks.

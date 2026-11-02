@@ -21,6 +21,7 @@ export function createAgentConnections(base,security,{clock=Date.now,merchantId=
  }
  const machineView=r=>({id:r.id,purpose:r.purpose,targetUsdc:targetUnits(String(r.target_raw)),asset:'USDC',network:'Base',createdAt:r.created_at,expiresAt:r.expires_at,status:r.cancelled_at?'dismissed':r.draft_id?'funding_prepared':new Date(r.expires_at).getTime()<=clock()?'expired':'awaiting_review'});
  return {
+  async authenticateCallback(token){await base.rate('agent-api:global',300,60);const k=await authenticate(base,token);await base.rate('agent-api:'+k.id,30,60);return k;},
   async list(owner){return (await base.query(query+' WHERE k.owner=$1 ORDER BY k.created_at DESC',[owner])).rows.map(r=>view(r,clock()));},
   async create(input,token){
    fields(input,['agentId','name','maxTargetUsdc','dailyLimit','expiresInDays','confirm','currentPassword']);

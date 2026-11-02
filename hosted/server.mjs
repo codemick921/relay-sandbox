@@ -1,3 +1,4 @@
+import {createAgentCallbacks} from './agent-callbacks.mjs';
 import {configuredWalletSetupClaims} from '../server/quote-first/wallet-setup-claim-http.mjs';
 import {configuredWalletSetupObserver} from '../server/quote-first/wallet-setup-http.mjs';
 import {configuredPersonalisedQuotes} from '../server/quote-first/personalised-quote-http.mjs';
@@ -43,7 +44,7 @@ const dist=fileURLToPath(new URL('../dist/',import.meta.url));
 const uuid=v=>typeof v==='string'&&/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(v);
 async function body(req,max=16384){let size=0;const chunks=[];for await(const chunk of req){size+=chunk.length;if(size>max)throw new InputError('Request too large.',413);chunks.push(chunk);}return Buffer.concat(chunks);}
 const send=(res,status,data)=>{res.writeHead(status,{'Content-Type':'application/json'});res.end(JSON.stringify(data));};
-export function createHostedServer({store,config,pay=createSandboxPayService(),staticRoot=dist,allowHttpForTests=false,tracking=null,paymentsDisabled=false,localPreview=false,accountMail=null,customerAccountsEnabled=true,peerConnection=null,fundingDrafts=null,liveObservation=null,ramp=null,walletBalances=null,buyerAuth=null,buyerStatus=null,buyerConnection=null,targetCalculator=null,personalisedQuotes=null,walletSetup=null,walletSetupClaims=null,walletBootstrap=null}){
+export function createHostedServer({store,config,pay=createSandboxPayService(),staticRoot=dist,allowHttpForTests=false,tracking=null,paymentsDisabled=false,localPreview=false,accountMail=null,customerAccountsEnabled=true,peerConnection=null,fundingDrafts=null,liveObservation=null,ramp=null,walletBalances=null,buyerAuth=null,buyerStatus=null,buyerConnection=null,targetCalculator=null,personalisedQuotes=null,walletSetup=null,walletSetupClaims=null,walletBootstrap=null,agentCallbacks=null}){
  const origin=new URL(config.origin),mail=accountMail??createAccountMail(store),accounts=customerAccountsEnabled?createAccounts(store,{mail}):null;
  if(fundingDrafts&&!paymentsDisabled)throw Error('Funding preparation requires payments to remain disabled.');
  if(tracking?.journey&&(!tracking.simulated||!tracking.journey.simulated||!paymentsDisabled))throw Error('Test funding requires simulated tracking and disabled payments.');
@@ -157,6 +158,15 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
      if(!String(req.headers['content-type']).startsWith('application/json'))throw new InputError('JSON required.',415);
      let input;try{input=JSON.parse((await body(req,4096)).toString());}catch(e){if(e instanceof InputError)throw e;throw new InputError('Invalid JSON.');}
      return send(res,200,await connections.submit(token,req.headers['idempotency-key'],input));
+    }
+    const callbackMatch=/^\/api\/agent\/v1\/funding-requests\/([a-f0-9-]{36})\/callback$/.exec(url.pathname);
+    if(callbackMatch&&agentCallbacks&&['GET','POST','DELETE'].includes(req.method)){
+     const k=await connections.authenticateCallback(token);let input={};
+     if(req.method==='POST'){
+      if(!String(req.headers['content-type']).startsWith('application/json'))throw new InputError('JSON required.',415);
+      try{input=JSON.parse((await body(req,2048)).toString());}catch{throw new InputError('Invalid JSON.');}
+     }
+     return send(res,200,await agentCallbacks.manage(k,callbackMatch[1],input,req.method));
     }
     const match=/^\/api\/agent\/v1\/funding-requests\/([a-f0-9-]{36})$/.exec(url.pathname);
     if(req.method==='GET'&&match)return send(res,200,await connections.status(token,match[1]));
@@ -378,10 +388,11 @@ if(process.argv[1]===fileURLToPath(import.meta.url)){
  const buyerStatus=configuredBuyerStatusHttp({store,origin:config.origin});
  const buyerConnection=configuredBuyerConnectionHttp({store,origin:config.origin,staticRoot:dist});
  const buyerAuth=configuredBuyerAuthHttp({store,origin:config.origin,legacyTokenAllowed:false});
- const server=createHostedServer({store,config,tracking,ramp,walletBalances,peerConnection,fundingDrafts,liveObservation,buyerAuth,buyerStatus,buyerConnection,targetCalculator,personalisedQuotes,walletSetup,walletSetupClaims,walletBootstrap,accountMail:configuredAccountMail(store),paymentsDisabled:true,pay:{readiness:async()=>({ready:false})}});server.listen(Number(process.env.PORT??10000),'0.0.0.0',()=>console.log('Eupova hosted sandbox ready.'));
+ const agentCallbacks=createAgentCallbacks(store,{allowed:(process.env.EUPOVA_AGENT_CALLBACK_URLS??'').split(',').map(x=>x.trim()).filter(Boolean),merchantId:liveObservation?.store?.historyScope?.merchantId??null});await agentCallbacks.migrate();
+ const server=createHostedServer({agentCallbacks,store,config,tracking,ramp,walletBalances,peerConnection,fundingDrafts,liveObservation,buyerAuth,buyerStatus,buyerConnection,targetCalculator,personalisedQuotes,walletSetup,walletSetupClaims,walletBootstrap,accountMail:configuredAccountMail(store),paymentsDisabled:true,pay:{readiness:async()=>({ready:false})}});server.listen(Number(process.env.PORT??10000),'0.0.0.0',()=>console.log('Eupova hosted sandbox ready.'));
  // One read at startup, no polling. Until verified, the receiver returns 503.
  if(peerConnection)void peerConnection.checkIdentity();
  if(liveObservation)void liveObservation.start();
- walletBalances?.start();
- let closing=false;for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>{if(closing)return;closing=true;server.close(async()=>{await walletBalances?.stop();await liveObservation?.stop();await tracking.close();await store.close();process.exit(0);});setTimeout(()=>process.exit(1),25000).unref();});
+ walletBalances?.start();agentCallbacks.start();
+ let closing=false;for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>{if(closing)return;closing=true;server.close(async()=>{await agentCallbacks.stop();await walletBalances?.stop();await liveObservation?.stop();await tracking.close();await store.close();process.exit(0);});setTimeout(()=>process.exit(1),25000).unref();});
 }
