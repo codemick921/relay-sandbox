@@ -126,7 +126,7 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
     const file=path.join(staticRoot,decoded==='/'?'index.html':decoded.slice(1));const data=await readFile(file);res.setHeader('Content-Type',({'.html':'text/html','.css':'text/css','.js':'text/javascript','.svg':'image/svg+xml','.png':'image/png','.webp':'image/webp','.ttf':'font/ttf','.woff2':'font/woff2'})[path.extname(file)]);return res.end(data);
    }
    const allowed=new Set(['/api/profile','/api/operator/test-invites','/api/operator/test-invites/create','/api/operator/test-invites/revoke','/api/test-access/claim','/api/test-access/mode','/api/notifications','/api/notifications/sync','/api/notifications/read','/api/notifications/preferences','/api/notifications/reminder','/api/wallet-balances/preferences','/api/wallet-balances/refresh','/api/ramp-test/create','/api/ramp-test/advance','/api/revolut-test/checkout','/api/funding/drafts','/api/funding/cancel','/api/funding/stop','/api/funding/track-separately','/api/funding/request-cancellation','/api/funding/checkout','/api/funding/resume','/api/funding/availability','/api/test-funding/quote','/api/test-funding/create','/api/test-funding/action','/api/agents/update','/api/account/security','/api/account/revokeSession','/api/account/rotateRecovery','/api/account/confirmRecovery','/api/account/signup','/api/account/login','/api/account/recover','/api/account/password','/api/account/requestVerification','/api/account/requestReset','/api/account/verifyEmail','/api/account/resetPassword','/api/account/emailPreview','/api/access','/api/login','/api/logout','/api/state','/api/agents','/api/checkouts','/api/checkout-resume','/api/checkout-refresh','/api/checkout-setup']);
-   const historyRoute=url.pathname==='/api/funding-history'||url.pathname==='/api/funding-history/download'||/^\/api\/funding-history\/[a-f0-9-]{36}$/i.test(url.pathname);
+   const historyRoute=url.pathname==='/api/funding-overview'||url.pathname==='/api/funding-history'||url.pathname==='/api/funding-history/download'||/^\/api\/funding-history\/[a-f0-9-]{36}$/i.test(url.pathname);
    const recordRoute=url.pathname==='/api/payment-records'||/^\/api\/payment-records\/[a-f0-9-]{36}\/download$/i.test(url.pathname);
    if(!allowed.has(url.pathname)&&!recordRoute&&!historyRoute)throw new InputError('Not found.',404);
    if(req.headers['sec-fetch-site']==='cross-site')throw new InputError('Cross-site access blocked.',403);
@@ -206,8 +206,10 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
      if(!customer)throw new InputError('Sign in to your customer account to view funding history.',403);
      if(req.headers.origin&&req.headers.origin!==config.origin)throw new InputError('Same-origin access required.',403);
      await store.rate('history:'+owner,30,60);
+     const overview=url.pathname==='/api/funding-overview';
+     if(overview&&url.search)throw new InputError('Overview does not accept filters.');
      const options=historyOptions(url.searchParams),download=url.pathname==='/api/funding-history/download',id=/[a-f0-9-]{36}$/i.test(url.pathname)?url.pathname.split('/').at(-1):null;
-     const data=await store.fundingHistory(owner,options,historyScopes,{id,download});
+     const data=await store.fundingHistory(owner,options,historyScopes,{id,download,overview});
      if(!download)return send(res,200,data);
      const format=url.searchParams.get('format');if(!['html','csv'].includes(format))throw new InputError('Choose HTML or CSV.');
      res.setHeader('Content-Type',format==='html'?'text/html; charset=utf-8':'text/csv; charset=utf-8');

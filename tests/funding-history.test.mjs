@@ -94,6 +94,15 @@ test('history HTTP requires customer session, refuses cross-origin and POST, and
   const path='/api/funding-history/'+o.id;
   assert.equal((await req(path,{token:null})).status,401);assert.equal((await req(path,{token:b.token})).status,404);assert.equal((await req(path,{site:'cross-site'})).status,403);assert.equal((await req(path,{origin:'https://evil.example'})).status,403);assert.equal((await req(path,{method:'POST'})).status,405);
   assert.equal((await req(path)).status,200);
+  const overviewPath='/api/funding-overview';
+  assert.equal((await req(overviewPath,{token:null})).status,401);
+  assert.equal((await req(overviewPath,{origin:'https://evil.example'})).status,403);
+  assert.equal((await req(overviewPath,{site:'cross-site'})).status,403);
+  assert.equal((await req(overviewPath,{method:'POST'})).status,405);
+  assert.equal((await req(overviewPath+'?source=all')).status,400);
+  const overview=await req(overviewPath);assert.equal(overview.status,200);assert.equal(JSON.parse(overview.body).total,0);assert.equal(overview.headers['cache-control'],'no-store');
+  assert.equal(JSON.parse((await req(overviewPath,{token:b.token})).body).total,0);
+
   const list=await req('/api/funding-history?source=simulated');assert.equal(JSON.parse(list.body).total,1);assert.equal(list.headers['cache-control'],'no-store');
   const record=await req(`/api/payment-records/${o.id}/download?format=html`);assert.equal(record.status,200);assert.match(record.body,/12.000000/);
   const exported=await req('/api/funding-history/download?source=simulated&format=csv');assert.equal(exported.status,200);assert.match(exported.headers['content-disposition'],/eupova-simulated-statement/);assert.match(exported.body,/SIMULATED/);assert.equal(calls,0);
@@ -139,6 +148,24 @@ test('owned payment detail and receipt read archived offers without mutating any
   const {renderRecord}=await import('../hosted/payment-records.mjs');
   for(const output of [JSON.stringify(data),renderRecord(r,'html'),renderRecord(r,'csv')]){assert.ok(!output.includes('SECRET-AUDIT'));assert.ok(!output.includes('SECRET-CHECKOUT'));assert.ok(!output.includes(otherOrder.id));}
   await assert.rejects(()=>f.store.fundingHistory(other,{},f.scopes,{id:o.id}),e=>e.status===404);
+  assert.deepEqual(await snapshot(),before);
+ }finally{await f.close();}
+});
+
+
+test('returning overview finds old attention beyond page one, stays owner-scoped and preserves all rows',async()=>{
+ const f=await setup();try{
+  const old=await insert(f,{at:'2026-10-01T12:00:00Z',name:'Older review'});
+  await f.store.query('UPDATE relay_live_orders SET review_required=true WHERE id=$1',[old.id]);
+  for(let i=0;i<28;i++)await insert(f,{received:true,name:'Completed '+i});
+  const waiting=await insert(f,{name:'Still waiting'});
+  await insert(f,{who:other});await insert(f,{store:f.sim});
+  const snapshot=async()=>({orders:(await f.store.query('SELECT * FROM relay_live_orders ORDER BY id')).rows,drafts:(await f.store.query('SELECT * FROM relay_funding_drafts ORDER BY id')).rows});
+  const before=await snapshot(),data=await f.store.fundingHistory(owner,{},f.scopes,{overview:true});
+  assert.equal(data.total,30);assert.equal(data.attention.total,1);assert.equal(data.attention.records[0].id,old.id);
+  assert.equal(data.progress.total,1);assert.equal(data.progress.records[0].id,waiting.id);
+  assert.ok(data.generatedAt);assert.equal(data.savedOnly,true);
+  assert.ok(!JSON.stringify(data).includes('SECRET-URL'));assert.ok(!JSON.stringify(data).includes('PRIVATE-DIAGNOSTIC'));
   assert.deepEqual(await snapshot(),before);
  }finally{await f.close();}
 });

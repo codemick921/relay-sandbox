@@ -1,3 +1,4 @@
+import {createOverview,addOverviewRecord} from '../shared/funding-overview.mjs';
 import {matchesPaymentStatus} from '../shared/payment-views.mjs';
 import {knownCurrency} from '../shared/fiat.mjs';
 // Customer-owned saved evidence only. No provider clients or payment mutations.
@@ -27,7 +28,7 @@ export function summarize(records){
 // Filter SQL is static and parameterised. Batch traversal holds a single snapshot;
 // only a page is retained for browsing; exports fail explicitly above 10,000 rows.
 export function createFundingHistoryReader(pool){
- return async function read(owner,options={},scopes=[],{id=null,download=false}={}){
+ return async function read(owner,options={},scopes=[],{id=null,download=false,overview=false}={}){
   if(!/^customer:[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(owner))throw new InputError('Customer sign-in required.',403);
   if(id&&!uuid(id))throw new InputError('Funding record not found.',404);
   const opts=historyOptions(new URLSearchParams(Object.entries(options).map(([k,v])=>[k,String(v)])));
@@ -52,7 +53,7 @@ export function createFundingHistoryReader(pool){
    let where='',idx=args.length;
    if(opts.from){args.push(opts.from);where+=` AND created_at>=($${++idx}::date::timestamp AT TIME ZONE 'Europe/London')`;}
    if(opts.to){args.push(opts.to);where+=` AND created_at<(($${++idx}::date+1)::timestamp AT TIME ZONE 'Europe/London')`;}
-   const retained=[],pageSize=25;let total=0,offset=0;
+   const retained=[],pageSize=25,overviewData=overview?createOverview():null;let total=0,offset=0;
    // Aggregate exact decimal strings without retaining raw evidence or full history.
    let summary=summarize([]);
    const add=r=>{const one=summarize([r]);for(const k of ['requestedGbp','netUsdc','confirmedUsdc','peerFeeUsdc']){const d=k==='requestedGbp'?2:6,a=summary[k],b=one[k];a.known+=b.known;a.missing+=b.missing;if(b.amount!==null)a.amount=units(String((amount(a.amount,d)??0n)+amount(b.amount,d)),d);}
@@ -69,6 +70,7 @@ export function createFundingHistoryReader(pool){
      if(row.source==='ramp'){r.provider='Ramp';r.code='awaiting';r.title='Ramp simulation · '+(row.status==='received'?'completed':'in progress');r.next='This is a saved Ramp test. It does not confirm a real payment or wallet arrival.';r.document='summary';r.deliveryConfirmed=false;r.receipts=[];r.netUsdc=null;r.confirmedUsdc=null;r.peerFeeUsdc=null;}
      r.source=row.source==='draft'?'draft':simulated?'simulated':'live';r.agentId=row.request?.agent?.id??row.draft?.agent?.id??null;
      if(!id&&(opts.source!=='all'&&(opts.source==='simulated')!==r.simulated||!matchesPaymentStatus(r,opts.status)||opts.address&&r.address?.toLowerCase()!==opts.address||opts.q&&![r.agentName,r.id,r.providerOrderId,r.address].some(v=>v?.toLowerCase().includes(opts.q.toLowerCase()))))continue;
+     if(overview){addOverviewRecord(overviewData,r);continue;}
      total++;add(r);
      if(download&&total>10000)throw new InputError('This statement exceeds 10,000 records. Choose a shorter date range.',413);
      if(id||download||total>(opts.page-1)*pageSize&&total<=opts.page*pageSize)retained.push(r);
@@ -77,6 +79,7 @@ export function createFundingHistoryReader(pool){
    }
    if(id&&retained.length!==1)throw new InputError('Funding record not found.',404);
    await c.query('COMMIT');
+   if(overview)return {...overviewData,generatedAt:new Date(now).toISOString(),savedOnly:true};
    return {records:retained,total,page:opts.page,pageSize,pages:Math.ceil(total/pageSize),filters:opts,summary:opts.source==='all'?null:summary,generatedAt:new Date(now).toISOString(),dateBasis:'Request creation date · Europe/London',savedOnly:true};
   }catch(e){await c.query('ROLLBACK').catch(()=>{});throw e;}finally{c.release();}
  };
