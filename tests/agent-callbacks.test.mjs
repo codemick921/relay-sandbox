@@ -32,7 +32,7 @@ test('registration is owned, opt-in, pinned and does not alter customer or payme
  await assert.rejects(f.cb.manage(f.k,f.r.id,{url},'POST'),/Confirm/);
  const a=await f.cb.manage(f.k,f.r.id,{url,confirmOwnership:true},'POST'),b=await f.cb.manage(f.k,f.r.id,{url,confirmOwnership:true},'POST');assert.deepEqual(a,b);
  assert.ok(!JSON.stringify(await f.cb.manage(f.k,f.r.id,{},'GET')).includes(a.signingSecret));
- assert.equal((await f.store.query('SELECT count(*) FROM relay_funding_drafts')).rows[0].count,0);
+ assert.equal(Number((await f.store.query('SELECT count(*) FROM relay_funding_drafts')).rows[0].count),0);
  await f.cb.tick();assert.equal(f.sent.length,0);await f.cb.tick();assert.equal(f.sent.length,1);assert.equal(f.sent[0].event.data.progress.paymentConfirmed,false);assert.equal(f.sent[0].event.data.progress.deliveryConfirmed,false);assert.equal(f.sent[0].event.data.requestStatus,'awaiting_review');assert.equal(f.sent[0].secret,a.signingSecret);
  const raw=JSON.stringify(f.sent[0].event);assert.ok(!raw.includes('address'));assert.ok(!raw.includes('purpose'));assert.ok(!raw.includes('owner'));
  f.advance(30000);await f.cb.tick();assert.equal(f.sent.length,1);
@@ -52,7 +52,7 @@ test('HTTP callback API authenticates, isolates browser access and is disabled w
  const callbacks=createAgentCallbacks(f.store),drafts=createFundingDrafts(f.store);server=createHostedServer({store:f.store,config:{origin:'https://relay.example',host:'relay.example',testers:[]},paymentsDisabled:true,allowHttpForTests:true,fundingDrafts:drafts,agentCallbacks:callbacks});await new Promise(r=>server.listen(0,'127.0.0.1',r));
  const call=(method,headers={},payload={url,confirmOwnership:true})=>new Promise((resolve,reject)=>{const req=http.request({hostname:'127.0.0.1',port:server.address().port,path:`/api/agent/v1/funding-requests/${f.r.id}/callback`,method,headers:{host:'relay.example',authorization:'Bearer '+f.key.key,'content-type':'application/json',...headers}},res=>{let raw='';res.on('data',b=>raw+=b);res.on('end',()=>resolve({status:res.statusCode,body:JSON.parse(raw)}));});req.on('error',reject);req.end(method==='POST'?JSON.stringify(payload):undefined);});
  assert.equal((await call('GET',{authorization:'Bearer invalid'})).status,401);assert.equal((await call('GET',{origin:'https://relay.example'})).status,403);assert.equal((await call('GET',{cookie:'session=sample'})).status,403);
- const state=await call('GET');assert.equal(state.status,200);assert.equal(state.body.registrationAvailable,false);assert.equal((await call('POST')).status,403);assert.equal((await f.store.query('SELECT count(*) FROM relay_agent_callbacks')).rows[0].count,0);
+ const state=await call('GET');assert.equal(state.status,200);assert.equal(state.body.registrationAvailable,false);assert.equal((await call('POST')).status,403);assert.equal(Number((await f.store.query('SELECT count(*) FROM relay_agent_callbacks')).rows[0].count),0);
  }finally{if(server)await new Promise(r=>server.close(r));await f.close();}});
 test('restart preserves pending ID and empty allowlist prevents dispatch',async()=>{const f=await setup();try{
  await f.cb.manage(f.k,f.r.id,{url,confirmOwnership:true},'POST');await f.cb.tick();const pending=(await f.store.query('SELECT pending FROM relay_agent_callbacks')).rows[0].pending;
