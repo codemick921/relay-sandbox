@@ -26,7 +26,7 @@ function fixture(){
 test('ES256 access JWT verifier accepts only the pinned app, session and public key',async()=>{
  const verify=createPrivyAccessVerifier({appId,trustedJwks:{keys:[jwk]},clock:()=>now});
  assert.deepEqual(await verify(await token()),{did,sid:'session-123',issuedAt:now,expiresAt:now+3600000});
- for(const patch of [{iss:'https://privy.io'},{aud:'other'},{aud:[appId,'other']},{sub:'did:privy:../../oops'},{sid:''},{sid:undefined},{exp:now/1000},{iat:now/1000+31},{exp:now/1000+3601},{linked_accounts:'[]'},{custom_metadata:{}},{nbf:now/1000+1}])await assert.rejects(verify(await token(patch)),{code:'privy_access_invalid'});
+ for(const patch of [{iss:'https://privy.io'},{aud:'other'},{aud:[appId,'other']},{sub:'did:privy:../../oops'},{sid:''},{sid:undefined},{exp:now/1000},{iat:now/1000+31},{exp:now/1000+3601},{nbf:now/1000+1}])await assert.rejects(verify(await token(patch)),{code:'privy_access_invalid'});
  for(const header of [{kid:'unknown'},{jku:'https://example.test/keys'},{jwk},{x5u:'https://example.test'},{typ:'identity'}])await assert.rejects(verify(await token({},header)));
  const other=await generateKeyPair('ES256');await assert.rejects(verify(await new SignJWT(baseClaims).setProtectedHeader({alg:'ES256',kid:'test'}).sign(other.privateKey)));
  const hmac=await new SignJWT(baseClaims).setProtectedHeader({alg:'HS256',kid:'test'}).sign(new TextEncoder().encode(JSON.stringify(jwk)));await assert.rejects(verify(hmac));
@@ -97,7 +97,7 @@ test('personalised service uses verified server addresses and discards quotes af
 
 test('token diagnostics expose fixed categories without token claims or provider errors',async()=>{
  const verify=createPrivyAccessVerifier({appId,trustedJwks:{keys:[jwk]},clock:()=>now});
- const cases=[['bad','token_malformed'],[await token({},{kid:'unknown'}),'key_unrecognised'],[await token({aud:'wrong'}),'audience_invalid'],[await token({iss:'wrong'}),'issuer_invalid'],[await token({sub:'wrong'}),'subject_invalid'],[await token({sid:''}),'session_invalid'],[await token({extra:'unsupported'}),'claims_shape_invalid'],[await token({},{kid:undefined}),'key_id_missing'],[await token({exp:now/1000}),'token_time_invalid'],[await token({},{typ:'identity'}),'header_invalid']];
+ const cases=[['bad','token_malformed'],[await token({},{kid:'unknown'}),'key_unrecognised'],[await token({aud:'wrong'}),'audience_invalid'],[await token({iss:'wrong'}),'issuer_invalid'],[await token({sub:'wrong'}),'subject_invalid'],[await token({sid:''}),'session_invalid'],[await token({sid:{invalid:true}}),'claims_shape_invalid'],[await token({},{kid:undefined}),'key_id_missing'],[await token({exp:now/1000}),'token_time_invalid'],[await token({},{typ:'identity'}),'header_invalid']];
  const other=await generateKeyPair('ES256');
  cases.push([await new SignJWT(baseClaims).setProtectedHeader({alg:'ES256',kid:'test'}).sign(other.privateKey),'signature_or_registered_claim_invalid']);
  for(const [raw,reason] of cases){
@@ -109,3 +109,15 @@ test('token diagnostics expose fixed categories without token claims or provider
  assert.equal(safeWalletAuthDiagnostic({stage:'server_access_token',code:'raw-secret'}),null);
  await assert.rejects(walletAuthStep('server_access_token',async()=>{throw {code:'privy_access_invalid',verificationReason:'raw-secret'};}),e=>e.diagnostic.code==='failed');
 });
+
+ test('signed extension claims are ignored while registered claims and signatures remain mandatory',async()=>{
+ const verify=createPrivyAccessVerifier({appId,trustedJwks:{keys:[jwk]},clock:()=>now});
+ const extensions={is_guest:false,custom_metadata:{sub:'not-the-user',nested:['{escaped}',null]},linked_accounts:[],extra:null};
+ const valid=await token(extensions);
+ assert.deepEqual(await verify(valid),{did,sid:'session-123',issuedAt:now,expiresAt:now+3600000});
+ for(const patch of [{aud:{value:appId}},{sid:null},{sub:[did]},{iss:'other'},{exp:now/1000-1}])await assert.rejects(verify(await token({...extensions,...patch})));
+ const parts=valid.split('.');parts[1]=Buffer.from(JSON.stringify({...baseClaims,...extensions,sub:'did:privy:forged'})).toString('base64url');
+ await assert.rejects(verify(parts.join('.')));
+ const duplicate='{'+JSON.stringify(extensions).slice(1,-1)+',"s\\u0075b":"did:privy:forged",'+JSON.stringify(baseClaims).slice(1);
+ await assert.rejects(verify(await new CompactSign(new TextEncoder().encode(duplicate)).setProtectedHeader({alg:'ES256',kid:'test'}).sign(keys.privateKey)));
+ });

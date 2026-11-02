@@ -3,19 +3,22 @@ import {createLocalJWKSet,jwtVerify} from 'jose';
 import {QuoteError} from './direct-quote.mjs';
 const check=(value,code)=>{if(!value)throw new QuoteError(code);};
 export const validPrivyDid=value=>typeof value==='string'&&/^did:privy:[a-zA-Z0-9]{1,80}$/.test(value);
-// Access-token objects are flat. Reject duplicate (including escaped) names rather
-// than letting JSON.parse silently choose the last value of a security claim.
-function flatObject(part,allowed){
+// JWT extensions are ignored (RFC 7519 section 4), never used as identity evidence.
+// Reject duplicate top-level names, including escaped names, before verification.
+function tokenObject(part,allowed,extensions=false){
  check(/^[a-zA-Z0-9_-]+$/.test(part),'privy_access_invalid');
  const source=Buffer.from(part,'base64url').toString('utf8'),result=JSON.parse(source);
- check(result&&typeof result==='object'&&!Array.isArray(result)&&Object.entries(result).every(([k,v])=>allowed.includes(k)&&v!==null&&['string','number','boolean'].includes(typeof v)),'privy_access_invalid');
- const names=new Set();
- for(let i=0;i<source.length;i++)if(source[i]==='"'){
+ check(result&&typeof result==='object'&&!Array.isArray(result)&&Object.entries(result).every(([k,v])=>!allowed.includes(k)?extensions:v!==null&&['string','number','boolean'].includes(typeof v)),'privy_access_invalid');
+ const names=new Set();let depth=0;
+ for(let i=0;i<source.length;i++){
+  if(source[i]==='{'||source[i]==='['){depth++;continue;}
+  if(source[i]==='}'||source[i]===']'){depth--;continue;}
+  if(source[i]!=='"')continue;
   const start=i++;while(i<source.length){if(source[i]==='\\'){i+=2;continue;}if(source[i]==='"')break;i++;}
   const value=JSON.parse(source.slice(start,i+1));let j=i+1;while(/\s/.test(source[j]??'')&&j<source.length)j++;
-  if(source[j]===':'){check(!names.has(value),'privy_access_invalid');names.add(value);}
+  if(depth===1&&source[j]===':'){check(!names.has(value),'privy_access_invalid');names.add(value);}
  }
- return result;
+ return Object.fromEntries(Object.entries(result).filter(([name])=>allowed.includes(name)));
 }
 export function createPrivyAccessVerifier({appId,trustedJwks,clock=Date.now,maxLifetimeSeconds=3600}={}){
  check(typeof appId==='string'&&/^[a-z0-9]{10,80}$/.test(appId)&&Number.isInteger(maxLifetimeSeconds)&&maxLifetimeSeconds>0&&maxLifetimeSeconds<=3600,'privy_verifier_configuration');
@@ -30,9 +33,9 @@ export function createPrivyAccessVerifier({appId,trustedJwks,clock=Date.now,maxL
    check(typeof token==='string'&&token.length<=8192,'privy_access_invalid');
    const parts=token.split('.');check(parts.length===3,'privy_access_invalid');
    reason='header_invalid';
-   const header=flatObject(parts[0],['alg','kid','typ']);
+   const header=tokenObject(parts[0],['alg','kid','typ']);
    reason='claims_shape_invalid';
-   const claims=flatObject(parts[1],['iss','aud','sub','sid','iat','exp','nbf','jti']);
+   const claims=tokenObject(parts[1],['iss','aud','sub','sid','iat','exp','nbf','jti'],true);
    reason='header_invalid';
    check(header.alg==='ES256'&&(!header.typ||['JWT','at+jwt'].includes(header.typ)),'privy_access_invalid');
    reason='key_id_missing';
