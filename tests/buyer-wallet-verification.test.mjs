@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {generateKeyPair,exportJWK,SignJWT,CompactSign} from 'jose';
+import {walletAuthStep,safeWalletAuthDiagnostic} from '../shared/wallet-auth-diagnostics.mjs';
 import {createPrivyAccessVerifier,createPrivyUserReader} from '../server/quote-first/privy-wallet-reader.mjs';
 import {quoteTestEnrollment,createSavedRecipientReader,createBuyerWalletResolver} from '../server/quote-first/buyer-wallet-resolver.mjs';
 import {createPersonalisedQuoteService} from '../server/quote-first/personalised-quote.mjs';
@@ -92,4 +93,19 @@ test('personalised service uses verified server addresses and discards quotes af
  const context=await service.context(f.actor,{receivingWalletId:walletId}),input={amount:'25',currency:'GBP',method:'wise',receivingWalletId:walletId,contextId:context.contextId,shareAddresses:true};
  const quotes=await service.quotes(f.actor,input);assert.equal(quotes.canCreatePayment,false);assert.equal(quotes.reserved,false);assert.equal(quotes.rows[0].offers[0].validUntil,now+60000);
  unlink=true;await assert.rejects(service.quotes(f.actor,input));assert.equal(calls,2);
+});
+
+test('token diagnostics expose fixed categories without token claims or provider errors',async()=>{
+ const verify=createPrivyAccessVerifier({appId,trustedJwks:{keys:[jwk]},clock:()=>now});
+ const cases=[['bad','token_malformed'],[await token({},{kid:'unknown'}),'key_unrecognised'],[await token({aud:'wrong'}),'audience_invalid'],[await token({iss:'wrong'}),'issuer_invalid'],[await token({sub:'wrong'}),'subject_invalid'],[await token({sid:''}),'session_invalid'],[await token({extra:'unsupported'}),'claims_shape_invalid'],[await token({},{kid:undefined}),'key_id_missing'],[await token({exp:now/1000}),'token_time_invalid'],[await token({},{typ:'identity'}),'header_invalid']];
+ const other=await generateKeyPair('ES256');
+ cases.push([await new SignJWT(baseClaims).setProtectedHeader({alg:'ES256',kid:'test'}).sign(other.privateKey),'signature_or_registered_claim_invalid']);
+ for(const [raw,reason] of cases){
+  await assert.rejects(walletAuthStep('server_access_token',()=>verify(raw)),error=>{
+   assert.deepEqual(error.diagnostic,{stage:'server_access_token',code:reason});
+   assert.doesNotMatch(JSON.stringify(error),/did:privy|session-123|cmvypq|eyJ/);return true;
+  });
+ }
+ assert.equal(safeWalletAuthDiagnostic({stage:'server_access_token',code:'raw-secret'}),null);
+ await assert.rejects(walletAuthStep('server_access_token',async()=>{throw {code:'privy_access_invalid',verificationReason:'raw-secret'};}),e=>e.diagnostic.code==='failed');
 });

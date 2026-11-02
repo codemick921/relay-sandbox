@@ -25,18 +25,32 @@ export function createPrivyAccessVerifier({appId,trustedJwks,clock=Date.now,maxL
   /^[a-zA-Z0-9_-]{43}$/.test(k.x??'')&&/^[a-zA-Z0-9_-]{43}$/.test(k.y??'')&&Object.keys(k).every(n=>['kty','crv','alg','use','kid','x','y','key_ops'].includes(n))&&(!k.key_ops||JSON.stringify(k.key_ops)==='["verify"]')),'privy_verifier_configuration');
  const keySet=createLocalJWKSet({keys});
  return async token=>{
+  let reason='token_malformed';
   try{
    check(typeof token==='string'&&token.length<=8192,'privy_access_invalid');
    const parts=token.split('.');check(parts.length===3,'privy_access_invalid');
-   const header=flatObject(parts[0],['alg','kid','typ']),claims=flatObject(parts[1],['iss','aud','sub','sid','iat','exp','nbf','jti']);
-   check(header.alg==='ES256'&&keys.some(k=>k.kid===header.kid)&&(!header.typ||['JWT','at+jwt'].includes(header.typ)),'privy_access_invalid');
+   reason='header_invalid';
+   const header=flatObject(parts[0],['alg','kid','typ']);
+   reason='claims_shape_invalid';
+   const claims=flatObject(parts[1],['iss','aud','sub','sid','iat','exp','nbf','jti']);
+   reason='header_invalid';
+   check(header.alg==='ES256'&&(!header.typ||['JWT','at+jwt'].includes(header.typ)),'privy_access_invalid');
+   reason='key_id_missing';
+   check(typeof header.kid==='string'&&header.kid.length>0,'privy_access_invalid');
+   reason='key_unrecognised';
+   check(keys.some(k=>k.kid===header.kid),'privy_access_invalid');
    const now=clock();
-   check(claims.iss==='privy.io'&&claims.aud===appId&&validPrivyDid(claims.sub)&&typeof claims.sid==='string'&&/^[a-zA-Z0-9:_-]{1,160}$/.test(claims.sid),'privy_access_invalid');
+   reason='issuer_invalid';check(claims.iss==='privy.io','privy_access_invalid');
+   reason='audience_invalid';check(claims.aud===appId,'privy_access_invalid');
+   reason='subject_invalid';check(validPrivyDid(claims.sub),'privy_access_invalid');
+   reason='session_invalid';check(typeof claims.sid==='string'&&/^[a-zA-Z0-9:_-]{1,160}$/.test(claims.sid),'privy_access_invalid');
+   reason='token_time_invalid';
    check(Number.isSafeInteger(claims.iat)&&Number.isSafeInteger(claims.exp)&&claims.iat>0&&claims.iat*1000<=now+30000&&claims.exp*1000>now&&claims.exp>claims.iat&&claims.exp-claims.iat<=maxLifetimeSeconds,'privy_access_invalid');
+   reason='signature_or_registered_claim_invalid';
    await jwtVerify(token,keySet,{algorithms:['ES256'],issuer:'privy.io',audience:appId,currentDate:new Date(now),requiredClaims:['sub','sid','iat','exp']});
    check(claims.exp*1000>clock(),'privy_access_invalid');
    return Object.freeze({did:claims.sub,sid:claims.sid,issuedAt:claims.iat*1000,expiresAt:claims.exp*1000});
-  }catch{throw new QuoteError('privy_access_invalid');}
+  }catch{const error=new QuoteError('privy_access_invalid');Object.defineProperty(error,'verificationReason',{value:reason});throw error;}
  };
 }
 export function createPrivyUserReader({appId,readOnlySecret,credentialAccess,fetchImpl=globalThis.fetch,timeoutMs=4000,maxBytes=65536,includeInventory=false}={}){
