@@ -14,6 +14,7 @@ export function dialogNavigation(navigation,action){
  return navigation;
 }
 export function dialogPath(dialog,pathname){
+ if(dialog?.kind==='agent-request')return pathname+'#request='+encodeURIComponent(dialog.id);
  if(dialog?.kind==='order')return pathname+'?checkout='+encodeURIComponent(dialog.id);
  if(dialog?.kind==='funding-draft')return pathname+'#funding='+encodeURIComponent(dialog.id);
  return pathname;

@@ -9,6 +9,7 @@ export function resumeLink(origin,id){
 }
 export function resumeTarget(location){
  const hash=location.hash??'';
+ if(hash.startsWith('#request=')){const id=hash.slice(9);return uuid.test(id)?{kind:'agent-request',id}:{kind:'invalid'};}
  if(hash.startsWith('#payment=')){
   const id=hash.slice('#payment='.length);return uuid.test(id)?{kind:'payment-help',id}:{kind:'invalid'};
  }
@@ -21,6 +22,7 @@ export function resumeTarget(location){
 }
 export function resolveResume(target,state){
  if(!target)return null;
+ if(target.kind==='agent-request'&&state.account&&state.agentFundingRequests?.some(r=>r.id===target.id))return target;
  // Payment detail reads are owner-authorised by the existing API, not this fragment.
  if(target.kind==='payment-help'&&state.account)return target;
  if(target.kind==='funding-draft'&&state.account&&state.fundingDrafts?.some(d=>d.id===target.id))return target;
