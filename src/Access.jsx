@@ -4,6 +4,7 @@ import AccessPassword from './AccessPassword';
 import './access.css';
 import {FundingIntroduction} from './FundingHome';
 import AccountSecurity from './AccountSecurity';
+import BuyerConnection from './BuyerConnection';
 import AccountEmail from './AccountEmail';
 import {resumeTarget} from './payment-resume.mjs';
 import React,{useState,useEffect,useCallback} from 'react';
@@ -87,6 +88,7 @@ export default function Access(){
  {mode==='security'&&<div className="security-dashboard">
   <AccountEmail account={access.account} onVerified={emailChanged} openLink={openLink}/>
   <AccountSecurity key={String(access.account.emailVerified)} onRecovery={value=>{setRecovery(value);setSaved(false);setError('');}}/>
+  <BuyerConnection key={access.account.id}/>
  </div>}
  <form className={securing?'security-card security-password-form':undefined} id={securing?'security-password':undefined} tabIndex={securing?-1:undefined} aria-label={securing?'Change password':undefined} onSubmit={submit}>
  {securing&&<><h2>Change password</h2><p>Use a unique password for your Eupova account.</p></>}

@@ -1,5 +1,6 @@
 import {createAgentFundingRequests} from './agent-funding-requests.mjs';
 import {configuredBuyerAuthHttp} from '../server/quote-first/buyer-auth-http.mjs';
+import {configuredBuyerStatusHttp} from '../server/quote-first/buyer-auth-status.mjs';
 import {handlePublicBuyerJwks} from '../server/quote-first/buyer-auth-public-jwks.mjs';
 import {createProfilePictures} from './profile-picture.mjs';
 import {createTestInvites} from './test-invites.mjs';
@@ -36,7 +37,7 @@ const dist=fileURLToPath(new URL('../dist/',import.meta.url));
 const uuid=v=>typeof v==='string'&&/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(v);
 async function body(req,max=16384){let size=0;const chunks=[];for await(const chunk of req){size+=chunk.length;if(size>max)throw new InputError('Request too large.',413);chunks.push(chunk);}return Buffer.concat(chunks);}
 const send=(res,status,data)=>{res.writeHead(status,{'Content-Type':'application/json'});res.end(JSON.stringify(data));};
-export function createHostedServer({store,config,pay=createSandboxPayService(),staticRoot=dist,allowHttpForTests=false,tracking=null,paymentsDisabled=false,localPreview=false,accountMail=null,customerAccountsEnabled=true,peerConnection=null,fundingDrafts=null,liveObservation=null,ramp=null,walletBalances=null,buyerAuth=null}){
+export function createHostedServer({store,config,pay=createSandboxPayService(),staticRoot=dist,allowHttpForTests=false,tracking=null,paymentsDisabled=false,localPreview=false,accountMail=null,customerAccountsEnabled=true,peerConnection=null,fundingDrafts=null,liveObservation=null,ramp=null,walletBalances=null,buyerAuth=null,buyerStatus=null}){
  const origin=new URL(config.origin),mail=accountMail??createAccountMail(store),accounts=customerAccountsEnabled?createAccounts(store,{mail}):null;
  if(fundingDrafts&&!paymentsDisabled)throw Error('Funding preparation requires payments to remain disabled.');
  if(tracking?.journey&&(!tracking.simulated||!tracking.journey.simulated||!paymentsDisabled))throw Error('Test funding requires simulated tracking and disabled payments.');
@@ -97,6 +98,7 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
    }
    const url=new URL(req.url,config.origin);
    if(handlePublicBuyerJwks(req,res))return;
+   if(buyerStatus&&await buyerStatus(req,res))return;
    if(buyerAuth&&await buyerAuth(req,res))return;
    if(url.pathname==='/api/operator/payment-health'){
     if(req.method!=='GET')throw new InputError('Method not allowed.',405);
@@ -356,8 +358,9 @@ if(process.argv[1]===fileURLToPath(import.meta.url)){
  const ramp=createRampSimulation(store);await ramp.migrate();
  const walletBalances=liveObservation?createWalletBalances(store,{rpc:createReceiptRpc(process.env.BASE_RPC_URL||'https://mainnet.base.org')}):null;
  if(walletBalances)await walletBalances.migrate();
+ const buyerStatus=configuredBuyerStatusHttp({store,origin:config.origin});
  const buyerAuth=configuredBuyerAuthHttp({store,origin:config.origin});
- const server=createHostedServer({store,config,tracking,ramp,walletBalances,peerConnection,fundingDrafts,liveObservation,buyerAuth,accountMail:configuredAccountMail(store),paymentsDisabled:true,pay:{readiness:async()=>({ready:false})}});server.listen(Number(process.env.PORT??10000),'0.0.0.0',()=>console.log('Eupova hosted sandbox ready.'));
+ const server=createHostedServer({store,config,tracking,ramp,walletBalances,peerConnection,fundingDrafts,liveObservation,buyerAuth,buyerStatus,accountMail:configuredAccountMail(store),paymentsDisabled:true,pay:{readiness:async()=>({ready:false})}});server.listen(Number(process.env.PORT??10000),'0.0.0.0',()=>console.log('Eupova hosted sandbox ready.'));
  // One read at startup, no polling. Until verified, the receiver returns 503.
  if(peerConnection)void peerConnection.checkIdentity();
  if(liveObservation)void liveObservation.start();
