@@ -52,3 +52,14 @@ test('non-test customers cannot invoke native service even when global switch is
  for(const route of ['begin','review','confirm','recovery'])assert.equal((await http(h,'/api/native-privy/'+route,{method:'POST'})).status,404);
  assert.equal((await http(h,'/buying-wallet-connect')).body,'information');
 });
+
+test('native HTTP accepts the hosted limiter success contract and preserves rate failures',async()=>{
+ let calls=0;
+ const make=rate=>createNativePrivyHttp({origin:'https://app.eupova.com',enabled:()=>true,resolveSession:async()=>({owner:'sample',expiresAt:Date.now()+10000}),service:{status:async()=>{calls++;return {enabled:true};}},rate});
+ const success=await http(make(async()=>{}),'/api/native-privy/status');
+ assert.equal(success.status,200);assert.equal(JSON.parse(success.body).enabled,true);assert.equal(calls,1);
+ for(const rate of [async()=>false,async()=>{throw Object.assign(Error('limited'),{status:429});}]){
+ const r=await http(make(rate),'/api/native-privy/status');assert.equal(r.status,429);assert.deepEqual(JSON.parse(r.body),{error:'too_many_requests'});
+ }
+ assert.equal((await http(make(async()=>{throw Error('database unavailable');}),'/api/native-privy/status')).status,503);assert.equal(calls,1);
+});

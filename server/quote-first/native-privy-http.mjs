@@ -22,7 +22,7 @@ export function createNativePrivyHttp({origin,service,document,resolveSession,en
    const token=sessionToken(req),s=token&&await resolveSession(token);if(!s||s.expiresAt<=Date.now())return send(res,401,{error:'sign_in_required'});
    if(page){const html=await document();res.writeHead(200,{'Content-Type':'text/html','Cache-Control':'no-store','Content-Security-Policy':connectionCsp});res.end(html);return true;}
    if(!enabled()||!service||!await accessAllowed(s))return status?send(res,200,{enabled:false,canCreateWallet:false,canCreatePayment:false}):send(res,404,{error:'native_disabled'});
-   if(!await rate(s.owner,post))return send(res,429,{error:'too_many_requests'});
+   if(await rate(s.owner,post)===false)return send(res,429,{error:'too_many_requests'});
    if(status)return send(res,200,await service.status(token));
    if(req.headers.origin!==origin||req.headers['x-eupova-native']!=='1'||!/^application\/json(?:;\s*charset=utf-8)?$/i.test(req.headers['content-type']??''))return send(res,403,{error:'request_rejected'});
    let size=0,chunks=[],timer;const read=async()=>{for await(const c of req){size+=c.length;if(size>2048)throw Error();chunks.push(c);}return JSON.parse(Buffer.concat(chunks).toString());};
@@ -33,7 +33,7 @@ export function createNativePrivyHttp({origin,service,document,resolveSession,en
    if(route!==nativePaths.begin&&!access)return send(res,401,{error:'privy_sign_in_required'});
    const result=route===nativePaths.begin?await service.begin(token):route===nativePaths.review?await service.review(token,access,input.nonce):route===nativePaths.confirm?await service.confirm(token,access,input):await service.recovery(token,access);
    return send(res,200,result);
-  }catch(e){return send(res,e instanceof NativeError?409:503,{error:e instanceof NativeError?e.code:'native_unavailable'});}
+  }catch(e){if(e?.status===429)return send(res,429,{error:'too_many_requests'});return send(res,e instanceof NativeError?409:503,{error:e instanceof NativeError?e.code:'native_unavailable'});}
  };
 }
 export function nativeTestAccess(store,env,clock=Date.now){
