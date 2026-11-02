@@ -13,7 +13,7 @@ export async function prepareLiveObservation({pool,base,connection,drafts,livePa
  const policy=createRestrictedTestPolicy(base);await policy.migrate();
  const revolutPolicy=createRevolutPolicy(base);await revolutPolicy.migrate();
  const reader=createLiveReadService({apiKey:connection.apiKey,merchantId:connection.merchantId,rpc,fetcher,corroborator:createPeerlyticsReader({fetcher})});
- const worker=createLiveWorker({store:{...store,apply:async(claim,result)=>{const applied=await store.apply(claim,result);if(applied)await drafts.closeVerified(claim.id);return applied;}},pay:reader,maxBatch:1});
+ const worker=createLiveWorker({store:{...store,apply:async(claim,result)=>{const applied=await store.apply(claim,result);if(applied)await drafts.closeVerified(claim.id);return applied;}},pay:reader,maxBatch:5});
  let timer=null,stopping=false,started=false,active=null,lastTick=null,lastError=false;
  async function tick(){if(stopping||active)return;active=(async()=>{try{await drafts.recoverStalled();await worker.tick();lastError=false;lastTick=new Date().toISOString();}catch{lastError=true;}finally{active=null;}})();await active;}
  async function loop(){await tick();if(!stopping)timer=setTimeout(loop,15000);}

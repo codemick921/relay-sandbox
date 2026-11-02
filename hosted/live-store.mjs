@@ -14,6 +14,20 @@ const states=new Set(['checkout_ready','checkout_partial','checkout_settled','ch
 const check=(ok,message)=>{if(!ok)throw new TrackingReviewError(message);};
 export const liveOrderView=row=>({...row.request,...row.result,id:row.id,createdAt:row.created_at,status:row.status,reviewRequired:row.review_required,source:'live',trackingSchedule:{nextCheckAt:row.next_check_at,failedChecks:row.attempts}});
 
+// Quiet historical requests still reconcile for late settlements. Only successful
+// provider observations can lengthen polling; pending delivery remains fast.
+export function trackingIntervalSeconds(row,result,now=Date.now()){
+ if(row.review_required||['checkout_received','checkout_cancelled'].includes(row.status))return 3600;
+ if(row.status!=='checkout_ready')return 30;
+ const attempt=result.verification?.currentAttempt;
+ const age=now-Date.parse(row.created_at);
+ const expiry=Date.parse(attempt?.quoteExpiresAt);
+ const inactive=!attempt||['EXPIRED','FAILED','CANCELLED'].includes(attempt.status)||(attempt.status==='CREATED'&&Number.isFinite(expiry)&&expiry<=now);
+ if(inactive&&age>=86400000)return 3600;
+ if(inactive&&age>=1800000)return 300;
+ return 30;
+}
+
 function immutableIntent(input){
  if(input?.source!=='live'||input.kind!=='checkout'||!uuid(input.id)||!identifier(input.providerOrderId)||!identifier(input.merchantId)||
   !Number.isInteger(input.quote?.pence)||input.quote.pence<minimumMinor(input.quote.platform,currencyCode(input.quote.currency))||input.quote.pence>100000||!supportsFunding(input.quote.platform,currencyCode(input.quote.currency))||
@@ -76,12 +90,12 @@ export function createLiveStore(pool,{merchantId}={}){
   },
   owned:(owner,id)=>owned(pool,owner,id),
   async state(owner){const orders=await query('SELECT * FROM relay_live_orders WHERE owner=$1 AND merchant_id=$2 ORDER BY created_at DESC LIMIT 100',[owner,merchantId]);return {orders:orders.rows.map(liveOrderView)};},
-  async schedule(owner,id){await owned(pool,owner,id);await query('UPDATE relay_live_orders SET next_check_at=now() WHERE id=$1 AND owner=$2 AND merchant_id=$3',[id,owner,merchantId]);},
-  async claimNext({orderId}={}){
+  async schedule(owner,id){await owned(pool,owner,id);await query('UPDATE relay_live_orders SET next_check_at=now(),refresh_requested_at=COALESCE(refresh_requested_at,now()) WHERE id=$1 AND owner=$2 AND merchant_id=$3',[id,owner,merchantId]);},
+  async claimNext({orderId,preferRequested=true}={}){
    if(orderId!==undefined&&!uuid(orderId))throw new InputError('Invalid order ID.');
    return tx(async c=>{
-   const row=(await c.query(`SELECT * FROM relay_live_orders WHERE merchant_id=$1 AND (($2::uuid IS NULL AND next_check_at<=now()) OR id=$2::uuid) AND (lease_until IS NULL OR lease_until<now()) ORDER BY next_check_at,created_at FOR UPDATE SKIP LOCKED LIMIT 1`,[merchantId,orderId??null])).rows[0];
-   return row?(await c.query(`UPDATE relay_live_orders SET generation=generation+1,lease_token=$2,lease_until=now()+interval '60 seconds',claimed_at=clock_timestamp(),claimed_event_ids=ARRAY(SELECT event_id FROM relay_live_webhooks WHERE merchant_id=$3 AND provider_id=$4 AND processed_at IS NULL ORDER BY received_at LIMIT 1000) WHERE id=$1 RETURNING *`,[row.id,randomUUID(),merchantId,row.provider_id])).rows[0]:null;
+   const row=(await c.query(`SELECT * FROM relay_live_orders WHERE merchant_id=$1 AND (($2::uuid IS NULL AND next_check_at<=now()) OR id=$2::uuid) AND (lease_until IS NULL OR lease_until<now()) ORDER BY CASE WHEN $3::boolean THEN refresh_requested_at END ASC NULLS LAST,next_check_at,created_at FOR UPDATE SKIP LOCKED LIMIT 1`,[merchantId,orderId??null,preferRequested])).rows[0];
+   return row?(await c.query(`UPDATE relay_live_orders SET generation=generation+1,refresh_requested_at=NULL,lease_token=$2,lease_until=now()+interval '60 seconds',claimed_at=clock_timestamp(),claimed_event_ids=ARRAY(SELECT event_id FROM relay_live_webhooks WHERE merchant_id=$3 AND provider_id=$4 AND processed_at IS NULL ORDER BY received_at LIMIT 1000) WHERE id=$1 RETURNING *`,[row.id,randomUUID(),merchantId,row.provider_id])).rows[0]:null;
   });},
   async apply(claim,update,{resolveReviewReason}={}){return tx(async c=>{
    const row=await current(c,claim);if(!row)return false;
@@ -110,7 +124,7 @@ export function createLiveStore(pool,{merchantId}={}){
    // Snapshot exact signed event IDs at claim time, not timestamps: two arrivals
    // can share one clock tick. A notification arriving mid-read needs another read.
    await c.query('UPDATE relay_live_webhooks SET processed_at=now() WHERE merchant_id=$1 AND provider_id=$2 AND event_id=ANY($3::text[]) AND processed_at IS NULL',[merchantId,row.provider_id,row.claimed_event_ids]);
-   const pending=(await c.query('SELECT 1 FROM relay_live_webhooks WHERE merchant_id=$1 AND provider_id=$2 AND processed_at IS NULL LIMIT 1',[merchantId,row.provider_id])).rows.length>0;
+   const pending=!!row.refresh_requested_at||(await c.query('SELECT 1 FROM relay_live_webhooks WHERE merchant_id=$1 AND provider_id=$2 AND processed_at IS NULL LIMIT 1',[merchantId,row.provider_id])).rows.length>0;
    // Review holds require an explicit operator resolution; successful polling alone
    // cannot erase a collision or conflicting finalised history.
    const resolving=resolveReviewReason!==undefined;
@@ -122,7 +136,7 @@ export function createLiveStore(pool,{merchantId}={}){
    }
    const previousPayIn=row.result.verification?.payIn,nextPayIn=result.verification.payIn;
    if(nextPayIn&&(previousPayIn?.quoteFingerprint!==nextPayIn.quoteFingerprint||previousPayIn?.status!==nextPayIn.status||JSON.stringify(previousPayIn?.settlement)!==JSON.stringify(nextPayIn.settlement)))await c.query("INSERT INTO relay_live_audit(order_id,event,data) VALUES($1,'payin_observed',$2)",[row.id,nextPayIn]);
-   await c.query(`UPDATE relay_live_orders SET result=$2,status=$3,generation=generation+1,lease_token=NULL,lease_until=NULL,attempts=0,next_check_at=now()+$4*interval '1 second',updated_at=now() WHERE id=$1`,[row.id,result,status,pending?0:status==='checkout_received'||status==='checkout_cancelled'||row.review_required?3600:30]);
+   await c.query(`UPDATE relay_live_orders SET result=$2,status=$3,generation=generation+1,lease_token=NULL,lease_until=NULL,attempts=0,next_check_at=now()+$4*interval '1 second',updated_at=now() WHERE id=$1`,[row.id,result,status,pending?0:trackingIntervalSeconds({...row,status},result)]);
    if(row.status!==status||JSON.stringify(row.result.delivery)!==JSON.stringify(result.delivery)||row.result.chargebackStatus!==result.chargebackStatus)await c.query("INSERT INTO relay_live_audit(order_id,event,data) VALUES($1,'verified',$2)",[row.id,{from:row.status,to:status,receivedRaw:result.verification.receivedRaw,chargebackStatus:result.chargebackStatus}]);
    return true;
   });},
@@ -143,7 +157,7 @@ export function createLiveStore(pool,{merchantId}={}){
     const known=!matchedOnly||!!(await c.query('SELECT 1 FROM relay_live_orders WHERE merchant_id=$1 AND provider_id=$2',[merchantId,event.orderId])).rows.length;
     const r=await c.query(`INSERT INTO relay_live_webhooks(merchant_id,event_id,digest,delivery_id,provider_id,event_type,processed_at,unmatched) VALUES($1,$2,$3,$4,$5,$6,CASE WHEN $7 THEN now() ELSE NULL END,$8) ON CONFLICT DO NOTHING RETURNING event_id`,[merchantId,event.eventId,event.digest,event.deliveryId,event.orderId,event.type,event.test||!known,!known]);
     if(!r.rows.length){const old=(await c.query('SELECT digest FROM relay_live_webhooks WHERE merchant_id=$1 AND(event_id=$2 OR digest=$3)',[merchantId,event.eventId,event.digest])).rows;check(!old.some(x=>x.digest!==event.digest),'Signed event identifier was reused with different content.');return {duplicate:true};}
-    if(!event.test&&known)await c.query('UPDATE relay_live_orders SET next_check_at=now() WHERE merchant_id=$1 AND provider_id=$2',[merchantId,event.orderId]);
+    if(!event.test&&known)await c.query('UPDATE relay_live_orders SET next_check_at=now(),refresh_requested_at=COALESCE(refresh_requested_at,now()) WHERE merchant_id=$1 AND provider_id=$2',[merchantId,event.orderId]);
     return {duplicate:false};
    };return client?save(client):tx(save);
   },

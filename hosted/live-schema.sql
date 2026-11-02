@@ -51,3 +51,6 @@ CREATE TABLE IF NOT EXISTS relay_live_workers (
 );
 
 ALTER TABLE relay_live_webhooks ADD COLUMN IF NOT EXISTS unmatched boolean NOT NULL DEFAULT false;
+
+-- Operational priority only; immutable customer/payment bindings remain untouched.
+ALTER TABLE relay_live_orders ADD COLUMN IF NOT EXISTS refresh_requested_at timestamptz;
