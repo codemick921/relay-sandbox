@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS relay_agent_funding_requests (
 CREATE INDEX IF NOT EXISTS relay_agent_requests_owner ON relay_agent_funding_requests(owner,created_at DESC);
 CREATE OR REPLACE FUNCTION relay_agent_request_immutable() RETURNS trigger AS $$
 BEGIN
- IF ROW(NEW.id,NEW.owner,NEW.request_key,NEW.agent_id,NEW.agent,NEW.agent_revision,NEW.purpose,NEW.target_raw,NEW.expires_at,NEW.created_at) IS DISTINCT FROM ROW(OLD.id,OLD.owner,OLD.request_key,OLD.agent_id,OLD.agent,OLD.agent_revision,OLD.purpose,OLD.target_raw,OLD.expires_at,OLD.created_at)
+ IF (to_jsonb(NEW)->'source_connection_id') IS DISTINCT FROM (to_jsonb(OLD)->'source_connection_id') OR (to_jsonb(NEW)->'source_name') IS DISTINCT FROM (to_jsonb(OLD)->'source_name') OR ROW(NEW.id,NEW.owner,NEW.request_key,NEW.agent_id,NEW.agent,NEW.agent_revision,NEW.purpose,NEW.target_raw,NEW.expires_at,NEW.created_at) IS DISTINCT FROM ROW(OLD.id,OLD.owner,OLD.request_key,OLD.agent_id,OLD.agent,OLD.agent_revision,OLD.purpose,OLD.target_raw,OLD.expires_at,OLD.created_at)
  OR (OLD.draft_id IS NOT NULL AND NEW.draft_id IS DISTINCT FROM OLD.draft_id)
  OR (OLD.cancelled_at IS NOT NULL AND NEW.cancelled_at IS DISTINCT FROM OLD.cancelled_at)
  THEN RAISE EXCEPTION 'Immutable agent funding request'; END IF;

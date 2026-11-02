@@ -24,6 +24,7 @@ export function createAccountSecurity(store,accounts,{mailEnabled=false,mailPrev
   return locked(token,row,fn);
  }
  return {
+  protectedChange,
   async security(_input,token){
    const s=await identity(token),id=s.account.id;await store.rate('security:read:'+id,60,60);
    const row=(await store.query('SELECT recovery_saved_at,recovery_rotated_at,email_verified_at,version FROM relay_customers WHERE id=$1',[id])).rows[0];

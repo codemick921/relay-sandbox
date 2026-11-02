@@ -7,6 +7,7 @@ export function targetRaw(value){
 export function targetUnits(raw){const s=String(raw).padStart(7,'0');return (s.slice(0,-6)+'.'+s.slice(-6)).replace(/\.?0+$/,'');}
 export function requestState(request,agent,now=Date.now()){
  if(request.draftId)return 'linked';
+ if(request.connectionAvailable===false)return 'connection_unavailable';
  if(request.cancelledAt)return 'cancelled';
  if(!Number.isFinite(Date.parse(request.expiresAt))||Date.parse(request.expiresAt)<=now)return 'expired';
  if(request.walletCurrent===false||!agent||agent.id!==request.agent.id||agent.address.toLowerCase()!==request.agent.address.toLowerCase()||agent.network!==request.agent.network||agent.token!==request.agent.token||agent.revision!==undefined&&String(agent.revision)!==String(request.walletRevision))return 'wallet_changed';
