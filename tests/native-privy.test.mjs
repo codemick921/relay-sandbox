@@ -6,7 +6,7 @@ import {PGlite} from '@electric-sql/pglite';
 import pg from 'pg';
 import {createNativePrivyService,nativeInventory,nativeConsent} from '../server/quote-first/native-privy.mjs';
 import {createNativePrivyStore} from '../server/quote-first/native-privy-store.mjs';
-import {createNativePrivyHttp,configuredNativePrivy} from '../server/quote-first/native-privy-http.mjs';
+import {createNativePrivyHttp,configuredNativePrivy,nativeTestAccess} from '../server/quote-first/native-privy-http.mjs';
 import {createNativeRequests,nativeUiConfig,validNativeStatus} from '../src/native-privy-client.mjs';
 import {Readable} from 'node:stream';
 const appId='nativeapp1234567890',did='did:privy:sampletest',address='0x1111111111111111111111111111111111111111';
@@ -35,3 +35,20 @@ async function http(handler,path,{method='GET',headers={},body}={}){const req=Re
 test('disabled HTTP serves signed-in information but rejects all mutations',async()=>{const h=configuredNativePrivy({origin:'https://app.eupova.com',store:{query:async()=>({rows:[]})},staticRoot:'/none',env:{}});assert.equal((await http(h,'/api/native-privy/status')).status,401);const handler=createNativePrivyHttp({origin:'https://app.eupova.com',resolveSession:async()=>({expiresAt:Date.now()+10000}),document:async()=>'native screen'});const r=await http(handler,'/api/native-privy/status');assert.equal(JSON.parse(r.body).enabled,false);assert.equal((await http(handler,'/api/native-privy/confirm',{method:'POST'})).status,404);assert.equal((await http(handler,'/buying-wallet-connect')).body,'native screen');});
 test('HTTP blocks cross-origin, wrong method, missing CSRF and browser identity injection',async()=>{const h=createNativePrivyHttp({origin:'https://app.eupova.com',enabled:()=>true,service:{begin:()=>assert.fail()},resolveSession:async()=>({owner:'sample',expiresAt:Date.now()+10000}),rate:async()=>true});assert.equal((await http(h,'/api/native-privy/begin',{method:'POST',headers:{origin:'https://other.example'}})).status,403);assert.equal((await http(h,'/api/native-privy/begin')).status,405);assert.equal((await http(h,'/api/native-privy/begin',{method:'POST'})).status,403);assert.equal((await http(h,'/api/native-privy/begin',{method:'POST',headers:{origin:'https://app.eupova.com','x-eupova-native':'1','content-type':'application/json'},body:{owner:'another'}})).status,400);});
 test('client only permits sign-in/link/recovery requests and never automatic wallet creation',async()=>{assert.equal(nativeUiConfig.embeddedWallets.ethereum.createOnLogin,'off');assert.equal(nativeUiConfig.embeddedWallets.solana.createOnLogin,'off');const request=createNativeRequests(()=>assert.fail());for(const action of ['pay','create-wallet','sign','checkout','export'])await assert.rejects(request(action));assert.equal(validNativeStatus({enabled:true,appId,consentVersion:nativeConsent,linked:false,canCreateWallet:false,canCreatePayment:false}),true);});
+
+test('native production test access is account-specific, read-only and expires',async()=>{
+ const owner='customer:'+randomUUID();let now=Date.now(),queries=0;
+ const env={EUPOVA_PRIVY_NATIVE_TEST_EMAIL:'approved@example.com',EUPOVA_PRIVY_NATIVE_TEST_UNTIL:new Date(now+600000).toISOString()};
+ const store={query:async(sql,args)=>{queries++;assert.match(sql,/^SELECT id FROM relay_customers/);assert.deepEqual(args,[owner.slice(9),'approved@example.com']);return {rows:[{id:owner.slice(9)}]};}};
+ const allow=nativeTestAccess(store,env,()=>now);assert.equal(await allow({owner}),true);
+ now+=600001;assert.equal(await allow({owner}),false);assert.equal(queries,1);
+ assert.equal(await nativeTestAccess(store,{},()=>now)({owner}),false);
+ assert.equal(await nativeTestAccess(store,{...env,EUPOVA_PRIVY_NATIVE_TEST_UNTIL:new Date(now+3600000).toISOString()},()=>now)({owner}),false);
+ assert.equal(await nativeTestAccess({query:async()=>({rows:[]})},{...env,EUPOVA_PRIVY_NATIVE_TEST_UNTIL:new Date(now+600000).toISOString()},()=>now)({owner:'customer:'+randomUUID()}),false);
+});
+test('non-test customers cannot invoke native service even when global switch is on',async()=>{
+ const h=createNativePrivyHttp({origin:'https://app.eupova.com',enabled:()=>true,accessAllowed:async()=>false,service:{begin:()=>assert.fail()},resolveSession:async()=>({owner:'other',expiresAt:Date.now()+10000}),document:async()=>'information',rate:async()=>assert.fail()});
+ assert.equal(JSON.parse((await http(h,'/api/native-privy/status')).body).enabled,false);
+ for(const route of ['begin','review','confirm','recovery'])assert.equal((await http(h,'/api/native-privy/'+route,{method:'POST'})).status,404);
+ assert.equal((await http(h,'/buying-wallet-connect')).body,'information');
+});
