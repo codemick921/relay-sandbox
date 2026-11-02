@@ -1,6 +1,6 @@
 // Separate from the sample controller and the authentication-only connection test.
 // No SDK imported here. The React boundary injects only createWallet and read state.
-export const realWalletSetupAvailable=false; // Preparation release: no activation path.
+export const realWalletSetupAvailable=false; // Legacy sample/preparation flag; real flow uses its separate server capability.
 const unknown=()=>({phase:'unknown',canRetry:false});
 const fail=code=>Object.assign(new Error(code),{code});
 const uuid=/^[a-f0-9-]{36}$/i;

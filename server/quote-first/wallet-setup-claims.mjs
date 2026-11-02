@@ -1,3 +1,4 @@
+import {sessionWithinLease} from './session-lease.mjs';
 // Permanent server claims, not wallet creation. No migration or provider SDK here.
 import {createHash} from 'node:crypto';
 import {QuoteError} from './direct-quote.mjs';
@@ -43,7 +44,7 @@ export function createWalletSetupClaimService({enabled=()=>false,appId,claims,ve
  const current=async(actor,frame)=>{
   check(enabled()===true,'wallet_setup_disabled');
   const session=await resolveSession(actor.sessionToken),enrollment=session&&await resolveEnrollment(session.owner),recovery=recoveryEvidence();
-  check(enabled()===true&&session&&enrollment&&hash(session)===hash(frame.session)&&hash(enrollment)===hash(frame.enrollment)&&session.expiresAt>clock()&&enrollment.expiresAt>clock()&&frame.access.expiresAt>clock()&&frame.validUntil>clock()+1000&&recovery.state==='operator_reviewed'&&recovery.hash===frame.recoveryHash&&recovery.expiresAt>clock(),'wallet_setup_context_changed');
+  check(enabled()===true&&session&&enrollment&&hash(sessionWithinLease(session,enrollment))===hash(sessionWithinLease(frame.session,frame.enrollment))&&hash(enrollment)===hash(frame.enrollment)&&session.expiresAt>clock()&&enrollment.expiresAt>clock()&&frame.access.expiresAt>clock()&&frame.validUntil>clock()+1000&&recovery.state==='operator_reviewed'&&recovery.hash===frame.recoveryHash&&recovery.expiresAt>clock(),'wallet_setup_context_changed');
  };
  return {
   async claim(actor,input){
@@ -64,9 +65,9 @@ export function createWalletSetupClaimService({enabled=()=>false,appId,claims,ve
    check(enabled()===true,'wallet_setup_disabled');
    const session=structuredClone(await resolveSession(actor.sessionToken)),enrollment=session&&structuredClone(await resolveEnrollment(session.owner));
    check(session&&enrollment&&session.expiresAt>clock()&&enrollment.expiresAt>clock(),'sign_in_required');
-   const before=hash([session,enrollment]),r=await claims.status({appId,owner:session.owner,subject:enrollment.subject,privyDid:enrollment.privyDid});
+   const before=hash([sessionWithinLease(session,enrollment),enrollment]),r=await claims.status({appId,owner:session.owner,subject:enrollment.subject,privyDid:enrollment.privyDid});
    const latest=await resolveSession(actor.sessionToken),e=latest&&await resolveEnrollment(latest.owner);
-   check(enabled()===true&&latest&&e&&latest.expiresAt>clock()&&e.expiresAt>clock()&&hash([latest,e])===before,'wallet_setup_context_changed');return r;
+   check(enabled()===true&&latest&&e&&latest.expiresAt>clock()&&e.expiresAt>clock()&&hash([sessionWithinLease(latest,e),e])===before,'wallet_setup_context_changed');return r;
   }
  };
 }

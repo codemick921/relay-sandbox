@@ -1,3 +1,4 @@
+import {sessionWithinLease} from './session-lease.mjs';
 // Read-only enrollment observation. A candidate is NOT a pinned quote wallet.
 import {createHash} from 'node:crypto';
 import {getAddress} from 'viem';
@@ -43,7 +44,7 @@ export function createWalletSetupVerification({enabled=()=>false,resolveSession,
   const access=await verifyAccessToken(actor.accessToken);check(access.did===enrollment.privyDid&&access.expiresAt>clock(),'buyer_identity_mismatch');
   const user=await readPrivyUser(access.did),observedAt=clock(),result=classifySetupWallet(user,enrollment);
   const current=await resolveSession(actor.sessionToken),latest=await resolveEnrollment(session.owner);
-  check(enabled()===true&&valid(current)&&hash(current)===hash(session)&&latest&&hash(latest)===hash(enrollment)&&latest.expiresAt>clock()&&access.expiresAt>clock(),'buyer_context_changed');
+  check(enabled()===true&&valid(current)&&hash(sessionWithinLease(current,enrollment))===hash(sessionWithinLease(session,enrollment))&&latest&&hash(latest)===hash(enrollment)&&latest.expiresAt>clock()&&access.expiresAt>clock(),'buyer_context_changed');
   const validUntil=Math.min(observedAt+30000,session.expiresAt,enrollment.expiresAt,access.expiresAt);
   // Internal frame only; it never crosses the HTTP observer boundary.
   return {result,session,enrollment,access,observedAt,validUntil,contextId:hash([session.binding,hash(actor.accessToken),enrollment,result,observedAt]),recovery:recoveryState()};

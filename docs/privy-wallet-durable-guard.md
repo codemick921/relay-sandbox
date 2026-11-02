@@ -1,6 +1,6 @@
 # Durable buying-wallet setup guard
 
-2 November 2026. Prepared locally from `8a28bcb`; disabled and not deployed.
+2 November 2026. Historical guard-build snapshot from `8a28bcb`. The current disabled runtime integration and activation requirements are documented in [Wallet setup and live quote flow](wallet-setup-live-quote-flow.md).
 
 The guard records one attempted wallet setup per approved identity before Eupova's adapter can call the wallet SDK. A second browser, a new session or a new lease cannot obtain another dispatch permission for the same app and owner, subject or Privy DID. This protects the supported Eupova flow. It does not control someone calling Privy's SDK directly.
 

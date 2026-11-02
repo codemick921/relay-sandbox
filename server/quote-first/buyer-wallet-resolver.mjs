@@ -1,3 +1,4 @@
+import {sessionWithinLease} from './session-lease.mjs';
 // Server-owned, read-only wallet context. Never persists an identity or wallet link.
 import {createHash,createHmac,randomBytes,randomUUID} from 'node:crypto';
 import {getAddress} from 'viem';
@@ -55,10 +56,10 @@ export function createBuyerWalletResolver({store,resolveSession=store&&createBuy
    }
    // Recheck local records after all upstream awaits. No last_seen_at or records updated.
    const current=await resolveSession(actor.sessionToken),currentEnrollment=await resolveEnrollment(session.owner),recipient=await readRecipient(session.owner,receivingWalletId);
-   check(validSession(current)&&hash(current)===hash(session)&&validEnrollment(currentEnrollment,current)&&hash(currentEnrollment)===hash(enrollment)&&hash(recipient)===hash(beforeRecipient),'buyer_context_changed');
+   check(validSession(current)&&hash(sessionWithinLease(current,enrollment))===hash(sessionWithinLease(session,enrollment))&&validEnrollment(currentEnrollment,current)&&hash(currentEnrollment)===hash(enrollment)&&hash(recipient)===hash(beforeRecipient),'buyer_context_changed');
    check(enabled()===true&&access.expiresAt>clock()&&slot.generation===generation&&slots.get(slotKey)===slot,'buyer_context_changed');
-   if(!buyingWallet){slot.generation++;slot.proof=null;return {session:current,recipient,buyer:null};}
-   const fingerprint=hash([digest(actor.accessToken),access.did,access.sid,enrollment.subject,enrollment.expiresAt,current,buyingWallet,recipient]);
+   if(!buyingWallet){slot.generation++;slot.proof=null;return {session:sessionWithinLease(current,enrollment),recipient,buyer:null};}
+   const fingerprint=hash([digest(actor.accessToken),access.did,access.sid,enrollment.subject,enrollment.expiresAt,sessionWithinLease(current,enrollment),buyingWallet,recipient]);
    // Fresh GET on every resolution, but unchanged evidence retains the first proof
    // time. Polling cannot extend its absolute 60-second review window.
    if(!slot.proof||slot.proof.fingerprint!==fingerprint||slot.proof.expiresAt<=clock()){
@@ -66,7 +67,7 @@ export function createBuyerWalletResolver({store,resolveSession=store&&createBuy
     slot.proof={fingerprint,reference:randomUUID(),verifiedAt:clock(),expiresAt:Math.min(clock()+windowMs,current.expiresAt,access.expiresAt,enrollment.expiresAt)};
    }
    const p=slot.proof;
-   return {session:current,recipient,buyer:{owner:current.owner,sessionBinding:current.binding,address:enrollment.buyingAddress,chainId:8453,verification:'server_verified_wallet_link',reference:p.reference,verifiedAt:p.verifiedAt,expiresAt:p.expiresAt}};
+   return {session:sessionWithinLease(current,enrollment),recipient,buyer:{owner:current.owner,sessionBinding:current.binding,address:enrollment.buyingAddress,chainId:8453,verification:'server_verified_wallet_link',reference:p.reference,verifiedAt:p.verifiedAt,expiresAt:p.expiresAt}};
   }catch(error){slot.generation++;slot.proof=null;throw error instanceof QuoteError?error:new QuoteError('buyer_verification_unavailable');}
  };
 }

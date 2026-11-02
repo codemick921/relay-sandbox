@@ -1,3 +1,4 @@
+import {createRestrictedSetupDatabase} from './wallet-setup-database.mjs';
 // Disabled-by-default preparation. Requires a separately supplied restricted DB.
 import {createBuyerSessionReader} from './buyer-auth-session.mjs';
 import {developmentAppId} from './buyer-auth-http.mjs';
@@ -38,6 +39,7 @@ export function configuredWalletSetupClaims({origin,store,claimDb=null,env=proce
  const enabled=()=>env.EUPOVA_WALLET_SETUP_CLAIMS_ENABLED==='true';
  if(!enabled())return createWalletSetupClaimHttp({enabled});
  try{
+  if(!claimDb&&env.EUPOVA_WALLET_SETUP_DATABASE_URL)claimDb=createRestrictedSetupDatabase(env.EUPOVA_WALLET_SETUP_DATABASE_URL);
   if(!claimDb||env.EUPOVA_PRIVY_QUOTE_APP_ID!==developmentAppId||env.EUPOVA_PRIVY_QUOTE_ENVIRONMENT!=='development'||env.EUPOVA_PRIVY_QUOTE_CREDENTIAL_ACCESS!=='read-only')throw Error();
   const resolveSession=createBuyerSessionReader(store),resolveEnrollment=setupTestEnrollment(JSON.parse(env.EUPOVA_WALLET_SETUP_TEST_ENROLLMENT??''),clock);
   const evidence=JSON.parse(env.EUPOVA_WALLET_RECOVERY_EVIDENCE??'null'),evidenceHash=env.EUPOVA_WALLET_RECOVERY_EVIDENCE_HASH;
@@ -46,6 +48,7 @@ export function configuredWalletSetupClaims({origin,store,claimDb=null,env=proce
    verifyAccessToken:createPrivyAccessVerifier({appId:developmentAppId,trustedJwks:JSON.parse(env.EUPOVA_PRIVY_ACCESS_PUBLIC_JWKS??''),clock}),
    readPrivyUser:createPrivyUserReader({appId:developmentAppId,readOnlySecret:env.EUPOVA_PRIVY_QUOTE_READONLY_SECRET,credentialAccess:'read-only',includeInventory:true,fetchImpl:privyFetch})});
   const claims=createPostgresWalletSetupClaims({db:claimDb,clock});
-  return createWalletSetupClaimHttp({origin,enabled,clock,service:createWalletSetupClaimService({enabled,appId:developmentAppId,claims,verifyFresh,resolveSession,resolveEnrollment,recoveryEvidence,clock})});
+  const handler=createWalletSetupClaimHttp({origin,enabled,clock,service:createWalletSetupClaimService({enabled,appId:developmentAppId,claims,verifyFresh,resolveSession,resolveEnrollment,recoveryEvidence,clock})});
+  handler.available=()=>enabled()&&recoveryEvidence().state==='operator_reviewed';return handler;
  }catch{return createWalletSetupClaimHttp({origin,enabled});}
 }

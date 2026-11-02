@@ -121,3 +121,8 @@ test('token diagnostics expose fixed categories without token claims or provider
  const duplicate='{'+JSON.stringify(extensions).slice(1,-1)+',"s\\u0075b":"did:privy:forged",'+JSON.stringify(baseClaims).slice(1);
  await assert.rejects(verify(await new CompactSign(new TextEncoder().encode(duplicate)).setProtectedHeader({alg:'ES256',kid:'test'}).sign(keys.privateKey)));
  });
+
+test('normal login idle renewal preserves quote context while shortening and changed bindings invalidate',async()=>{
+ const f=fixture(),a=await f.resolve(f.actor,walletId);f.session.expiresAt+=60000;const b=await f.resolve(f.actor,walletId);assert.equal(b.buyer.reference,a.buyer.reference);assert.equal(b.session.expiresAt,a.session.expiresAt);
+ f.session.expiresAt=now+30000;const c=await f.resolve(f.actor,walletId);assert.notEqual(c.buyer.reference,b.buyer.reference);assert.equal(c.session.expiresAt,now+30000);
+});

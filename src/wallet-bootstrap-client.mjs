@@ -10,16 +10,16 @@ export function matchesWalletAuthIdentity(user,initial){
  if(!user||user.id!==initial.privyDid||!Array.isArray(user.linkedAccounts)||user.linkedAccounts.some(a=>!a||!['custom_auth','wallet'].includes(a.type)))return false;
  const ids=user.linkedAccounts.filter(a=>a.type==='custom_auth'),wallets=user.linkedAccounts.filter(a=>a.type==='wallet');
  if(ids.length!==1||ids[0].customUserId!==initial.subject)return false;
- if(initial.expectedAddress===null)return wallets.length===0&&!user.wallet;
+ if(initial.expectedAddress===null&&(!initial.flow||wallets.length===0))return wallets.length===0&&!user.wallet;
  if(wallets.length!==1)return false;
  const w=wallets[0];
- if(w.address?.toLowerCase()!==initial.expectedAddress||w.chainType!=='ethereum'||w.walletClientType!=='privy'||w.connectorType!=='embedded'||w.delegated===true||w.imported===true)return false;
+ if((!addr(w.address?.toLowerCase())||(initial.expectedAddress!==null&&w.address?.toLowerCase()!==initial.expectedAddress))||w.chainType!=='ethereum'||w.walletClientType!=='privy'||w.connectorType!=='embedded'||w.delegated===true||w.imported===true)return false;
  // SDK may omit server-only capability fields. Server confirmation remains mandatory.
- return !user.wallet||(user.wallet.address?.toLowerCase()===initial.expectedAddress&&user.wallet.chainType==='ethereum');
+ return !user.wallet||(user.wallet.address?.toLowerCase()===w.address.toLowerCase()&&user.wallet.chainType==='ethereum');
 }
 const validToken=(v,now,expiry)=>v&&typeof v.token==='string'&&v.token.length>0&&v.token.length<=8192&&Number.isSafeInteger(v.expiresAt)&&v.expiresAt>now+5000&&v.expiresAt<=Math.min(now+61000,expiry);
 export function validWalletAuthProof(v,initial,now=Date.now()){
- return !!v&&v.context===initial.context&&v.address===initial.expectedAddress&&v.status===(initial.expectedAddress===null?'no_wallet':'wallet_recognised')&&v.canQuote===false&&v.canCreateWallet===false&&v.canCreatePayment===false&&Number.isSafeInteger(v.observedAt)&&v.observedAt<=now&&Number.isSafeInteger(v.validUntil)&&v.validUntil>now&&v.validUntil<=Math.min(v.observedAt+15000,initial.expiresAt);
+ return !!v&&v.context===initial.context&&(initial.flow&&initial.expectedAddress===null&&v.status==='wallet_candidate'?addr(v.address):v.address===initial.expectedAddress&&v.status===(initial.expectedAddress===null?'no_wallet':'wallet_recognised'))&&v.canQuote===false&&v.canCreateWallet===false&&v.canCreatePayment===false&&Number.isSafeInteger(v.observedAt)&&v.observedAt<=now&&Number.isSafeInteger(v.validUntil)&&v.validUntil>now&&v.validUntil<=Math.min(v.observedAt+15000,initial.expiresAt);
 }
 async function jsonRequest(path,stage,signal,options={}){
  const r=await fetch(path,{credentials:'same-origin',cache:'no-store',redirect:'error',signal,...options});
@@ -115,7 +115,7 @@ export function createWalletAuthSession({initial,status=walletAuthStatus,token=w
   },
   providerError(){exchangePending=false;if(active)void block(new WalletAuthFailure('provider_authentication'),'provider_authentication');},
   providerState(isAuthenticated,user){
-   if(!isAuthenticated){if(authenticated||['verifying','no_wallet','wallet_recognised','verification_expired'].includes(phase))void block(new WalletAuthFailure('provider_authentication','unexpected_session'),'provider_authentication');return Promise.resolve();}
+   if(!isAuthenticated){if(authenticated||['verifying','no_wallet','wallet_recognised','wallet_candidate','verification_expired'].includes(phase))void block(new WalletAuthFailure('provider_authentication','unexpected_session'),'provider_authentication');return Promise.resolve();}
    if(!active){
     if(!['idle','preparing'].includes(phase)){
      cleanup='unconfirmed';

@@ -8,7 +8,7 @@ test('visible tools read access only and discard identity',async()=>{
  const calls=[],now=Date.now();const status=await readWalletToolsStatus({now,fetchImpl:async(path,options)=>{
   calls.push({path,options});return new Response(JSON.stringify({visible:true,environment:'development',appId:'cmvypq4k600vm0hjvdqvg7hxn',context:'c'.repeat(64),purpose:'wallet_auth',connection:'available',expiresAt:now+60000,secret:'do-not-return'}));
  }});
- assert.deepEqual(Object.keys(status),['connection','wallet']);assert.equal(status.wallet.status,'available');assert.ok(!JSON.stringify(status).includes('do-not-return'));assert.ok(calls.every(c=>!c.options.method&&c.options.credentials==='same-origin'));
+ assert.deepEqual(Object.keys(status),['connection','wallet','flow']);assert.equal(status.wallet.status,'available');assert.ok(!JSON.stringify(status).includes('do-not-return'));assert.ok(calls.every(c=>!c.options.method&&c.options.credentials==='same-origin'));
 });
 test('disabled, malformed and failed status never grants access',async()=>{
  for(const response of[()=>new Response('{}',{status:404}),()=>new Response('{}'),()=>{throw Error('network')}]){
