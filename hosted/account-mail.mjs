@@ -1,7 +1,7 @@
 import {randomUUID,randomBytes} from 'node:crypto';
 import {digest} from './db.mjs';
 
-export function accountMessage(purpose,origin,token){
+export function accountMessage(purpose,origin,token,setup=false){
  const link=purpose==='changed'?origin+'/':`${origin}/#${purpose==='verify'?'verify-email':'reset-password'}=${token}`;
  const subject={verify:'Verify your Eupova email',reset:'Reset your Eupova password',changed:'Your Eupova password has changed'}[purpose];
  const text={
@@ -10,6 +10,7 @@ export function accountMessage(purpose,origin,token){
   changed:`Your Eupova password has changed. Your previous sessions and recovery code no longer work.\n\nIf you did not make this change, open Eupova and request a password reset:\n\n${link}`
  }[purpose];
  if(!subject)throw Error('Unsupported account email.');
+ if(setup&&purpose==='reset')return {subject:'Set up your Eupova admin account',text:`Your Eupova admin account is ready. Choose your password using this private link:\n\n${link}\n\nThe link confirms your email address and expires in 20 minutes. Save the recovery code shown after setup, then sign in with this email address and open Admin. If the link expires, use Forgot password on Eupova to request another. Never share this link.`,link};
  return {subject,text,link};
 }
 
@@ -39,22 +40,24 @@ export function createAccountMail(store,{enabled=false,origin,deliver,preview=fa
       const row=(await c.query(`SELECT c.* FROM relay_customers c WHERE EXISTS(SELECT 1 FROM relay_account_mail m WHERE m.customer_id=c.id AND m.state='queued') ORDER BY c.id FOR UPDATE SKIP LOCKED LIMIT 1`)).rows[0];
       if(!row)return null;
       const m=(await c.query(`SELECT * FROM relay_account_mail WHERE customer_id=$1 AND state='queued' ORDER BY created_at,id FOR UPDATE LIMIT 1`,[row.id])).rows[0];
-      const eligible=!row.disabled&&m.version===row.version&&(m.purpose!=='reset'||row.email_verified_at)&&(m.purpose!=='verify'||!row.email_verified_at)&&Date.now()-new Date(m.created_at).getTime()<3600000;
+      const eligible=!row.disabled&&m.version===row.version&&(m.purpose!=='reset'||row.email_verified_at||row.setup_pending)&&(m.purpose!=='verify'||!row.email_verified_at)&&Date.now()-new Date(m.created_at).getTime()<3600000;
       if(!eligible){await c.query("UPDATE relay_account_mail SET state='suppressed' WHERE id=$1",[m.id]);return {suppressed:true};}
       const token=m.purpose==='changed'?null:randomBytes(32).toString('hex');
       if(token)await c.query('UPDATE relay_account_mail SET consumed_at=now() WHERE customer_id=$1 AND purpose=$2 AND token_hash IS NOT NULL AND consumed_at IS NULL',[row.id,m.purpose]);
       await c.query(`UPDATE relay_account_mail SET state='sending',attempted_at=now(),token_hash=$2,expires_at=now()+($3::integer*interval '1 minute') WHERE id=$1`,[m.id,token?digest(token):null,m.purpose==='verify'?60:20]);
-      return {...m,email:row.email,token};
+      return {...m,email:row.email,token,setup:!!row.setup_pending};
      });
      if(!job)break;if(job.suppressed)continue;
-     const message=accountMessage(job.purpose,origin,job.token);
+     const message=accountMessage(job.purpose,origin,job.token,job.setup);
      try{
       const result=await deliver({id:job.id,to:job.email,subject:message.subject,text:message.text});
       if(!result?.id)throw Error('Email acceptance not confirmed.');
       await store.query("UPDATE relay_account_mail SET state='accepted',provider_id=$2 WHERE id=$1",[job.id,String(result.id).slice(0,200)]);
+      if(job.setup)console.info('Admin setup email accepted by delivery provider.');
       if(preview){const items=previews.get(job.customer_id)??[];previews.set(job.customer_id,[{id:job.id,...message,purpose:job.purpose},...items].slice(0,3));}
      }catch{
       await store.query("UPDATE relay_account_mail SET state='unknown' WHERE id=$1",[job.id]);
+      if(job.setup)console.warn('Admin setup email delivery unconfirmed; no automatic retry.');
      }
     }
    }finally{running=false;}

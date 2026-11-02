@@ -87,6 +87,14 @@ CREATE TABLE IF NOT EXISTS relay_security_events (
 CREATE INDEX IF NOT EXISTS relay_security_events_customer ON relay_security_events(customer_id,created_at DESC);
 INSERT INTO relay_schema(version) VALUES(4) ON CONFLICT DO NOTHING;
 
+-- Admin invitations reserve an email but cannot authenticate before inbox setup.
+ALTER TABLE relay_customers ADD COLUMN IF NOT EXISTS setup_pending boolean NOT NULL DEFAULT false;
+CREATE TABLE IF NOT EXISTS relay_admin_audit (
+ id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+ actor text NOT NULL, event text NOT NULL, target text NOT NULL,
+ at timestamptz NOT NULL DEFAULT now()
+);
+
 -- Optional profile image only; existing customer credentials and funding records are untouched.
 CREATE TABLE IF NOT EXISTS relay_customer_profiles (
  customer_id uuid PRIMARY KEY REFERENCES relay_customers(id),

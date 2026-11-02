@@ -1,3 +1,4 @@
+import {createAdmin,isAccountAdmin} from './admin.mjs';
 import {webTrackingEnabled} from './tracking-worker.mjs';
 import {configuredWalletFlowHttp} from '../server/quote-first/wallet-flow-http.mjs';
 import {createAgentCallbacks} from './agent-callbacks.mjs';
@@ -47,7 +48,7 @@ const uuid=v=>typeof v==='string'&&/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9
 async function body(req,max=16384){let size=0;const chunks=[];for await(const chunk of req){size+=chunk.length;if(size>max)throw new InputError('Request too large.',413);chunks.push(chunk);}return Buffer.concat(chunks);}
 const send=(res,status,data)=>{res.writeHead(status,{'Content-Type':'application/json'});res.end(JSON.stringify(data));};
 export function createHostedServer({store,config,pay=createSandboxPayService(),staticRoot=dist,allowHttpForTests=false,tracking=null,paymentsDisabled=false,localPreview=false,accountMail=null,customerAccountsEnabled=true,peerConnection=null,fundingDrafts=null,liveObservation=null,ramp=null,walletBalances=null,buyerAuth=null,buyerStatus=null,buyerConnection=null,targetCalculator=null,personalisedQuotes=null,walletSetup=null,walletSetupClaims=null,walletBootstrap=null,walletFlow=null,agentCallbacks=null}){
- const origin=new URL(config.origin),mail=accountMail??createAccountMail(store),accounts=customerAccountsEnabled?createAccounts(store,{mail}):null;
+ const origin=new URL(config.origin),mail=accountMail??createAccountMail(store),accounts=customerAccountsEnabled?createAccounts(store,{mail,adminEmails:config.accountAdmins??[]}):null;
  if(fundingDrafts&&!paymentsDisabled)throw Error('Funding preparation requires payments to remain disabled.');
  if(tracking?.journey&&(!tracking.simulated||!tracking.journey.simulated||!paymentsDisabled))throw Error('Test funding requires simulated tracking and disabled payments.');
  if(mail.preview&&!localPreview)throw Error('Email previews are local only.');
@@ -56,6 +57,7 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
  if(peerConnection&&(!paymentsDisabled||localPreview||!['receive_only','tracking_read_only'].includes(peerConnection.mode)))throw Error('Peer connection requires disabled payments and hosted receive-only mode.');
  if(liveObservation&&(!paymentsDisabled||localPreview||liveObservation.simulated!==false))throw Error('Live observation requires disabled payments and hosted reads.');
  const security=accounts&&createAccountSecurity(store,accounts,{mailEnabled:mail.enabled,mailPreview:!!mail.preview});
+ const admin=security&&createAdmin(store,{emails:config.accountAdmins??[],security});
  const profiles=createProfilePictures(store);
  const agentRequests=fundingDrafts?createAgentFundingRequests(store):null;
  const cookie=localPreview?'relay_local_preview':'__Host-relay_sandbox';
@@ -67,6 +69,8 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
  const invites=createTestInvites(store);
  const isInviteAdmin=owner=>typeof owner==='string'&&!owner.startsWith('customer:')&&config.testInviteAdmins?.includes(owner)&&config.testers.some(t=>t.label===owner);
  const stateFor=async owner=>{
+  const adminAccount=owner?.startsWith('customer:')?(await store.query('SELECT email,email_verified_at IS NOT NULL AS "emailVerified" FROM relay_customers WHERE id=$1 AND NOT disabled AND NOT setup_pending',[owner.slice(9)])).rows[0]:null;
+  const accountAdmin=isAccountAdmin(adminAccount,config.accountAdmins);
   const base=await store.state(owner);let state={...base,paymentsDisabled:paymentsDisabled&&!liveObservation?.funding,...fundingDrafts&&owner.startsWith('customer:')?{liveFunding:liveObservation?.funding?{...fundingDisabled,paymentsEnabled:true,rails:checkoutRails,catalog:fundingCatalog}:fundingDisabled,fundingDrafts:await fundingDrafts.list(owner)}:{}};
   if(tracking){const [tracked,worker]=await Promise.all([tracking.store.state(owner),tracking.store.health()]);state={...state,previewMode:!!tracking.simulated,trackingEnabled:true,worker,fundingJourneyEnabled:!!tracking.journey,orders:[...(await tracking.journey?.decorate(owner,tracked.orders)??tracked.orders).map(o=>presentTrackedOrder(o,tracking.simulated)),...state.orders]};}
   if(liveObservation){const [live,status,restrictedTest,revolutTest]=await Promise.all([liveObservation.store.state(owner),liveObservation.status(),liveObservation.policy.status(owner),liveObservation.revolutPolicy?.status(owner)]);state={...state,liveTracking:{...status,enabled:true},restrictedTest,revolutTest,orders:[...live.orders.map(o=>({...presentTrackedOrder(o,false),trackingPath:'wallet-tracking'})),...state.orders]};}
@@ -77,7 +81,7 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
   if(walletBalances&&owner.startsWith('customer:'))state.walletBalances=await walletBalances.state(owner);
   const testAccess=await invites.status(owner);
   if(testAccess){const canLive=!testAccess.revoked&&testAccess.allowLive&&testAccess.mode==='live';state={...state,testAccess:{...testAccess,realFundingAvailable:!!liveObservation?.funding},paymentsDisabled:state.paymentsDisabled||!canLive,liveFunding:state.liveFunding?{...state.liveFunding,paymentsEnabled:state.liveFunding.paymentsEnabled&&canLive}:undefined,fundingJourneyEnabled:state.fundingJourneyEnabled&&!testAccess.revoked&&testAccess.mode==='simulation'};}
-  return {...state,...targetCalculator?.available()&&owner.startsWith('customer:')?{fundingCalculator:{enabled:true}}:{},adminTestInvites:!!isInviteAdmin(owner)};
+  return {...state,...targetCalculator?.available()&&owner.startsWith('customer:')?{fundingCalculator:{enabled:true}}:{},adminDashboard:accountAdmin,adminPaymentHealth:accountAdmin||isHealthAdmin(owner),adminTestInvites:accountAdmin||!!isInviteAdmin(owner)};
  };
  const notifications=createCustomerNotifications(store,{scopes:[liveObservation?.store?.historyScope&&{...liveObservation.store.historyScope,simulated:false},tracking?.store?.historyScope&&{...tracking.store.historyScope,simulated:!!tracking.simulated}].filter(Boolean),simulatedBalances:!!walletBalances?.simulated});
  const handleTracking=tracking&&createLiveTrackingHandler({store:tracking.store,origin:config.origin,authenticate,rateLimit:(owner,kind)=>store.rate(kind==='read'?'read:'+owner:'mutation:'+owner,kind==='read'?120:30,60),simulated:!!tracking.simulated,localPreview,allowHttpForTests});
@@ -120,8 +124,8 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
     if(req.method!=='GET')throw new InputError('Method not allowed.',405);
     if(req.headers['sec-fetch-site']==='cross-site'||req.headers.origin&&req.headers.origin!==config.origin)throw new InputError('Same-origin access required.',403);
     const token=getToken(req),customer=await accounts?.session(token),operator=customer?null:await store.session(token,config.testers);
-    if(!isHealthAdmin(operator))throw new InputError('Payment-health admin access required.',403);
-    await store.rate('payment-health:'+operator,60,60);
+    if(!isHealthAdmin(operator)&&!isAccountAdmin(customer?.account,config.accountAdmins))throw new InputError('Payment-health admin access required.',403);
+    await store.rate('payment-health:'+(customer?.owner??operator),60,60);
     const options=healthOptions(url.searchParams),selected=options.source==='live'?liveObservation:tracking;
     if(!selected?.store?.paymentHealth||options.source==='simulated'&&selected.simulated!==true)return send(res,200,{available:false,savedOnly:true,simulated:options.source==='simulated',reason:'Saved tracking evidence is not connected for this source.'});
     return send(res,200,await selected.store.paymentHealth({...options,simulated:options.source==='simulated'}));
@@ -175,7 +179,7 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
     if(req.method==='GET'&&match)return send(res,200,await connections.status(token,match[1]));
     throw new InputError('Not found.',404);
    }
-   const allowed=new Set(['/api/agent-connections/create','/api/agent-connections/revoke', '/api/agent-funding-requests/create','/api/agent-funding-requests/cancel','/api/profile','/api/operator/test-invites','/api/operator/test-invites/create','/api/operator/test-invites/revoke','/api/test-access/claim','/api/test-access/mode','/api/notifications','/api/notifications/sync','/api/notifications/read','/api/notifications/preferences','/api/notifications/reminder','/api/wallet-balances/preferences','/api/wallet-balances/refresh','/api/ramp-test/create','/api/ramp-test/advance','/api/revolut-test/checkout','/api/funding/drafts','/api/funding/cancel','/api/funding/stop','/api/funding/track-separately','/api/funding/request-cancellation','/api/funding/checkout','/api/funding/resume','/api/funding/availability','/api/test-funding/quote','/api/test-funding/create','/api/test-funding/action','/api/agents/update','/api/account/security','/api/account/revokeSession','/api/account/rotateRecovery','/api/account/confirmRecovery','/api/account/signup','/api/account/login','/api/account/recover','/api/account/password','/api/account/requestVerification','/api/account/requestReset','/api/account/verifyEmail','/api/account/resetPassword','/api/account/emailPreview','/api/access','/api/login','/api/logout','/api/state','/api/agents','/api/checkouts','/api/checkout-resume','/api/checkout-refresh','/api/checkout-setup']);
+   const allowed=new Set(['/api/admin/overview','/api/admin/accounts','/api/admin/accounts/change','/api/admin/audit','/api/agent-connections/create','/api/agent-connections/revoke', '/api/agent-funding-requests/create','/api/agent-funding-requests/cancel','/api/profile','/api/operator/test-invites','/api/operator/test-invites/create','/api/operator/test-invites/revoke','/api/test-access/claim','/api/test-access/mode','/api/notifications','/api/notifications/sync','/api/notifications/read','/api/notifications/preferences','/api/notifications/reminder','/api/wallet-balances/preferences','/api/wallet-balances/refresh','/api/ramp-test/create','/api/ramp-test/advance','/api/revolut-test/checkout','/api/funding/drafts','/api/funding/cancel','/api/funding/stop','/api/funding/track-separately','/api/funding/request-cancellation','/api/funding/checkout','/api/funding/resume','/api/funding/availability','/api/test-funding/quote','/api/test-funding/create','/api/test-funding/action','/api/agents/update','/api/account/security','/api/account/revokeSession','/api/account/rotateRecovery','/api/account/confirmRecovery','/api/account/signup','/api/account/login','/api/account/recover','/api/account/password','/api/account/requestVerification','/api/account/requestReset','/api/account/verifyEmail','/api/account/resetPassword','/api/account/emailPreview','/api/access','/api/login','/api/logout','/api/state','/api/agents','/api/checkouts','/api/checkout-resume','/api/checkout-refresh','/api/checkout-setup']);
    const historyRoute=url.pathname==='/api/funding-overview'||url.pathname==='/api/funding-history'||url.pathname==='/api/funding-history/download'||/^\/api\/funding-history\/[a-f0-9-]{36}$/i.test(url.pathname);
    const recordRoute=url.pathname==='/api/payment-records'||/^\/api\/payment-records\/[a-f0-9-]{36}\/download$/i.test(url.pathname);
    if(!allowed.has(url.pathname)&&!recordRoute&&!historyRoute)throw new InputError('Not found.',404);
@@ -193,6 +197,7 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
      return send(res,200,{emails:mail.previewFor(session.account.id)});
     }
     if(['security','revokeSession','rotateRecovery','confirmRecovery'].includes(action))return send(res,200,await security[action](b,getToken(req)));
+    if(!['signup','login','recover','password','requestVerification','requestReset','verifyEmail','resetPassword'].includes(action))throw new InputError('Not found.',404);
     const result=await accounts[action](b,getToken(req),{userAgent:req.headers['user-agent']});
     if(['requestVerification','requestReset','verifyEmail'].includes(action))return send(res,200,result);
     // Never retain the previous signed-in principal when changing account.
@@ -213,8 +218,18 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
    }
    const customer=await accounts?.session(getToken(req));
    const owner=customer?.owner??await store.session(getToken(req),config.testers);
-   if(url.pathname==='/api/access'&&req.method==='GET')return send(res,200,{hostedSandbox:true,authenticated:!!owner,previewMode:!!tracking?.simulated,customerAccounts:!!accounts,emailSendingEnabled:mail.enabled,localEmailPreview:!!mail.preview,account:customer?.account??null,adminPaymentHealth:!customer&&isHealthAdmin(owner)});
+   if(url.pathname==='/api/access'&&req.method==='GET')return send(res,200,{hostedSandbox:true,authenticated:!!owner,previewMode:!!tracking?.simulated,customerAccounts:!!accounts,emailSendingEnabled:mail.enabled,localEmailPreview:!!mail.preview,account:customer?.account??null,adminDashboard:isAccountAdmin(customer?.account,config.accountAdmins),adminPaymentHealth:isAccountAdmin(customer?.account,config.accountAdmins)||!customer&&isHealthAdmin(owner)});
    if(!owner)throw new InputError('Sign in to the private sandbox.',401);
+   if(url.pathname.startsWith('/api/admin/')){
+    if(!admin||!isAccountAdmin(customer?.account,config.accountAdmins))throw new InputError('Verified administrator sign-in required.',403);
+    if(req.headers.origin&&req.headers.origin!==config.origin)throw new InputError('Same-origin access required.',403);
+    await store.rate('admin:'+owner,60,60);
+    if(url.pathname==='/api/admin/overview'&&req.method==='GET')return send(res,200,{...await admin.overview(),services:{liveFunding:!!liveObservation?.funding,tracking:!!liveObservation,email:mail.enabled},release:process.env.RENDER_GIT_COMMIT??null});
+    if(url.pathname==='/api/admin/accounts'&&req.method==='GET')return send(res,200,await admin.customers(url.searchParams));
+    if(url.pathname==='/api/admin/audit'&&req.method==='GET')return send(res,200,await admin.audit());
+    if(url.pathname==='/api/admin/accounts/change'&&req.method==='POST')return send(res,200,await admin.change(getToken(req),b));
+    throw new InputError('Method not allowed.',405);
+   }
    if(url.pathname.startsWith('/api/agent-connections/')){
     if(!customer||!connections||req.method!=='POST')throw new InputError('Customer sign-in required.',403);
     return send(res,200,await connections[url.pathname.endsWith('/create')?'create':'revoke'](b,getToken(req)));
@@ -226,7 +241,7 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
     return send(res,200,req.method==='GET'?await profiles.read(customer.account.id):await profiles.save(customer.account.id,b));
    }
    if(url.pathname.startsWith('/api/operator/test-invites')){
-    if(customer||!isInviteAdmin(owner))throw new InputError('Test invitation admin access required.',403);
+    if(!isAccountAdmin(customer?.account,config.accountAdmins)&&(customer||!isInviteAdmin(owner)))throw new InputError('Test invitation admin access required.',403);
     if(req.headers.origin&&req.headers.origin!==config.origin)throw new InputError('Same-origin access required.',403);
     await store.rate('test-invites-admin:'+owner,20,60);
     if(url.pathname==='/api/operator/test-invites'&&req.method==='GET')return send(res,200,await invites.list());
@@ -254,7 +269,7 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
    }
    if(req.method==='GET'){
     await store.rate('read:'+owner,120,60);
-    if(url.pathname==='/api/state')return send(res,200,{...await stateFor(owner),account:customer?.account??null,adminPaymentHealth:!customer&&isHealthAdmin(owner)});
+    if(url.pathname==='/api/state')return send(res,200,{...await stateFor(owner),account:customer?.account??null,adminDashboard:isAccountAdmin(customer?.account,config.accountAdmins),adminPaymentHealth:isAccountAdmin(customer?.account,config.accountAdmins)||!customer&&isHealthAdmin(owner)});
     const historyScopes=[liveObservation?.store?.historyScope&&{...liveObservation.store.historyScope,simulated:false},tracking?.store?.historyScope&&{...tracking.store.historyScope,simulated:!!tracking.simulated}].filter(Boolean);
     if(historyRoute){
      if(!customer)throw new InputError('Sign in to your customer account to view funding history.',403);
@@ -393,7 +408,10 @@ if(process.argv[1]===fileURLToPath(import.meta.url)){
  const buyerConnection=configuredBuyerConnectionHttp({store,origin:config.origin,staticRoot:dist});
  const buyerAuth=configuredBuyerAuthHttp({store,origin:config.origin,legacyTokenAllowed:false});
  const agentCallbacks=createAgentCallbacks(store,{allowed:(process.env.EUPOVA_AGENT_CALLBACK_URLS??'').split(',').map(x=>x.trim()).filter(Boolean),merchantId:liveObservation?.store?.historyScope?.merchantId??null});await agentCallbacks.migrate();
- const server=createHostedServer({agentCallbacks,store,config,tracking,ramp,walletBalances,peerConnection,fundingDrafts,liveObservation,buyerAuth,buyerStatus,buyerConnection,targetCalculator,personalisedQuotes,walletSetup,walletSetupClaims,walletBootstrap,walletFlow,accountMail:configuredAccountMail(store),paymentsDisabled:true,pay:{readiness:async()=>({ready:false})}});server.listen(Number(process.env.PORT??10000),'0.0.0.0',()=>console.log('Eupova hosted sandbox ready.'));
+ const accountMail=configuredAccountMail(store);
+ const adminAccounts=createAccounts(store,{mail:accountMail,adminEmails:config.accountAdmins});
+ for(const email of config.accountAdmins){const result=await adminAccounts.provisionAdmin(email);console.info(result.created?'Configured admin account created; setup email queued.':'Configured admin account exists; credentials preserved.');}
+ const server=createHostedServer({agentCallbacks,store,config,tracking,ramp,walletBalances,peerConnection,fundingDrafts,liveObservation,buyerAuth,buyerStatus,buyerConnection,targetCalculator,personalisedQuotes,walletSetup,walletSetupClaims,walletBootstrap,walletFlow,accountMail,paymentsDisabled:true,pay:{readiness:async()=>({ready:false})}});server.listen(Number(process.env.PORT??10000),'0.0.0.0',()=>console.log('Eupova hosted sandbox ready.'));
  // One read at startup, no polling. Until verified, the receiver returns 503.
  if(peerConnection)void peerConnection.checkIdentity();
  if(liveObservation&&webTrackingEnabled(process.env))void liveObservation.start();
