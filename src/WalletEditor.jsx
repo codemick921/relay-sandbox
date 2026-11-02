@@ -1,3 +1,4 @@
+import DestinationGuide from './DestinationGuide';
 import {walletAddressCheck} from '../shared/wallet-address.mjs';
 import './wallet-editor.css';
 import FundingTerms from './FundingTerms';
@@ -9,6 +10,7 @@ export default function WalletEditor({state,agent,act,busy,error,onClose,onSaved
  const canSave=check.valid&&own&&name.trim().length>=2&&name.trim().length<=60&&(!customer||password.length>0)&&!busy;
  return <Modal className="agent-editor" title={edited?'Edit saved wallet':'Add your agentic wallet'} onClose={busy?()=>{}:onClose}>
   <Notice>{edited?'Changes apply to future requests only. Existing drafts, payments and receipts keep their original destination. Cancel an unsubmitted draft and review a new one to use the updated wallet.':'Save the address that should receive USDC on the Base network. Eupova does not verify who owns it and cannot spend from it.'}</Notice>
+  <DestinationGuide/>
   <FundingTerms/>
   {error&&<Notice error>{error}</Notice>}
   <form onSubmit={async e=>{e.preventDefault();if(!canSave)return;const result=await act(edited?'agents/update':'agents',{name,address,own,network:'base',...customer?{currentPassword:password}:{},...edited?{id:agent.id,expectedAddress:agent.address,expectedName:agent.name}:{}});setPassword('');if(result){if(onSaved)onSaved(result);else onClose();}}}>

@@ -1,3 +1,4 @@
+import {ReceivingGuideEntry} from './DestinationGuide';
 import React,{useEffect,useState} from 'react';
 import {Button,Icon,Notice} from './ui';
 import {formatUsdc,visibleWallet} from './wallet-values.mjs';
@@ -35,6 +36,7 @@ export default function MyAgents({state,open,act,busy}){
  const funding=entry&&!entry.existing&&entry.label==='Fund a wallet'?{...entry,label:'Fund wallet'}:entry;
  return <section className="my-agents" aria-label="Your agentic wallets">
   <div className="agents-toolbar"><div><strong>{agents.length} saved {agents.length===1?'wallet':'wallets'}</strong><p>Receiving addresses for your agents.</p></div><Button disabled={busy} onClick={()=>open('wallet')}><Icon name="plus" size={20}/>Add wallet</Button></div>
+  <ReceivingGuideEntry/>
   {!!agents.length&&<div className="agents-find"><label><span>Find a wallet</span><input type="search" placeholder="Search by name or address" value={query} onChange={e=>setQuery(e.target.value)}/></label><div className="agents-filter" role="group" aria-label="Filter wallets"><button type="button" aria-pressed={filter==='all'} onClick={()=>setFilter('all')}>All wallets</button><button type="button" aria-pressed={filter==='attention'} onClick={()=>setFilter('attention')}>Needs attention <span>{agents.filter(attention).length}</span></button></div></div>}
   {data?.simulated&&<Notice>Example balances only. No real funds are shown.</Notice>}
   {agents.length?<><p className="agents-result-count" role="status">{match.length} {match.length===1?'wallet':'wallets'} shown</p>{match.length?<div className="managed-wallet-grid">{match.map(agent=><WalletCard key={agent.id+agent.address} {...{agent,state,open,act,busy}} wallet={wallets.get(agent.id)} simulated={!!data?.simulated} entry={funding}/>)}</div>:<div className="agents-empty"><Icon name="wallet" size={36}/><h2>{query?'No matching wallets':'No wallets need attention'}</h2><p>{query?'Try another name or part of the receiving address.':'Your saved wallets have fresh balances with no low-balance alerts.'}</p><Button secondary onClick={()=>{setQuery('');setFilter('all');}}>Show all wallets</Button></div>}</>:<div className="agents-empty agents-empty--first"><span className="managed-wallet-icon"><Icon name="wallet" size={32}/></span><h2>A home for your agentic wallets.</h2><p>Save a receiving address, follow its USDC balance and keep funding details together.</p><Button onClick={()=>open('wallet')}><Icon name="plus" size={19}/>Add your first wallet</Button><small>Choose an address that accepts USDC on Base.</small></div>}
