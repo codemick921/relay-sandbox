@@ -1,0 +1,12 @@
+{
+  "keys": [
+    {
+      "kty": "RSA",
+      "n": "m9WMOoIfLNGJPkXkLH_iY8SiK52JqHeD8hgYaMUnFrlw3Cobu-ScDQWnqeCxLh6qgm1tT2yI8VgaFutwt_l0bW1xhaEDyjJuuvo3fCON21Z2o85KLfXUHTp0WCYuno_cr4qP_QG3csVI3iFdCUBTlipPzgDCEfMauVaRdHgaLFPmPRdQtKlLqFtrGElPfwphXMfj0cdDqCs7M2wCpxdHgKtELRWYtniHJr92aoegLIF8u7W20zXHYHyLMjmER5ERMAq4Bf-3oYR0aDOc_4_dTNt9oW1_3KqFcvpxR1v9_ZWHyKJZa5H8Ioj4xCGT0Ah2_8xfimSPqXzXJo9yWMdwiZK7eDmYnpLGu2CzXI8kBzH81k6ut7RnwnQ6I4HR0c9fFVu5G_LL2yUhPp02kSjlKD8cuzliIajidy6HFOKr07MoEQx72VcY0xnGBE_8HI4l_XvCs69svU3fWsM5WPeDb1JZaWt1oFieEiitkOvbYY2TwDBiIz6P0DatrD7xe25z",
+      "e": "AQAB",
+      "alg": "RS256",
+      "use": "sig",
+      "kid": "eupova-dev-20261102-01"
+    }
+  ]
+}

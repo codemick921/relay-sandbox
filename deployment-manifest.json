@@ -52,6 +52,10 @@
     "sha256": "7a981d61f1fd03a314877232495a53d0d1ce0c8dee8a0ecd797cd72e17f2d98b"
   },
   {
+    "path": "docs/privy-public-jwks.md",
+    "sha256": "96f385bd5af234dcb5315c06a8f0ab999ba77d24f0cc0eeda6896a8859ed9956"
+  },
+  {
     "path": "docs/selected-offer-costs.md",
     "sha256": "aacb4abda4ed22607fdc65101af0defde79569ff8cb173d003ec3bae2c22ba82"
   },
@@ -221,7 +225,7 @@
   },
   {
     "path": "hosted/server.mjs",
-    "sha256": "1e68e1ecf6759eec3832a5087fc66dd9fbf6f0211cf8d663994006da0c288979"
+    "sha256": "07c348735bd82ec6f9f977d135b152dd6d5d769ded928076fd3325c9a8830e76"
   },
   {
     "path": "hosted/startup.mjs",
@@ -374,6 +378,14 @@
   {
     "path": "server/quote-first/buyer-auth-http.mjs",
     "sha256": "f9ffc2e90d6436a71dd3c81c6febfc9b0d9d6f1df98ef48b6611c1ab0d745100"
+  },
+  {
+    "path": "server/quote-first/buyer-auth-public-jwks.json",
+    "sha256": "d6b3bc025c62a3b1aad199241f81af00fc1db0496511cb0ea71cc5201d4bd570"
+  },
+  {
+    "path": "server/quote-first/buyer-auth-public-jwks.mjs",
+    "sha256": "1e4d5447da8a99a1f44fac9c7608906820f109f926418e30b212fb746abf3c6e"
   },
   {
     "path": "server/quote-first/buyer-auth-session.mjs",
@@ -838,6 +850,10 @@
   {
     "path": "tests/buyer-auth-http.test.mjs",
     "sha256": "9ae84d1b39824463ed8ca90c62e1756729ed69081235964481c5d760557ef27b"
+  },
+  {
+    "path": "tests/buyer-auth-public-jwks.test.mjs",
+    "sha256": "7a2e8e8110b659c318c811799e5669f5f73e9917cbd4038109b27b4d5ff92622"
   },
   {
     "path": "tests/cost-comparison.test.mjs",

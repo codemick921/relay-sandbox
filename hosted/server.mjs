@@ -1,5 +1,6 @@
 import {createAgentFundingRequests} from './agent-funding-requests.mjs';
 import {configuredBuyerAuthHttp} from '../server/quote-first/buyer-auth-http.mjs';
+import {handlePublicBuyerJwks} from '../server/quote-first/buyer-auth-public-jwks.mjs';
 import {createProfilePictures} from './profile-picture.mjs';
 import {createTestInvites} from './test-invites.mjs';
 import {checkoutRails,fundingCatalog} from '../shared/fiat.mjs';
@@ -95,6 +96,7 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
     if(req.method==='GET'){res.writeHead(308,{Location:config.origin+'/'});return res.end();}return send(res,400,{error:'HTTPS required.'});
    }
    const url=new URL(req.url,config.origin);
+   if(handlePublicBuyerJwks(req,res))return;
    if(buyerAuth&&await buyerAuth(req,res))return;
    if(url.pathname==='/api/operator/payment-health'){
     if(req.method!=='GET')throw new InputError('Method not allowed.',405);
