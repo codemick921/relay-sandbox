@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import pg from 'pg';
 import {randomUUID} from 'node:crypto';
 import {PGlite} from '@electric-sql/pglite';
-import {migrateTrackingOperations,createTrackingOperations,configuredTrackingOperations,trackingIssues} from '../hosted/tracking-operations.mjs';
+import {migrateTrackingOperations,createTrackingOperations,configuredTrackingOperations,trackingDeliveryTest,trackingIssues} from '../hosted/tracking-operations.mjs';
 import {trackingWorkerConfig,webTrackingEnabled} from '../hosted/tracking-worker.mjs';
 async function fixture(){
  let db=new PGlite(),close=()=>db.close(),base;let tail=Promise.resolve();
@@ -25,3 +25,26 @@ test('alerts are merchant scoped and do not treat review holds or final receipts
 test('disabled monitor makes no queries or network requests',async()=>{const ops=createTrackingOperations({query:()=>{throw Error('unexpected query');}});await ops.tick();await ops.start();await ops.stop();});
 
 test('monitor discovers only an unambiguous registered merchant and rejects ambiguous configuration',async()=>{const f=await fixture();try{const env={EUPOVA_TRACKING_ALERTS_ENABLED:'true',EUPOVA_TRACKING_ALERT_TO:'mickel@eupova.com',ACCOUNT_EMAIL_FROM:'Eupova <alerts@example.test>',RESEND_API_KEY:'sample'};await configuredTrackingOperations(f.base,env);await f.base.query("INSERT INTO eupova_tracking_runtime(merchant_id) VALUES('other')");await assert.rejects(configuredTrackingOperations(f.base,env),/unique/);await configuredTrackingOperations(f.base,{...env,EUPOVA_TRACKING_MERCHANT_ID:'merchant'});}finally{await f.close();}});
+
+test('bounded delivery test sends one alert then one recovery through the real outbox without changing incident or customer tables',async()=>{const f=await fixture();try{
+ const options={...f.options,deliveryTest:{id:randomUUID(),until:Date.now()+60000}},ops=createTrackingOperations(f.base,options);
+ await Promise.all([ops.queueDeliveryTest(),createTrackingOperations(f.base,options).queueDeliveryTest()]);
+ assert.equal((await f.base.query('SELECT * FROM eupova_tracking_alerts')).rows.length,1);
+ f.fail();await ops.deliver();await ops.queueDeliveryTest();assert.equal((await f.base.query('SELECT * FROM eupova_tracking_alerts')).rows.length,1);
+ f.recover();await f.base.query('UPDATE eupova_tracking_alerts SET next_attempt_at=now()');await ops.deliver();await ops.queueDeliveryTest();await ops.deliver();
+ await createTrackingOperations(f.base,options).queueDeliveryTest();await ops.deliver();
+ assert.equal((await f.base.query('SELECT * FROM eupova_tracking_alerts')).rows.length,2);
+ assert.equal((await f.base.query('SELECT * FROM eupova_tracking_incidents')).rows.length,0);
+ assert.equal((await f.base.query('SELECT * FROM relay_live_orders')).rows.length,0);
+ assert.equal(f.calls.length,3);assert.equal(f.calls[0].body,f.calls[1].body);
+ assert.match(JSON.parse(f.calls[1].body).subject,/\[TEST\].*alert/);assert.match(JSON.parse(f.calls[2].body).subject,/\[TEST\].*recovery/);
+ assert.deepEqual(JSON.parse(f.calls[2].body).to,['mickel@eupova.com']);
+ }finally{await f.close();}});
+test('expired or disabled delivery tests never enqueue mail, and invalid test configuration is rejected',async()=>{
+ assert.equal(trackingDeliveryTest({}),null);assert.equal(trackingDeliveryTest({EUPOVA_TRACKING_EMAIL_TEST_ID:randomUUID(),EUPOVA_TRACKING_EMAIL_TEST_UNTIL:new Date(0).toISOString()}),null);
+ assert.throws(()=>trackingDeliveryTest({EUPOVA_TRACKING_EMAIL_TEST_ID:'invalid'}));
+ assert.throws(()=>trackingDeliveryTest({EUPOVA_TRACKING_EMAIL_TEST_ID:randomUUID(),EUPOVA_TRACKING_EMAIL_TEST_UNTIL:new Date(Date.now()+90000000).toISOString()}));
+ const base={tx:()=>{throw Error('unexpected query');}};
+ await createTrackingOperations(base,{deliveryTest:{id:randomUUID(),until:Date.now()+60000}}).queueDeliveryTest();
+ await createTrackingOperations(base,{enabled:true,merchantId:'sample',key:'sample',to:'a@example.test',from:'Eupova <a@example.test>',deliveryTest:{id:randomUUID(),until:0}}).queueDeliveryTest();
+});

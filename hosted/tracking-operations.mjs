@@ -1,10 +1,26 @@
 import {readFileSync} from 'node:fs';
-import {randomUUID} from 'node:crypto';
+import {randomUUID,createHash} from 'node:crypto';
 export async function migrateTrackingOperations(base){await base.tx(async c=>{await c.query('SELECT pg_advisory_xact_lock(431951)');await c.query(readFileSync(new URL('./tracking-operations.sql',import.meta.url),'utf8'));});}
 export function trackingIssues({heartbeatAge,overdue=0,repeated=0}){return {worker_stalled:heartbeatAge===null||heartbeatAge>180,checks_overdue:Number(overdue)>0,repeated_failures:Number(repeated)>0};}
 const labels={worker_stalled:'Tracking worker missed its heartbeat',checks_overdue:'Payment checks are overdue',repeated_failures:'Payment checks repeatedly failed'};
-export function createTrackingOperations(base,{merchantId,to,from,fetcher=fetch,key,enabled=false}={}){
+export function createTrackingOperations(base,{merchantId,to,from,fetcher=fetch,key,enabled=false,deliveryTest=null}={}){
  if(enabled&&(!merchantId||!key||!/^Eupova <[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+>$/.test(from??'')||!/^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/.test(to??'')))throw Error('Tracking alert configuration is incomplete.');
+ // A bounded operator test exercises the real outbox without changing incident or customer state.
+ async function queueDeliveryTest(){
+  if(!enabled||!deliveryTest||Date.now()>=deliveryTest.until)return;
+  const kind='delivery_test:'+deliveryTest.id;
+  const idFor=phase=>{const hex=createHash('sha256').update(merchantId+'|'+kind+'|'+phase).digest('hex');return hex.slice(0,8)+'-'+hex.slice(8,12)+'-4'+hex.slice(13,16)+'-a'+hex.slice(17,20)+'-'+hex.slice(20,32);};
+  await base.tx(async c=>{
+   await c.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['tracking-test:'+merchantId+':'+kind]);
+   const alert=(await c.query('SELECT sent_at FROM eupova_tracking_alerts WHERE id=$1 AND merchant_id=$2',[idFor('alert'),merchantId])).rows[0];
+   for(const recovery of [false,true]){
+    if(recovery&&!alert?.sent_at)continue; // Never send recovery ahead of the accepted test alert.
+    const phase=recovery?'recovery':'alert';
+    const payload={from,to:[to],subject:'[TEST] Eupova tracking: '+phase+' — '+deliveryTest.id.slice(0,8),text:(recovery?'This is the recovery notice for the operational email delivery test.':'This is the operational alert email delivery test.')+'\nNo real incident was triggered. Payment checks are still running normally.\nNo customer account, payment or checkout was changed by this test.\nTest reference: '+deliveryTest.id+'\nThis message uses the same sender, queue and retry protection as operational alerts. No action is required.'};
+    await c.query('INSERT INTO eupova_tracking_alerts(id,merchant_id,kind,recovery,payload) VALUES($1,$2,$3,$4,$5) ON CONFLICT(id) DO NOTHING',[idFor(phase),merchantId,kind,recovery,payload]);
+   }
+  });
+ }
  async function sample(){return (await base.query(`SELECT extract(epoch FROM(now()-coalesce(r.beat_at,r.started_at))) AS age,r.beat_at,
  (SELECT count(*) FROM relay_live_orders WHERE merchant_id=$1 AND NOT review_required AND next_check_at<now()-interval '5 minutes' AND status NOT IN ('checkout_received','checkout_cancelled')) AS overdue,
  (SELECT count(*) FROM relay_live_orders WHERE merchant_id=$1 AND attempts>=3 AND NOT review_required AND status NOT IN ('checkout_received','checkout_cancelled')) AS repeated
@@ -29,12 +45,18 @@ export function createTrackingOperations(base,{merchantId,to,from,fetcher=fetch,
    await c.query("UPDATE eupova_tracking_alerts SET abandoned_at=now() WHERE merchant_id=$1 AND sent_at IS NULL AND abandoned_at IS NULL AND first_attempt_at<now()-interval '23 hours'",[merchantId]);
    return (await c.query(`UPDATE eupova_tracking_alerts SET lease_token=$2,lease_until=now()+interval '60 seconds',first_attempt_at=coalesce(first_attempt_at,now()),attempts=attempts+1 WHERE id=(SELECT id FROM eupova_tracking_alerts WHERE merchant_id=$1 AND sent_at IS NULL AND abandoned_at IS NULL AND next_attempt_at<=now() AND (lease_until IS NULL OR lease_until<now()) ORDER BY created_at,id FOR UPDATE SKIP LOCKED LIMIT 1) RETURNING *`,[merchantId,token])).rows[0];
   });if(!row)return;
-  try{const r=await fetcher('https://api.resend.com/emails',{method:'POST',redirect:'error',signal:AbortSignal.timeout(12000),headers:{Authorization:'Bearer '+key,'Content-Type':'application/json','Idempotency-Key':'eupova-tracking/'+row.id},body:JSON.stringify(row.payload)});if(!r.ok)throw Error('Alert not accepted');const data=await r.json();if(typeof data.id!=='string'||!data.id)throw Error('Alert receipt unavailable');await base.query('UPDATE eupova_tracking_alerts SET sent_at=now(),provider_id=$3,lease_until=NULL WHERE id=$1 AND lease_token=$2',[row.id,token,data.id]);}
+  try{const r=await fetcher('https://api.resend.com/emails',{method:'POST',redirect:'error',signal:AbortSignal.timeout(12000),headers:{Authorization:'Bearer '+key,'Content-Type':'application/json','Idempotency-Key':'eupova-tracking/'+row.id},body:JSON.stringify(row.payload)});if(!r.ok)throw Error('Alert not accepted');const data=await r.json();if(typeof data.id!=='string'||!data.id)throw Error('Alert receipt unavailable');await base.query('UPDATE eupova_tracking_alerts SET sent_at=now(),provider_id=$3,lease_until=NULL WHERE id=$1 AND lease_token=$2',[row.id,token,data.id]);if(row.kind.startsWith('delivery_test:'))console.log(JSON.stringify({event:'tracking_email_test_accepted',testId:row.kind.slice(14),phase:row.recovery?'recovery':'alert',providerId:data.id}));}
   catch{await base.query("UPDATE eupova_tracking_alerts SET lease_until=NULL,next_attempt_at=now()+least(3600,60*power(2,least(attempts,6)))*interval '1 second' WHERE id=$1 AND lease_token=$2",[row.id,token]);console.error('Tracking alert delivery not confirmed; durable retry retained.');}
  }
  let timer=null,active=null,stopping=false;
- async function tick(){if(!enabled||active||stopping)return;active=(async()=>{await observe();await deliver();const s=await sample();const mail=(await base.query("SELECT count(*) FILTER(WHERE sent_at IS NULL AND abandoned_at IS NULL) AS pending,count(*) FILTER(WHERE abandoned_at IS NOT NULL) AS exhausted,count(*) FILTER(WHERE sent_at IS NOT NULL) AS accepted FROM eupova_tracking_alerts WHERE merchant_id=$1",[merchantId])).rows[0];console.log(JSON.stringify({event:'tracking_monitor',workerRegistered:!!s,heartbeatAgeSeconds:s?.age==null?null:Number(s.age),overdueChecks:Number(s?.overdue??0),repeatedFailures:Number(s?.repeated??0),alertsPending:Number(mail.pending),alertsExhausted:Number(mail.exhausted),alertsAccepted:Number(mail.accepted)}));})().catch(()=>console.error('Tracking monitor temporarily unavailable.')).finally(()=>{active=null;});await active;}
+ async function tick(){if(!enabled||active||stopping)return;active=(async()=>{await queueDeliveryTest();await observe();await deliver();const s=await sample();const mail=(await base.query("SELECT count(*) FILTER(WHERE sent_at IS NULL AND abandoned_at IS NULL) AS pending,count(*) FILTER(WHERE abandoned_at IS NOT NULL) AS exhausted,count(*) FILTER(WHERE sent_at IS NOT NULL) AS accepted FROM eupova_tracking_alerts WHERE merchant_id=$1",[merchantId])).rows[0];console.log(JSON.stringify({event:'tracking_monitor',workerRegistered:!!s,heartbeatAgeSeconds:s?.age==null?null:Number(s.age),overdueChecks:Number(s?.overdue??0),repeatedFailures:Number(s?.repeated??0),alertsPending:Number(mail.pending),alertsExhausted:Number(mail.exhausted),alertsAccepted:Number(mail.accepted)}));})().catch(()=>console.error('Tracking monitor temporarily unavailable.')).finally(()=>{active=null;});await active;}
  async function loop(){await tick();if(!stopping)timer=setTimeout(loop,60000);}
- return {observe,deliver,tick,async start(){if(enabled&&!timer&&!active)await loop();},async stop(){stopping=true;clearTimeout(timer);await active;}};
+ return {observe,deliver,queueDeliveryTest,tick,async start(){if(enabled&&!timer&&!active)await loop();},async stop(){stopping=true;clearTimeout(timer);await active;}};
 }
-export async function configuredTrackingOperations(base,env=process.env){let merchantId=env.EUPOVA_TRACKING_MERCHANT_ID;if(env.EUPOVA_TRACKING_ALERTS_ENABLED==='true'&&!merchantId){const rows=(await base.query('SELECT merchant_id FROM eupova_tracking_runtime LIMIT 2')).rows;if(rows.length!==1)throw Error('Pin a unique tracking merchant before enabling alerts.');merchantId=rows[0].merchant_id;}return createTrackingOperations(base,{enabled:env.EUPOVA_TRACKING_ALERTS_ENABLED==='true',merchantId,to:env.EUPOVA_TRACKING_ALERT_TO,from:env.ACCOUNT_EMAIL_FROM,key:env.RESEND_API_KEY});}
+export function trackingDeliveryTest(env,now=Date.now()){
+ const id=env.EUPOVA_TRACKING_EMAIL_TEST_ID;if(!id)return null;
+ const until=Date.parse(env.EUPOVA_TRACKING_EMAIL_TEST_UNTIL??'');
+ if(!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)||!Number.isFinite(until)||until>now+86400000)throw Error('Invalid bounded tracking email test.');
+ return until>now?{id,until}:null;
+}
+export async function configuredTrackingOperations(base,env=process.env){let merchantId=env.EUPOVA_TRACKING_MERCHANT_ID;if(env.EUPOVA_TRACKING_ALERTS_ENABLED==='true'&&!merchantId){const rows=(await base.query('SELECT merchant_id FROM eupova_tracking_runtime LIMIT 2')).rows;if(rows.length!==1)throw Error('Pin a unique tracking merchant before enabling alerts.');merchantId=rows[0].merchant_id;}return createTrackingOperations(base,{enabled:env.EUPOVA_TRACKING_ALERTS_ENABLED==='true',merchantId,to:env.EUPOVA_TRACKING_ALERT_TO,from:env.ACCOUNT_EMAIL_FROM,key:env.RESEND_API_KEY,deliveryTest:trackingDeliveryTest(env)});}
