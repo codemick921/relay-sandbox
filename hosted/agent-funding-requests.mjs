@@ -17,10 +17,10 @@ export async function validateAgentRequest(c,owner,id,agent,revision,now){
  if(r.agent_id!==agent.id||r.agent.address.toLowerCase()!==agent.address.toLowerCase()||r.agent.network!==agent.network||r.agent.token!==agent.token||String(r.agent_revision)!==String(revision))throw new InputError('The request destination changed. Save and review a new request.',409);
  return r;
 }
-export function createAgentFundingRequests(base,{clock=Date.now}={}){
+export function createAgentFundingRequests(base,{clock=Date.now,partnerReturns={}}={}){
  const lock=(c,owner)=>c.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['funding:'+owner]);
  return {
- async list(owner){customer(owner);return (await base.query('SELECT r.*,(k.revoked_at IS NULL AND k.expires_at>now() AND NOT u.disabled AND k.customer_version=u.version) AS connection_active,a.funding_revision AS current_revision,a.data AS current_agent FROM relay_agent_funding_requests r LEFT JOIN relay_agent_connections k ON k.id=r.source_connection_id LEFT JOIN relay_customers u ON k.owner=\'customer:\'||u.id::text LEFT JOIN relay_agents a ON a.id=r.agent_id AND a.owner=r.owner WHERE r.owner=$1 ORDER BY r.created_at DESC LIMIT 100',[owner])).rows.map(view);},
+ async list(owner){customer(owner);return (await base.query('SELECT r.*,(k.revoked_at IS NULL AND k.expires_at>now() AND NOT u.disabled AND k.customer_version=u.version) AS connection_active,a.funding_revision AS current_revision,a.data AS current_agent FROM relay_agent_funding_requests r LEFT JOIN relay_agent_connections k ON k.id=r.source_connection_id LEFT JOIN relay_customers u ON k.owner=\'customer:\'||u.id::text LEFT JOIN relay_agents a ON a.id=r.agent_id AND a.owner=r.owner WHERE r.owner=$1 ORDER BY r.created_at DESC LIMIT 100',[owner])).rows.map(r=>({...view(r),partnerReturn:r.source_connection_id?partnerReturns[r.source_connection_id]??null:null}));},
  async create(owner,input){
   customer(owner);fields(input,['requestKey','agentId','purpose','targetUsdc','expiresInHours','confirmDestination']);
   const target=targetRaw(input.targetUsdc),purpose=typeof input.purpose==='string'?input.purpose.trim():'';

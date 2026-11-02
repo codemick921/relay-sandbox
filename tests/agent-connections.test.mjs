@@ -24,7 +24,7 @@ test('keys require current password, reveal only once and cannot choose another 
  await f.drafts.migrate();assert.equal((await f.connections.list(f.owner)).length,1);
  }finally{await f.close();}});
 test('external requests are idempotent, destination pinned, capped atomically and create no payments',async()=>{const f=await setup();try{
- const k=await f.connections.create(settings(f),f.account.token),key=randomUUID(),[a,b]=await Promise.all([f.connections.submit(k.key,key,request),f.connections.submit(k.key,key,request)]);assert.equal(a.id,b.id);assert.equal(a.targetUsdc,'20.000001');
+ const k=await f.connections.create(settings(f),f.account.token),key=randomUUID(),[a,b]=await Promise.all([f.connections.submit(k.key,key,request),f.connections.submit(k.key,key,request)]);assert.equal(a.id,b.id);assert.equal(a.targetUsdc,'20.000001');assert.equal(a.reviewUrl,'https://app.eupova.com/#request='+a.id);assert.equal(b.reviewUrl,a.reviewUrl);const mapped=createAgentFundingRequests(f.store,{partnerReturns:{[k.id]:{name:'Approved partner',url:'https://partner.example/funding'}}});assert.deepEqual((await mapped.list(f.owner))[0].partnerReturn,{name:'Approved partner',url:'https://partner.example/funding'});assert.deepEqual(await mapped.list('customer:'+randomUUID()),[]);assert.equal((await f.requests.list(f.owner))[0].partnerReturn,null);
  await assert.rejects(f.connections.submit(k.key,key,{...request,purpose:'Changed purpose'}),/different/);
  await assert.rejects(f.connections.submit(k.key,randomUUID(),{...request,targetUsdc:'25.000001'}),/exceeds/);
  await assert.rejects(f.connections.submit(k.key,randomUUID(),{...request,address:'0x'+'2'.repeat(40)}),/Unsupported/);
@@ -54,7 +54,7 @@ test('machine HTTP API is isolated from cookies, browser requests, owner data an
  const call=(path,method='POST',payload=request,headers={})=>new Promise((resolve,reject)=>{const q=http.request({hostname:'127.0.0.1',port:server.address().port,path,method,headers:{host:'relay.example','content-type':'application/json',authorization:'Bearer '+k.key,'idempotency-key':randomUUID(),...headers}},res=>{let raw='';res.on('data',b=>raw+=b);res.on('end',()=>resolve({status:res.statusCode,body:JSON.parse(raw)}));});q.on('error',reject);q.end(method==='POST'?JSON.stringify(payload):undefined);});
  const path='/api/agent/v1/funding-requests';assert.equal((await call(path,'POST',request,{authorization:'Bearer invalid'})).status,401);
  assert.equal((await call(path,'POST',request,{origin:'https://relay.example'})).status,403);assert.equal((await call(path,'POST',request,{cookie:'__Host-relay_sandbox='+f.account.token})).status,403);
- const result=await call(path);assert.equal(result.status,200);assert.equal(result.body.status,'awaiting_review');assert.equal((await call(path+'/'+result.body.id,'GET')).status,200);
+ const result=await call(path);assert.equal(result.status,200);assert.equal(result.body.status,'awaiting_review');assert.equal(result.body.reviewUrl,'https://relay.example/#request='+result.body.id);assert.equal((await call(path+'/'+result.body.id,'GET')).status,200);
  assert.equal((await call('/api/state','GET')).status,401);assert.equal((await call('/api/funding/checkout','POST',{id:randomUUID()},{origin:'https://relay.example'})).status,401);
  assert.equal((await call('/api/agent-connections/create','POST',settings(f),{origin:'https://relay.example'})).status,401);
  assert.equal((await f.store.state(f.owner)).orders.length,0);

@@ -60,11 +60,11 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
  const security=accounts&&createAccountSecurity(store,accounts,{mailEnabled:mail.enabled,mailPreview:!!mail.preview});
  const admin=security&&createAdmin(store,{emails:config.accountAdmins??[],security});
  const profiles=createProfilePictures(store);
- const agentRequests=fundingDrafts?createAgentFundingRequests(store):null;
+ const agentRequests=fundingDrafts?createAgentFundingRequests(store,{partnerReturns:config.partnerReturns??{}}):null;
  const cookie=localPreview?'relay_local_preview':'__Host-relay_sandbox';
  const cookiePolicy=`${localPreview?'':'Secure; '}HttpOnly; SameSite=Strict; Path=/`;
  const getToken=req=>(req.headers.cookie??'').split(';').map(x=>x.trim()).find(x=>x.startsWith(cookie+'='))?.slice(cookie.length+1);
- const connections=security&&fundingDrafts?createAgentConnections(store,security,{merchantId:liveObservation?.store?.historyScope?.merchantId??null}):null;
+ const connections=security&&fundingDrafts?createAgentConnections(store,security,{merchantId:liveObservation?.store?.historyScope?.merchantId??null,reviewOrigin:config.origin}):null;
  const authenticate=async req=>(await accounts?.session(getToken(req)))?.owner??await store.session(getToken(req),config.testers);
  const isHealthAdmin=owner=>typeof owner==='string'&&!owner.startsWith('customer:')&&Array.isArray(config.paymentHealthAdmins)&&config.paymentHealthAdmins.includes(owner)&&config.testers.some(t=>t.label===owner);
  const invites=createTestInvites(store);

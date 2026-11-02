@@ -1,3 +1,4 @@
+import {partnerDestinations} from '../shared/partner-funding.mjs';
 export function config(env=process.env,{worker=false}={}){
  if(env.RELAY_MODE!=='sandbox')throw Error('RELAY_MODE must be sandbox.');
  const livePayments=env.RELAY_LIVE_PAYMENTS==='enabled';
@@ -29,5 +30,5 @@ export function config(env=process.env,{worker=false}={}){
  let accountAdmins=[];try{accountAdmins=JSON.parse(env.EUPOVA_ACCOUNT_ADMINS??'[]');}catch{throw Error('Invalid account admin configuration.');}
  if(!Array.isArray(accountAdmins)||accountAdmins.length>10||accountAdmins.some(email=>typeof email!=='string'||email!==email.trim().toLowerCase()||!/^[a-z0-9.!#$%&'*+/?^_`{|}~-]+@[a-z0-9.-]+\.[a-z]{2,63}$/.test(email))||new Set(accountAdmins).size!==accountAdmins.length)throw Error('Account admins must be unique normalised email addresses.');
  for(const k of ['DATABASE_URL'])if(!env[k])throw Error(`Missing ${k}.`);
- return {accountAdmins,testInviteAdmins,paymentHealthAdmins,livePayments,trackingSandbox:true,paymentsDisabled:true,providerConnectionsEnabled:false,liveConnection,origin:origin?.origin,host:origin?.host,paymentOrigin:paymentOrigin?.origin,legacyOrigin,testers,webhook:{environment:'SANDBOX',merchantId:env.PEER_PAY_SANDBOX_MERCHANT_ID,secret:env.PEER_PAY_SANDBOX_WEBHOOK_SECRET}};
+ return {partnerReturns:worker?{}:partnerDestinations(env.EUPOVA_PARTNER_RETURNS),accountAdmins,testInviteAdmins,paymentHealthAdmins,livePayments,trackingSandbox:true,paymentsDisabled:true,providerConnectionsEnabled:false,liveConnection,origin:origin?.origin,host:origin?.host,paymentOrigin:paymentOrigin?.origin,legacyOrigin,testers,webhook:{environment:'SANDBOX',merchantId:env.PEER_PAY_SANDBOX_MERCHANT_ID,secret:env.PEER_PAY_SANDBOX_WEBHOOK_SECRET}};
 }
