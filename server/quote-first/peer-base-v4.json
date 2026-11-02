@@ -1,0 +1,368 @@
+{
+  "id": "peer-base-v4-observed-20261102",
+  "status": "observed_not_endorsed",
+  "chainId": 8453,
+  "token": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+  "legacyV3": "0x014025fde093f8701d86e9f38e2c3a9b779cb5c7",
+  "sourceCommit": "0671fd383960f23957f250743599700ea7dd86ad",
+  "sourceUrl": "https://github.com/zkp2p/zkp2p-contracts/tree/0671fd383960f23957f250743599700ea7dd86ad",
+  "deploymentTransaction": "0x8069432548917838a2ec33d55a001c4f16a38f6a457beb3183cb4a7694410393",
+  "deploymentBlock": 53251271,
+  "observedAt": "2026-11-02T11:23:47.464475+00:00",
+  "observedBlock": 53414640,
+  "contracts": {
+    "orchestrator": {
+      "name": "OrchestratorV4",
+      "address": "0x74c55679268fafb493864915ad16a320ab8c40ba",
+      "runtimeCodeHash": "0xa383cbe8591fb8724e6d6f26a6b7b568b780f51b66560bfadaa1d1b16f2e4bc8",
+      "sourceVerified": true,
+      "sourceEvidence": "sourcify_exact_match",
+      "abiHash": "0x70acfad60ad27609fe408374574f2da2ec386354dbfbad20baa20e8da98fc731",
+      "readAbi": [
+        {
+          "inputs": [],
+          "name": "escrowRegistry",
+          "outputs": [
+            {
+              "internalType": "contract IEscrowRegistry",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "paused",
+          "outputs": [
+            {
+              "internalType": "bool",
+              "name": "",
+              "type": "bool"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "paymentVerifierRegistry",
+          "outputs": [
+            {
+              "internalType": "contract IPaymentVerifierRegistry",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "protocolFee",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "settlementPolicy",
+          "outputs": [
+            {
+              "internalType": "contract IIntentSettlementPolicy",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "signalPolicy",
+          "outputs": [
+            {
+              "internalType": "contract IIntentSignalPolicy",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        }
+      ]
+    },
+    "escrow": {
+      "name": "EscrowV2",
+      "address": "0x777777779d229cdf3110e9de47943791c26300ef",
+      "runtimeCodeHash": "0x6bf29952667a4e061385777492cb2440e73258abf3bdd00e37f516604178d3c1",
+      "sourceVerified": true,
+      "sourceEvidence": "sourcify_exact_match",
+      "abiHash": "0x84408e3c2dabc7bfbf02241bf386799f1c021967ee7ddfa69bc1df72d9857306",
+      "readAbi": [
+        {
+          "inputs": [],
+          "name": "orchestratorRegistry",
+          "outputs": [
+            {
+              "internalType": "contract IOrchestratorRegistry",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "paused",
+          "outputs": [
+            {
+              "internalType": "bool",
+              "name": "",
+              "type": "bool"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "paymentVerifierRegistry",
+          "outputs": [
+            {
+              "internalType": "contract IPaymentVerifierRegistry",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        }
+      ]
+    },
+    "orchestratorRegistry": {
+      "name": "OrchestratorRegistry",
+      "address": "0xbe9fed15ed7a4b915c03efcecb9662739c3382a9",
+      "runtimeCodeHash": "0xf0d132d621ac03181a6fade6a93bd0968d33830c8bf393793236787e7978aee1",
+      "sourceVerified": true,
+      "sourceEvidence": "sourcify_exact_match",
+      "abiHash": "0x7ece87b17a9bfbad7f1507f7d0edf48d8d4dcd3b291f2139469dc284f4361fee",
+      "readAbi": [
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "name": "isOrchestrator",
+          "outputs": [
+            {
+              "internalType": "bool",
+              "name": "",
+              "type": "bool"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        }
+      ]
+    },
+    "escrowRegistry": {
+      "name": "EscrowRegistry",
+      "address": "0xed0e847b101abc96e796260ac358e12baa2f5b21",
+      "runtimeCodeHash": "0x8726fc419bc723962ce7dfb6a5d130faa2b18cd8c1c39dbefcb32392d431dc08",
+      "sourceVerified": true,
+      "sourceEvidence": "sourcify_exact_match",
+      "abiHash": "0xf081aedf52e71398b72b31ef4e4142f41f9e76422c04dea11ea936a04c679046",
+      "readAbi": [
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "name": "isWhitelistedEscrow",
+          "outputs": [
+            {
+              "internalType": "bool",
+              "name": "",
+              "type": "bool"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        }
+      ]
+    },
+    "paymentVerifierRegistry": {
+      "name": "PaymentVerifierRegistry",
+      "address": "0x2b82d24437ff66fb173eabdfd67ee2aceb8beb1e",
+      "runtimeCodeHash": "0xf8b2a3d222990397e047e7e4f1afe45ecfabe0a9d04be7b5e97e5a1755026e36",
+      "sourceVerified": true,
+      "sourceEvidence": "sourcify_exact_match",
+      "abiHash": "0xa9cef5720d767079d18583cafb7770fd04ff1f9254a43d6d11f27e3f48202f04",
+      "readAbi": []
+    },
+    "signalPolicy": {
+      "name": "IntentSignalPolicy",
+      "address": "0x572f1eb9043a7217c998221d6d3bcfb3d69338cc",
+      "runtimeCodeHash": "0xe1e22135baec89d97534187e2f8cddb2824c4b81d99fa99faa7c0f365e69c2ac",
+      "sourceVerified": false,
+      "sourceEvidence": "github_artifact_and_observed_code_only",
+      "abiHash": "0xe9766a6be444a5832c64f60bd78dc7284121f813e51c10e8911b2dfc218ba6b0",
+      "readAbi": [
+        {
+          "inputs": [],
+          "name": "gatingService",
+          "outputs": [
+            {
+              "internalType": "address",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "whitelistPolicy",
+          "outputs": [
+            {
+              "internalType": "contract IWhitelistPolicyV2",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        }
+      ]
+    },
+    "settlementPolicy": {
+      "name": "DisputeProtectionPolicyV2",
+      "address": "0xb49fa38c6bb3c8c51ddb13711bb213cdd9db1799",
+      "runtimeCodeHash": "0x85e5a7330bf432451ddba0e21ccb6d3647e633d9c004acbe5d49f63baa4262e9",
+      "sourceVerified": true,
+      "sourceEvidence": "sourcify_exact_match",
+      "abiHash": "0xd8d702469fca55538601f68d6aeb9fe675950491be2415f207ae5e560f7fbad8",
+      "readAbi": [
+        {
+          "inputs": [],
+          "name": "stakeVault",
+          "outputs": [
+            {
+              "internalType": "contract IStakeVaultV2",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        }
+      ]
+    }
+  },
+  "views": [
+    {
+      "contract": "orchestrator",
+      "functionName": "paused",
+      "args": [],
+      "expected": false
+    },
+    {
+      "contract": "orchestrator",
+      "functionName": "escrowRegistry",
+      "args": [],
+      "expected": "0xed0e847b101abc96e796260ac358e12baa2f5b21"
+    },
+    {
+      "contract": "orchestrator",
+      "functionName": "paymentVerifierRegistry",
+      "args": [],
+      "expected": "0x2b82d24437ff66fb173eabdfd67ee2aceb8beb1e"
+    },
+    {
+      "contract": "orchestrator",
+      "functionName": "signalPolicy",
+      "args": [],
+      "expected": "0x572f1eb9043a7217c998221d6d3bcfb3d69338cc"
+    },
+    {
+      "contract": "orchestrator",
+      "functionName": "settlementPolicy",
+      "args": [],
+      "expected": "0xb49fa38c6bb3c8c51ddb13711bb213cdd9db1799"
+    },
+    {
+      "contract": "orchestrator",
+      "functionName": "protocolFee",
+      "args": [],
+      "expected": "0"
+    },
+    {
+      "contract": "escrow",
+      "functionName": "paused",
+      "args": [],
+      "expected": false
+    },
+    {
+      "contract": "escrow",
+      "functionName": "orchestratorRegistry",
+      "args": [],
+      "expected": "0xbe9fed15ed7a4b915c03efcecb9662739c3382a9"
+    },
+    {
+      "contract": "escrow",
+      "functionName": "paymentVerifierRegistry",
+      "args": [],
+      "expected": "0x2b82d24437ff66fb173eabdfd67ee2aceb8beb1e"
+    },
+    {
+      "contract": "orchestratorRegistry",
+      "functionName": "isOrchestrator",
+      "args": [
+        "0x74c55679268fafb493864915ad16a320ab8c40ba"
+      ],
+      "expected": true
+    },
+    {
+      "contract": "escrowRegistry",
+      "functionName": "isWhitelistedEscrow",
+      "args": [
+        "0x777777779d229cdf3110e9de47943791c26300ef"
+      ],
+      "expected": true
+    },
+    {
+      "contract": "signalPolicy",
+      "functionName": "gatingService",
+      "args": [],
+      "expected": "0x7ace8cf3cb5fea7103594da6c6478e69fd7717a4"
+    },
+    {
+      "contract": "signalPolicy",
+      "functionName": "whitelistPolicy",
+      "args": [],
+      "expected": "0xf7069d157d1afb2cbe117e24f4262ae51eed390c"
+    },
+    {
+      "contract": "settlementPolicy",
+      "functionName": "stakeVault",
+      "args": [],
+      "expected": "0x4ade08ec1098d0d8856dd7bbbbc7789794089a97"
+    }
+  ]
+}

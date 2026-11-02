@@ -1,10 +1,9 @@
 // Read-only contract compatibility and selected-term review. No wallet/SDK writes.
 import {QuoteError} from './direct-quote.mjs';
+import {recogniseQuoteDeployment} from './deployment-readiness.mjs';
 // Verified against pinned @zkp2p/sdk 0.14.10 by an offline regression test.
 export const pinnedOrchestrator='0x014025fde093f8701d86e9f38e2c3a9b779cb5c7';
-export function quoteIntegration(orchestrator){
- return Object.freeze({contractRecognised:typeof orchestrator==='string'&&orchestrator.toLowerCase()===pinnedOrchestrator,executionVerified:false,canReserve:false});
-}
+export const quoteIntegration=recogniseQuoteDeployment;
 export function reviewInput(input,validateTarget){
  if(!input||typeof input!=='object'||Array.isArray(input)||Object.keys(input).some(k=>!['amount','currency','method','offerId'].includes(k))||!/^([a-f0-9]{64})$/.test(input.offerId??'')||!input.method||input.method==='all')throw new QuoteError('invalid_selection');
  const {offerId,...target}=input;validateTarget(target);return {offerId,target};

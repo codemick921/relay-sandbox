@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Readable} from 'node:stream';
 import {getOrchestratorV3Contract} from '@zkp2p/sdk';
-import {pinnedOrchestrator,quoteIntegration,reviewInput,compareSelectedQuote} from '../server/quote-first/quote-review.mjs';
+import {pinnedOrchestrator,reviewInput,compareSelectedQuote} from '../server/quote-first/quote-review.mjs';
 import {calculatorInput,createTargetCalculator} from '../server/quote-first/target-calculator.mjs';
 import {calculatorReviewPath,configuredTargetCalculator,createTargetCalculatorHttp} from '../server/quote-first/target-calculator-http.mjs';
 import {calculatorSamples} from './fixtures/calculator-samples.mjs';
@@ -14,15 +14,14 @@ test('quoted contract cannot inherit the pinned SDK execution capability',()=>{
  assert.equal(getOrchestratorV3Contract(8453,'production').address.toLowerCase(),pinnedOrchestrator);
  const quoted=samples.wise.response.responseObject.orchestratorAddress;
  assert.notEqual(quoted.toLowerCase(),pinnedOrchestrator);
- assert.deepEqual(quoteIntegration(quoted),{contractRecognised:false,executionVerified:false,canReserve:false});
- assert.equal(quoteIntegration(pinnedOrchestrator).canReserve,false);assert.equal(quoteIntegration(null).contractRecognised,false);
+ assert.equal(data.rows[0].offers[0].integration.contractVersion,'v4');assert.equal(data.rows[0].offers[0].integration.sdkCompatible,false);assert.equal(data.rows[0].offers[0].integration.canReserve,false);
 });
 test('review accepts only one supported method and opaque selected terms; no wallet/private payload',()=>{
  assert.equal(reviewInput(selected,calculatorInput).offerId,id);
  for(const patch of [{offerId:'unknown'},{method:'all'},{method:'paypal'},{recipient:'private'},{buyer:'private'},{signature:'private'},{amount:'1e6'},{currency:'BAD'}])assert.throws(()=>reviewInput({...selected,...patch},calculatorInput));
 });
 test('same terms refresh without reserving or enabling execution; changed terms require new selection',()=>{
- const match=compareSelectedQuote(id,data,{now});assert.equal(match.status,'terms_match');assert.equal(match.offer.id,id);assert.equal(match.canCreatePayment,false);assert.equal(match.reserved,false);assert.equal(match.offer.canExecute,false);assert.equal(match.readiness.contract,'contract_not_verified');assert.equal(match.eligibility,'example_addresses');
+ const match=compareSelectedQuote(id,data,{now});assert.equal(match.status,'terms_match');assert.equal(match.offer.id,id);assert.equal(match.canCreatePayment,false);assert.equal(match.reserved,false);assert.equal(match.offer.canExecute,false);assert.equal(match.readiness.contract,'execution_not_verified');assert.equal(match.eligibility,'example_addresses');
  const changed=calculatorSamples(input,'available',now,true),r=compareSelectedQuote(id,changed,{now});assert.equal(r.status,'terms_changed');assert.equal(r.offer,null);assert.notEqual(r.rows[0].offers[0].youPay.displayAmount,data.rows[0].offers[0].youPay.displayAmount);
 });
 test('expired, missing and failed offers never become a valid review',()=>{

@@ -38,5 +38,5 @@ export async function getQuotesByMethod(reader,input,methods){
  return results.map((r,index)=>r.status==='fulfilled'?{method:methods[index],...customerQuoteView(r.value)}:{method:methods[index],status:'unavailable',reason:r.reason instanceof QuoteError?r.reason.code:'quote_provider_unavailable',offers:[],canCreatePayment:false});
 }
 export function customerQuoteView(read){
- return {status:read.result.status,checkedAt:read.result.checkedAt,offers:read.result.offers.map(q=>({id:q.fingerprint,integration:quoteIntegration(q.terms.orchestrator),youPay:q.youPay,youReceive:q.youReceive,fee:q.fee,exchangeRate:q.exchangeRate,spreadBps:q.spreadBps,validUntil:q.validUntil,conditions:q.conditions,verification:q.verification,reserved:false,canExecute:false})),canCreatePayment:false};
+ return {status:read.result.status,checkedAt:read.result.checkedAt,offers:read.result.offers.map(q=>({id:q.fingerprint,integration:quoteIntegration({chainId:q.terms.context.chainId,token:q.terms.context.token,escrow:q.terms.quote.intent.escrowAddress,orchestrator:q.terms.orchestrator}),youPay:q.youPay,youReceive:q.youReceive,fee:q.fee,exchangeRate:q.exchangeRate,spreadBps:q.spreadBps,validUntil:q.validUntil,conditions:q.conditions,verification:q.verification,reserved:false,canExecute:false})),canCreatePayment:false};
 }
