@@ -19,9 +19,14 @@
     "deploy:export": "node scripts/export-deployment.mjs",
     "preview:tracking": "node hosted/tracking-preview.mjs",
     "test:postgres": "node scripts/test-postgres.mjs",
+    "typecheck:circle": "node typecheck/circle/callsites.mjs && tsc -p typecheck/circle/tsconfig.json",
     "worker:tracking": "node hosted/tracking-worker.mjs"
   },
   "dependencies": {
+    "@circle-fin/adapter-viem-v2": "1.20.0",
+    "@circle-fin/bridge-kit": "1.17.0",
+    "@circle-fin/user-controlled-wallets": "10.8.1",
+    "@circle-fin/w3s-pw-web-sdk": "1.1.11",
     "@privy-io/react-auth": "3.51.0",
     "@zkp2p/pay-sdk": "8.0.0",
     "@zkp2p/pay-shared": "8.0.0",
@@ -35,6 +40,7 @@
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.5.11",
+    "typescript": "5.9.3",
     "vite": "8.3.5"
   },
   "engines": {

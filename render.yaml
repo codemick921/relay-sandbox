@@ -6,6 +6,7 @@ services:
     plan: 0.5c-512mb
     numInstances: 1
     buildCommand: npm ci --include=dev && npm run build
+    preDeployCommand: node scripts/check-wallet-deploy.mjs
     startCommand: npm run start:hosted
     healthCheckPath: /healthz
     autoDeployTrigger: off
@@ -25,6 +26,31 @@ services:
       - key: PEER_PAY_SANDBOX_MERCHANT_ID
         sync: false
       - key: PEER_PAY_SANDBOX_WEBHOOK_SECRET
+        sync: false
+      # Customer wallet (Circle user-controlled). OFF unless EUPOVA_WALLET_MODE is exactly "live" AND every value below is
+      # complete and consistent; otherwise the wallet is simply not offered. Values are set in the Render dashboard, never here.
+      - key: EUPOVA_WALLET_MODE
+        sync: false
+      - key: EUPOVA_WALLET_NETWORK
+        sync: false
+      - key: EUPOVA_CIRCLE_UCW_API_KEY
+        sync: false
+      - key: EUPOVA_CIRCLE_UCW_APP_ID
+        sync: false
+      - key: EUPOVA_CIRCLE_UCW_USER_ID_SECRET
+        sync: false
+      - key: EUPOVA_CIRCLE_UCW_ACCOUNT_TYPE
+        sync: false
+      - key: EUPOVA_CIRCLE_UCW_GAS_MODEL
+        sync: false
+      - key: EUPOVA_CIRCLE_UCW_GAS_DAILY_USD
+        sync: false
+      - key: EUPOVA_CIRCLE_UCW_GAS_PER_TX_USD
+        sync: false
+      # Optional https overrides for the chain reads behind the Base to Arc move (defaults: Circle Bridge Kit chain data).
+      - key: EUPOVA_BRIDGE_BASE_RPC_URL
+        sync: false
+      - key: EUPOVA_BRIDGE_ARC_RPC_URL
         sync: false
   - type: worker
     name: relay-sandbox-worker
