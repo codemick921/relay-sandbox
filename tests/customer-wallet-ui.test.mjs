@@ -187,3 +187,34 @@ test('an unverified customer is told the wallet is waiting on their email, not l
   assert.doesNotMatch(t, /not available in this environment|Please try again later/i, 'the generic outage wording must not be used for a fixable account state');
   assert.doesNotMatch(t, /Create my wallet|Continue setup/i, 'nothing can be created before the email is confirmed');
 });
+
+test('a live wallet with no provider-comparison data still renders: the post-PIN screen must never blank the app', async () => {
+  const {render} = await loader();
+  // Exactly what the server returns once a live wallet is ready: no `providers`, because that is simulation-only material.
+  const live = {
+    enabled: true, simulated: false, live: true, label: 'Your wallet on Base (mainnet, real money)',
+    provider: {id: 'circle_ucw', label: 'Circle user-controlled wallet (Base mainnet, real money)', custody: 'The customer holds the key'},
+    network: {id: 'base', label: 'Base (mainnet, real money)', environment: 'mainnet', mainnet: true, chainId: 8453, nativeSymbol: 'ETH'},
+    fees: {asset: 'sponsored', nativeSymbol: 'ETH'},
+    token: {symbol: 'USDC'}, allowanceConfirmation: 'I understand', limits: {allowanceMaxUsdc: '100', allowanceMaxHours: 24, maxPaymentUsdc: '50'},
+    wallet: {id: 'w', label: 'My Eupova wallet', address: '0x' + 'ab'.repeat(20), network: 'Base (mainnet, real money)', networkId: 'base', environment: 'mainnet', token: 'USDC', status: 'ready', provider: 'circle_ucw', simulated: false, addressNote: 'Your own address on Base.'},
+    balance: {raw: '0', usdc: '0.000000', reservedUsdc: '0.000000', availableUsdc: '0.000000', simulated: false},
+    activity: [], pendingApprovals: [], payments: [], tools: [],
+    bridge: {available: false, reason: 'The live Base to Arc transport is not installed in this deployment.', items: []},
+  };
+  assert.equal(live.providers, undefined);
+  const html = render({account, agents: [], customerWallet: live});
+  const t = text(html);
+  assert.match(t, /My Eupova wallet/i);
+  assert.match(t, /Balance/i);
+  assert.match(t, /Base \(mainnet, real money\)/i);
+  assert.doesNotMatch(t, /Test settings|wallet providers/i, 'the simulation-only settings panel stays out of a live wallet');
+});
+
+test('the app mounts behind an error boundary so one broken panel cannot blank the page', async () => {
+  const main = readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8');
+  assert.match(main, /<ErrorBoundary><Root\/><\/ErrorBoundary>/);
+  const boundary = readFileSync(new URL('../src/ErrorBoundary.jsx', import.meta.url), 'utf8');
+  assert.match(boundary, /getDerivedStateFromError/);
+  assert.match(boundary, /This screen could not be shown/);
+});
