@@ -96,6 +96,7 @@ function Activity({rows}){
 
 export default function CustomerWallet({state,act,busy,error,open,onBridge}){
  const cw=state.customerWallet,[dialog,setDialog]=useState(null),[flow,flowNote]=useWalletFlow(act);
+ if(cw?.reason==='email_unverified')return <div className="cw-hub"><section className="panel cw-create"><h2>Verify your email to open your wallet</h2><p className="cw-lede">Your Eupova wallet needs a confirmed email address before it can hold or move money. Open Account security and send yourself a verification link, then confirm it from that inbox.</p><Notice>Nothing has been created and no money is involved yet. Your account, saved wallets and funding history are unaffected.</Notice></section></div>;
  if(cw?.unavailable)return <Notice error>Your wallet is not available right now. Nothing has been changed and your money is not affected. Please try again later.</Notice>;
  if(!cw?.enabled)return <Notice>The wallet is not available in this environment.</Notice>;
  if(!cw.wallet)return <div className="cw-hub"><CreateWallet cw={cw} act={act} busy={busy} error={error}/></div>;

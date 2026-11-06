@@ -73,3 +73,14 @@ test('production guards: the simulation cannot run outside the local preview, an
     assert.ok(ETH > 0n);
   } finally { await f.close(); }
 });
+
+test('production: an unverified customer is told why the wallet is closed and still gets no wallet routes', async () => {
+  const s = await prod();
+  try {
+    const c = await s.signupUnverified('prod-unverified@example.invalid');
+    const st = (await s.call('state', undefined, c)).json;
+    assert.deepEqual(st.customerWallet, {enabled: false, unavailable: true, reason: 'email_unverified'});
+    assert.equal((await s.call('wallet/create', {label: 'My wallet', requestId: randomUUID()}, c)).status, 403);
+    assert.equal((await s.call('wallet/resume-setup', {}, c)).status, 403);
+  } finally { await s.close(); }
+});

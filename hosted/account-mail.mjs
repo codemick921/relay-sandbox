@@ -15,7 +15,11 @@ export function accountMessage(purpose,origin,token,setup=false){
 }
 
 // Requests are queued independently of delivery: anonymous reset response timing
-// never includes a provider call. A crashed/uncertain send is never auto-retried.
+// never includes a provider call. A failed send is retried a bounded number of times, with the provider's reason kept,
+// and only then abandoned as 'unknown'. A verification email that never arrives used to leave no trace at all.
+const MAX_ATTEMPTS = 3;
+const BACKOFF_SECONDS = [30, 180, 900];
+const failureText = e => String(e?.message ?? e ?? 'Delivery failed.').replace(/\s+/g, ' ').slice(0, 240);
 export function createAccountMail(store,{enabled=false,origin,deliver,preview=false}={}){
  if(enabled&&typeof deliver!=='function')throw Error('An email transport is required.');
  if(enabled){const u=new URL(origin);if(u.origin!==origin||u.username||u.password||!(u.protocol==='https:'||(preview&&u.protocol==='http:'&&u.hostname==='127.0.0.1')))throw Error('Invalid account email origin.');}
@@ -37,9 +41,10 @@ export function createAccountMail(store,{enabled=false,origin,deliver,preview=fa
     for(let i=0;i<5;i++){
      const job=await store.tx(async c=>{
       // Lock the customer first, matching token consumption's lock ordering.
-      const row=(await c.query(`SELECT c.* FROM relay_customers c WHERE EXISTS(SELECT 1 FROM relay_account_mail m WHERE m.customer_id=c.id AND m.state='queued') ORDER BY c.id FOR UPDATE SKIP LOCKED LIMIT 1`)).rows[0];
+      const row=(await c.query(`SELECT c.* FROM relay_customers c WHERE EXISTS(SELECT 1 FROM relay_account_mail m WHERE m.customer_id=c.id AND m.state='queued' AND (m.next_attempt_at IS NULL OR m.next_attempt_at<=now())) ORDER BY c.id FOR UPDATE SKIP LOCKED LIMIT 1`)).rows[0];
       if(!row)return null;
-      const m=(await c.query(`SELECT * FROM relay_account_mail WHERE customer_id=$1 AND state='queued' ORDER BY created_at,id FOR UPDATE LIMIT 1`,[row.id])).rows[0];
+      const m=(await c.query(`SELECT * FROM relay_account_mail WHERE customer_id=$1 AND state='queued' AND (next_attempt_at IS NULL OR next_attempt_at<=now()) ORDER BY created_at,id FOR UPDATE LIMIT 1`,[row.id])).rows[0];
+      if(!m)return null;
       const eligible=!row.disabled&&m.version===row.version&&(m.purpose!=='reset'||row.email_verified_at||row.setup_pending)&&(m.purpose!=='verify'||!row.email_verified_at)&&Date.now()-new Date(m.created_at).getTime()<3600000;
       if(!eligible){await c.query("UPDATE relay_account_mail SET state='suppressed' WHERE id=$1",[m.id]);return {suppressed:true};}
       const token=m.purpose==='changed'?null:randomBytes(32).toString('hex');
@@ -49,15 +54,24 @@ export function createAccountMail(store,{enabled=false,origin,deliver,preview=fa
      });
      if(!job)break;if(job.suppressed)continue;
      const message=accountMessage(job.purpose,origin,job.token,job.setup);
+     const attempt=(job.attempts??0)+1;
      try{
-      const result=await deliver({id:job.id,to:job.email,subject:message.subject,text:message.text});
+      const result=await deliver({id:job.id,attempt,to:job.email,subject:message.subject,text:message.text});
       if(!result?.id)throw Error('Email acceptance not confirmed.');
-      await store.query("UPDATE relay_account_mail SET state='accepted',provider_id=$2 WHERE id=$1",[job.id,String(result.id).slice(0,200)]);
+      await store.query("UPDATE relay_account_mail SET state='accepted',provider_id=$2,attempts=$3,last_error=NULL,next_attempt_at=NULL WHERE id=$1",[job.id,String(result.id).slice(0,200),attempt]);
       if(job.setup)console.info('Admin setup email accepted by delivery provider.');
       if(preview){const items=previews.get(job.customer_id)??[];previews.set(job.customer_id,[{id:job.id,...message,purpose:job.purpose},...items].slice(0,3));}
-     }catch{
-      await store.query("UPDATE relay_account_mail SET state='unknown' WHERE id=$1",[job.id]);
-      if(job.setup)console.warn('Admin setup email delivery unconfirmed; no automatic retry.');
+     }catch(e){
+      const detail=failureText(e);
+      if(attempt<MAX_ATTEMPTS){
+        // Stay queued and try again later. The row keeps its own reason so the next attempt is explainable.
+        const wait=BACKOFF_SECONDS[Math.min(attempt-1,BACKOFF_SECONDS.length-1)];
+        await store.query("UPDATE relay_account_mail SET state='queued',attempts=$2,last_error=$3,next_attempt_at=now()+($4::integer*interval '1 second') WHERE id=$1",[job.id,attempt,detail,wait]);
+        console.warn(`Account email delivery deferred (attempt ${attempt} of ${MAX_ATTEMPTS}):`,detail);
+      }else{
+        await store.query("UPDATE relay_account_mail SET state='unknown',attempts=$2,last_error=$3,next_attempt_at=NULL WHERE id=$1",[job.id,attempt,detail]);
+        console.warn(`Account email delivery abandoned after ${attempt} attempts:`,detail);
+      }
      }
     }
    }finally{running=false;}

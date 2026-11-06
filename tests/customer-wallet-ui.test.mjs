@@ -132,7 +132,7 @@ test('wallet styles are isolated, mobile-ready and the original app shell is int
   assert.match(css, /@media \(max-width:640px\)[\s\S]*\.cw-card/); assert.match(css, /min-height:46px/);
   const app = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
   for (const original of ["import MyAgents from './MyAgents'", "import ArcWallets from './ArcWallets'", "import Payments from './Payments'", "import WalletTools from './WalletTools'", "'Wallet & quotes'", "'Friend testing'", "'Notifications'", "'My agents'"]) assert.ok(app.includes(original), original);
-  assert.match(app, /\.\.\.\(state\?\.customerWallet\?\.enabled\?\[\['My wallet','wallet'\]\]:\[\]\)/, 'the navigation item depends only on the wallet being enabled, not on a customer account');
+  assert.match(app, /state\?\.customerWallet\?\.enabled\|\|state\?\.customerWallet\?\.reason==='email_unverified'\?\[\['My wallet','wallet'\]\]:\[\]\)/, 'the navigation item shows for a live wallet, and for a customer whose only remaining step is verifying their email');
   assert.doesNotMatch(app, /customerWallet\?\.enabled&&state\?\.account/); assert.match(app, /onBridge=\{\(\)=>setPage\('Arc agentic wallets'\)\}/);
   assert.ok(readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8').length > 1000, 'original styles untouched');
 });
@@ -177,4 +177,13 @@ test('Move USDC to Arc: no default destination (never the Base wallet\'s own add
     const off = text(render({account, agents: [], customerWallet: {...live, bridge: {available: false, reason: 'The live Base to Arc transport is not installed in this deployment.', items: []}}}));
     assert.match(off, /Not available yet/); assert.doesNotMatch(off, /I control this address/);
   } finally { await f.close(); }
+});
+
+test('an unverified customer is told the wallet is waiting on their email, not left with a missing page', async () => {
+  const {render} = await loader();
+  const t = text(render({account, agents: [], customerWallet: {enabled: false, unavailable: true, reason: 'email_unverified'}}));
+  assert.match(t, /Verify your email to open your wallet/i);
+  assert.match(t, /Account security/i);
+  assert.doesNotMatch(t, /not available in this environment|Please try again later/i, 'the generic outage wording must not be used for a fixable account state');
+  assert.doesNotMatch(t, /Create my wallet|Continue setup/i, 'nothing can be created before the email is confirmed');
 });

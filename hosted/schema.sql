@@ -101,3 +101,11 @@ CREATE TABLE IF NOT EXISTS relay_customer_profiles (
  picture text CHECK(picture IS NULL OR length(picture)<=110000),
  updated_at timestamptz NOT NULL DEFAULT now()
 );
+
+-- Account email delivery is retried a bounded number of times before it is abandoned, and the provider's own reason is
+-- kept so a failed verification can be explained instead of disappearing. Idempotent: applied on every boot.
+ALTER TABLE relay_account_mail ADD COLUMN IF NOT EXISTS attempts integer NOT NULL DEFAULT 0;
+ALTER TABLE relay_account_mail ADD COLUMN IF NOT EXISTS last_error text;
+ALTER TABLE relay_account_mail ADD COLUMN IF NOT EXISTS next_attempt_at timestamptz;
+CREATE INDEX IF NOT EXISTS relay_account_mail_ready ON relay_account_mail(state,next_attempt_at);
+INSERT INTO relay_schema(version) VALUES(5) ON CONFLICT DO NOTHING;

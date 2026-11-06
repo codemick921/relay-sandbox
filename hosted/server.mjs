@@ -107,7 +107,10 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
   if(connections&&owner.startsWith('customer:'))state.agentConnections=await connections.list(owner);
   if(walletBalances&&owner.startsWith('customer:'))state.walletBalances=await walletBalances.state(owner);
   if(arcFunding)state.arcFunding=await arcFunding.state(owner);
-  if(customerWallet){if(await walletAllowed(owner))state.customerWallet=await customerWallet.state(owner);}
+  if(customerWallet){if(await walletAllowed(owner))state.customerWallet=await customerWallet.state(owner);
+   // A verified email is the last thing standing between this customer and the wallet. Say so, instead of leaving the
+   // navigation entry missing with no explanation.
+   else if(adminAccount&&!adminAccount.emailVerified)state.customerWallet={enabled:false,unavailable:true,reason:'email_unverified'};}
   else if(customerWalletStatus&&customerWalletStatus.reason==='misconfigured'&&owner?.startsWith('customer:'))state.customerWallet={enabled:false,unavailable:true};
   const testAccess=await invites.status(owner);
   if(testAccess){const canLive=!testAccess.revoked&&testAccess.allowLive&&testAccess.mode==='live';state={...state,testAccess:{...testAccess,realFundingAvailable:!!liveObservation?.funding},paymentsDisabled:state.paymentsDisabled||!canLive,liveFunding:state.liveFunding?{...state.liveFunding,paymentsEnabled:state.liveFunding.paymentsEnabled&&canLive}:undefined,fundingJourneyEnabled:state.fundingJourneyEnabled&&!testAccess.revoked&&testAccess.mode==='simulation'};}

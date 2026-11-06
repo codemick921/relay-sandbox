@@ -42,10 +42,10 @@ test('expired, replaced, disabled and version-stale links cannot change an accou
  await f.store.query('UPDATE relay_customers SET disabled=true');await assert.rejects(s.a.verifyEmail({linkToken:third},changed.token),e=>e.status===401);
  }finally{await f.close();}
 });
-test('disabled mail makes no calls, uncertain delivery is retained without retries, and duplicate queue requests collapse',async()=>{
+test('disabled mail makes no calls, a failed send is deferred rather than lost, and duplicate queue requests collapse',async()=>{
  const f=await fixture();try{let calls=0;const disabled=configuredAccountMail(f.store,{}, {fetchImpl:()=>{calls++;throw Error('network');}}),a=createAccounts(f.store,{mail:disabled}),u=await a.signup(signup('disabled@example.test'));
  await disabled.tick();assert.equal(calls,0);assert.equal((await f.store.query('SELECT * FROM relay_account_mail')).rows.length,0);await assert.rejects(a.requestReset({email:u.account.email}),e=>e.status===503);
- const s=setup(f.store,{deliver:async()=>{calls++;throw Error('unknown outcome');}});await s.a.requestVerification({},u.token);await s.a.requestVerification({},u.token);await s.mail.tick();await s.mail.tick();assert.equal(calls,1);const rows=(await f.store.query('SELECT * FROM relay_account_mail')).rows;assert.equal(rows.length,1);assert.equal(rows[0].state,'unknown');assert.ok(rows[0].token_hash);
+ const s=setup(f.store,{deliver:async()=>{calls++;throw Error('unknown outcome');}});await s.a.requestVerification({},u.token);await s.a.requestVerification({},u.token);await s.mail.tick();await s.mail.tick();assert.equal(calls,1,'a deferred row is not re-sent while it is backing off');const rows=(await f.store.query('SELECT * FROM relay_account_mail')).rows;assert.equal(rows.length,1);assert.equal(rows[0].state,'queued');assert.equal(rows[0].attempts,1);assert.match(rows[0].last_error,/unknown outcome/);assert.ok(rows[0].token_hash);
  }finally{await f.close();}
 });
 test('concurrent workers send once; simultaneous reset consumes once on PostgreSQL',{skip:!process.env.TEST_DATABASE_URL},async()=>{
@@ -78,5 +78,31 @@ test('existing sender settings remain compatible after rebranding without changi
   await createAccounts(f.store,{mail}).signup(signup('legacy-sender@example.test'));await mail.tick();
   assert.equal(calls.length,1);assert.equal(calls[0].from,'Eupova <account@example.test>');assert.equal(env.ACCOUNT_EMAIL_FROM,'Relay <account@example.test>');
   assert.throws(()=>configuredAccountMail(f.store,{...env,ACCOUNT_EMAIL_FROM:'Eupova <account@example.test>\r\nBcc: stolen@example.test'}),/incomplete/);
+ }finally{await f.close();}
+});
+
+test('a rejected send is retried a bounded number of times, keeps the provider reason, then stops',async()=>{
+ const f=await fixture();try{
+  const seen=[];let calls=0;
+  const mail=createAccountMail(f.store,{enabled:true,origin:'https://relay.example',deliver:async m=>{calls++;seen.push(m);throw Error('Email acceptance not confirmed: HTTP 403 {"message":"The eupova.com domain is not verified"}');}});
+  const a=createAccounts(f.store,{mail});
+  const u=await a.signup(signup('retry@example.test'));
+  const row=async()=>(await f.store.query('SELECT * FROM relay_account_mail WHERE customer_id=$1 ORDER BY created_at DESC LIMIT 1',[u.account.id])).rows[0];
+  await mail.tick();                                   // attempt 1 fails and is deferred, not abandoned
+  let r=await row();assert.equal(calls,1);assert.equal(r.state,'queued');assert.equal(r.attempts,1);assert.match(r.last_error,/HTTP 403/);assert.ok(r.next_attempt_at);
+  await mail.tick();                                   // still backing off: no second call
+  assert.equal(calls,1);
+  await f.store.query("UPDATE relay_account_mail SET next_attempt_at=now()-interval '1 second'");
+  await mail.tick();r=await row();assert.equal(calls,2);assert.equal(r.attempts,2);assert.equal(r.state,'queued');
+  await f.store.query("UPDATE relay_account_mail SET next_attempt_at=now()-interval '1 second'");
+  await mail.tick();r=await row();assert.equal(calls,3);assert.equal(r.attempts,3);assert.equal(r.state,'unknown');assert.match(r.last_error,/not verified/);
+  await f.store.query("UPDATE relay_account_mail SET next_attempt_at=now()-interval '1 second'");
+  await mail.tick();assert.equal(calls,3,'an abandoned send is never retried again');
+  // a later request still works and clears the failure record
+  await f.store.query("UPDATE relay_account_mail SET created_at=now()-interval '2 minutes'");
+  const ok=createAccountMail(f.store,{enabled:true,origin:'https://relay.example',deliver:async m=>({id:'accepted-'+m.id})});
+  const a2=createAccounts(f.store,{mail:ok});await a2.requestVerification({},u.token);await ok.tick();
+  const after=(await f.store.query("SELECT * FROM relay_account_mail WHERE customer_id=$1 AND state='accepted' ORDER BY created_at DESC LIMIT 1",[u.account.id])).rows[0];
+  assert.ok(after);assert.equal(after.last_error,null);assert.equal(after.attempts,1);
  }finally{await f.close();}
 });

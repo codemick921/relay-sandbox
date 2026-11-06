@@ -67,10 +67,10 @@ test('admin configuration defaults off and rejects malformed or duplicate email 
  for(const value of ['{}','["admin"]','["Admin@example.test"]',JSON.stringify([email,email])])assert.throws(()=>config({...env,EUPOVA_ACCOUNT_ADMINS:value}));
 });
 
-test('setup delivery failure is retained without automatic retry; expired or disabled setup cannot activate',async()=>{
+test('setup delivery failure is deferred rather than lost; expired or disabled setup cannot activate',async()=>{
  const f=await fixture();try{
   let attempts=0;const mail=createAccountMail(f.store,{enabled:true,origin:'https://eupova.example',deliver:async()=>{attempts++;throw Error('uncertain');}}),a=createAccounts(f.store,{mail,adminEmails:[email]});
-  await a.provisionAdmin(email);await mail.tick();await mail.tick();await a.provisionAdmin(email);await mail.tick();assert.equal(attempts,1);assert.equal((await f.store.query('SELECT state FROM relay_account_mail')).rows[0].state,'unknown');
+  await a.provisionAdmin(email);await mail.tick();await mail.tick();await a.provisionAdmin(email);await mail.tick();assert.equal(attempts,1,'the deferred row is not re-sent while it backs off, and a repeat request does not add one');const r=(await f.store.query('SELECT state,attempts,last_error FROM relay_account_mail')).rows[0];assert.equal(r.state,'queued');assert.equal(r.attempts,1);assert.match(r.last_error,/uncertain/);
  }finally{await f.close();}
  const g=await setup();try{await g.a.provisionAdmin(email);await g.mail.tick();await g.store.query('UPDATE relay_customers SET disabled=true WHERE email=$1',[email]);await assert.rejects(g.a.resetPassword({linkToken:extract(g.sent[0]),password}),e=>e.status===400);}finally{await g.close();}
 });
