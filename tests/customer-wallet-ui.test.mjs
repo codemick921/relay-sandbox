@@ -156,3 +156,25 @@ test('activity shows an amount only for money that moved; waiting, declined and 
     assert.doesNotMatch(text(render({account, agents: [], customerWallet: cw})), /Bridge and recovery tools/);
   } finally { await vite.close(); await f.close(); }
 });
+
+test('Move USDC to Arc: no default destination (never the Base wallet\'s own address), an explicit network review and a confirmation before anything can be sent', async () => {
+  const {render} = await loader(); const f = await setup();
+  try {
+    await funded(f, owner, 5000);
+    const base = await f.cw.state(owner);
+    const live = {...base, simulated: false, live: true, wallet: {...base.wallet, simulated: false, status: 'ready', address: '0x' + 'ab'.repeat(20)},
+      bridge: {available: true, reason: null, route: {label: 'Base to Arc (mainnet, real money)', environment: 'mainnet', destination: 'Arc', chainId: 5042}, items: []}};
+    const html = render({account, agents: [], customerWallet: live});
+    const t = text(html);
+    assert.match(t, /Move USDC to Arc/); assert.match(t, /Destination network: Arc \(mainnet, real money\) · chain 5042/);
+    assert.match(t, /I control this address on Arc and have checked every character/);
+    const form = html.slice(html.indexOf('id="cw-bridge"'), html.indexOf('</form>', html.indexOf('id="cw-bridge"')));
+    assert.ok(!form.includes('ab'.repeat(20)), 'the wallet\'s own Base address is not offered, prefilled or used as a placeholder');
+    assert.match(form, /<input[^>]*type="checkbox"[^>]*>/); assert.doesNotMatch(form, /checked=""/, 'not pre-confirmed');
+    assert.match(form, /<button[^>]*disabled=""[^>]*>Review move<\/button>/, 'cannot be submitted until an address is typed and confirmed');
+    assert.match(readFileSync(new URL('../src/WalletBridge.jsx', import.meta.url), 'utf8'), /confirmDestination: form\.confirmed === true/);
+    // An unavailable move says why and offers no form at all.
+    const off = text(render({account, agents: [], customerWallet: {...live, bridge: {available: false, reason: 'The live Base to Arc transport is not installed in this deployment.', items: []}}}));
+    assert.match(off, /Not available yet/); assert.doesNotMatch(off, /I control this address/);
+  } finally { await f.close(); }
+});
