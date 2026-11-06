@@ -240,7 +240,17 @@ parameter encodings used (`bytes32`, `bytes`) and the idempotent replay of a cha
 Arc's `finalized` block tag (a depth fallback is used if the RPC lacks it). All of these were checked only against the installed SDK types (including the real
 adapter's own call sites), Circle's published documents and an in-memory stub of the transports.
 
+### First live attempt, 6 November 2026
+
+`Create my wallet` failed with the generic 503 and showed no reason. The cause was the derived Circle user id: `eupova-ucw-`
+plus a 40-character digest is 51 characters, one over the 50-character `ExternalUserId` limit in Circle's OpenAPI document,
+so every `createUser` was rejected before a wallet could exist. The digest now keeps 39 characters and the id lands on 50.
+The adapter test asserts the limit, so it cannot drift back unnoticed.
+
+Wallet steps now return the provider's HTTP status and numeric code with the failure, and log the same line, so the next
+rejection names itself instead of reading as an outage.
+
 ## Packaging
 
 `package.json` pins `@circle-fin/user-controlled-wallets` 10.8.1 and `@circle-fin/w3s-pw-web-sdk` 1.1.11 (plus the Bridge Kit packages
-added earlier). `package-lock.json` is stale for them; npm is not available in this workspace. The Render build uses `npm ci`.
+added earlier). `package-lock.json` was regenerated and committed so the Render build's `npm ci` resolves these versions.

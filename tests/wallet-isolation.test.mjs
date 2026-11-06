@@ -61,6 +61,9 @@ test('docs state the model plainly, list the exact settings and blockers, and do
   assert.doesNotMatch(doc, /Circle integration is (complete|done|finished)|custody is undecided|go-ahead|reviewer/i);
   const render = read('render.yaml');
   for (const k of ['EUPOVA_WALLET_MODE', 'EUPOVA_WALLET_NETWORK', 'EUPOVA_CIRCLE_UCW_API_KEY', 'EUPOVA_CIRCLE_UCW_APP_ID', 'EUPOVA_CIRCLE_UCW_USER_ID_SECRET']) assert.ok(render.includes(k), k);
-  assert.match(render, /key: EUPOVA_WALLET_MODE\n\s+value: "off"/, 'off by default');
+  // The mode is owned by the Render dashboard (sync: false), so a blueprint sync cannot switch the wallet on, and no
+  // value or key can be committed here. This replaced an earlier assertion that the blueprint carried value: "off".
+  assert.match(render, /key: EUPOVA_WALLET_MODE\n\s+sync: false/, 'mode comes from the dashboard, never the blueprint');
+  assert.doesNotMatch(render, /key: EUPOVA_WALLET_MODE\n\s+value:/, 'no committed mode value');
   assert.doesNotMatch(render, /API_KEY:\w|LIVE_API_KEY|TEST_API_KEY/);
 });

@@ -50,6 +50,10 @@ const dist=fileURLToPath(new URL('../dist/',import.meta.url));
 const uuid=v=>typeof v==='string'&&/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(v);
 async function body(req,max=16384){let size=0;const chunks=[];for await(const chunk of req){size+=chunk.length;if(size>max)throw new InputError('Request too large.',413);chunks.push(chunk);}return Buffer.concat(chunks);}
 const send=(res,status,data)=>{res.writeHead(status,{'Content-Type':'application/json'});res.end(JSON.stringify(data));};
+// A rejected Circle call and a Circle outage both arrive as a generic 503, which leaves the owner with nothing to act on.
+// This keeps the provider's HTTP status and numeric code (never a credential, token, user token or request body) so the
+// failure can be matched to Circle's error reference. The message is truncated: it is Circle's own text, not ours.
+const providerDetail=e=>{const r=e?.response;if(!r)return null;return {httpStatus:r.status??null,code:r.data?.code??null,message:typeof r.data?.message==='string'?r.data.message.slice(0,200):null};};
 export function createHostedServer({store,config,pay=createSandboxPayService(),staticRoot=dist,allowHttpForTests=false,tracking=null,paymentsDisabled=false,localPreview=false,accountMail=null,customerAccountsEnabled=true,peerConnection=null,fundingDrafts=null,liveObservation=null,ramp=null,walletBalances=null,buyerAuth=null,buyerStatus=null,buyerConnection=null,targetCalculator=null,personalisedQuotes=null,walletSetup=null,walletSetupClaims=null,walletBootstrap=null,walletFlow=null,nativePrivy=null,agentCallbacks=null,arcFunding=null,customerWallet=null,customerWalletStatus=null}){
  const walletFrames=customerWallet?.live?customerWallet.webSdkFrameOrigins??[]:[];
  const origin=new URL(config.origin),mail=accountMail??createAccountMail(store),accounts=customerAccountsEnabled?createAccounts(store,{mail,adminEmails:config.accountAdmins??[]}):null;
@@ -408,7 +412,12 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
     if(w.simulated)routes['add-money']=()=>w.addTestMoney(owner,b);// test money exists only in the simulation
     else{routes['finish-setup']=()=>w.finishSetup(owner);routes['resume-setup']=()=>w.resumeSetup(owner);routes['payments/resume']=()=>w.payments.resumeChallenge(owner,b.id);}
     if(!Object.hasOwn(routes,sub))throw new InputError('Not found.',404);
-    const result=await routes[sub]();
+    let result;
+    try{result=await routes[sub]();}
+    catch(e){const detail=providerDetail(e);if(!detail)throw e;
+      console.error('Customer wallet step failed:',sub,JSON.stringify(detail));
+      const failure=new InputError('The wallet service could not complete that step.'+(detail.message?' '+detail.message:'')+(detail.code?' (Circle '+detail.code+')':''),503);
+      failure.provider={...detail,trace:'wallet:'+sub};throw failure;}
     res.setHeader('Cache-Control','no-store');
     return send(res,200,{...await stateFor(owner),account:customer?.account??null,selectedWalletId:result.id,walletChallenge:result.challenge??null});
    }
@@ -463,7 +472,7 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
     default:throw new InputError('Not found.',404);
    }
    return send(res,200,{...await stateFor(owner),account:customer?.account??null});
-  }catch(e){if(!res.headersSent)send(res,e instanceof InputError?e.status:e.code==='ENOENT'?404:503,{error:e instanceof InputError?e.message:'Service temporarily unavailable. Your saved records are retained.'});else res.end();}
+  }catch(e){if(!res.headersSent)send(res,e instanceof InputError?e.status:e.code==='ENOENT'?404:503,{error:e instanceof InputError?e.message:'Service temporarily unavailable. Your saved records are retained.',...(e?.provider?{provider:e.provider}:{})});else res.end();}
  });
  server.requestTimeout=20000;server.headersTimeout=15000;
  return server;

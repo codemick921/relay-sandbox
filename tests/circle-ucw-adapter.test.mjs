@@ -140,7 +140,10 @@ for (const [label, config] of [['Base Sepolia', GOOD], ['Base mainnet', MAIN]]) 
     await withStub({chain: net.circleChain, balances: [tok(net), eth(net)]}, async ({calls, st}) => {
       const p = build(config);
       assert.equal(p.network.id, config.network); assert.equal(p.network.environment, config.network === 'base' ? 'mainnet' : 'testnet');
-      assert.notEqual(p.userIdFor(A), p.userIdFor(B)); assert.match(p.userIdFor(A), /^eupova-ucw-[0-9a-f]{40}$/); assert.ok(!p.userIdFor(A).includes('aaaaaaaa'));
+      assert.notEqual(p.userIdFor(A), p.userIdFor(B)); assert.match(p.userIdFor(A), /^eupova-ucw-[0-9a-f]{39}$/); assert.ok(!p.userIdFor(A).includes('aaaaaaaa'));
+      // Circle's ExternalUserId is 5 to 50 characters. Going over is a live 400 that reads as a generic 503 in the app.
+      assert.ok(p.userIdFor(A).length <= 50, `userId is ${p.userIdFor(A).length} characters; Circle allows at most 50`);
+      assert.ok(p.userIdFor(A).length >= 5);
       const s1 = await p.startSession(A), s2 = await p.startSession(A);
       assert.equal(s1.userToken, 'tok-' + p.userIdFor(A)); assert.equal(s2.userToken, s1.userToken, 'a repeat user (155101) is tolerated');
       const requestId = randomUUID();

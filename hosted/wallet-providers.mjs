@@ -20,6 +20,10 @@ const uuidFrom = text => {
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-8${h.slice(17, 20)}-${h.slice(20, 32)}`;
 };
 
+// Circle's ExternalUserId is 5 to 50 characters. Eupova's own prefix plus a digest must fit inside that.
+export const USER_ID_PREFIX = 'eupova-ucw-';
+export const USER_ID_MAX = 50;
+
 // ---- simulated ------------------------------------------------------------------------------------------
 // outcome(payment) lets tests choose: 'success' (default), 'definite_failure', 'unknown', 'throw'.
 export function createSimulatedWalletProvider({outcome = () => 'success'} = {}) {
@@ -124,7 +128,9 @@ export function createCircleUserControlledProvider({config, sdkFactory}) {
   const net = check.network;
   const client = sdkFactory({apiKey: config.apiKey, ...(config.baseUrl ? {baseUrl: config.baseUrl} : {})});
   // Per-customer binding: an opaque, stable id derived on the server from the authenticated owner.
-  const userIdFor = owner => 'eupova-ucw-' + createHmac('sha256', config.userIdSecret).update('user:' + owner).digest('hex').slice(0, 40);
+  // Circle caps its ExternalUserId at 50 characters (openapi: maxLength 50). The prefix is 11, so the digest keeps 39.
+  // 11 + 40 was 51 and the live API refused every createUser with it, which surfaced as a generic 503 in the wallet.
+  const userIdFor = owner => USER_ID_PREFIX + createHmac('sha256', config.userIdSecret).update('user:' + owner).digest('hex').slice(0, USER_ID_MAX - USER_ID_PREFIX.length);
 
   async function session(owner) {
     const userId = userIdFor(owner);
