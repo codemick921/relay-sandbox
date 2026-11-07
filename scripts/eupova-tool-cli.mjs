@@ -6,6 +6,7 @@
 //   node scripts/eupova-tool-cli.mjs enrol-wait
 //   node scripts/eupova-tool-cli.mjs allowance
 //   node scripts/eupova-tool-cli.mjs pay --service "Weather API" --to 0x... --amount 1.25 --max-fee 0.05
+//   node scripts/eupova-tool-cli.mjs x402 --url https://app.eupova.com/x402-test/premium
 //   node scripts/eupova-tool-cli.mjs wait <payment-id>
 //   node scripts/eupova-tool-cli.mjs forget            (delete the local credential; the owner revokes in Eupova)
 //
@@ -72,6 +73,18 @@ if (cmd === 'enrol') {
   if (r.status >= 400) die(`Refused (${r.status}): ${r.json.error ?? 'error'}`);
   show(r.json);
   console.log(r.json.status === 'awaiting_approval' ? `\nWaiting for the owner to approve in Eupova. Check with: wait ${r.json.id}\nIdempotency key: ${key}` : '');
+} else if (cmd === 'x402') {
+  // Pay for a URL: Eupova reads the 402, checks it, and asks the owner. The tool never sees a price before the
+  // request is created, and never sees a signature at all.
+  const c = await need(); const key = opts.key ?? randomUUID();
+  if (!opts.url) die('Give the resource: x402 --url https://...');
+  let r;
+  try { r = await call(c.base, 'POST', 'x402', {token: c.token, body: {url: opts.url}, headers: {'idempotency-key': key}}); } catch {
+    die(`The result is uncertain (no response). Do NOT repeat with a different key. Check with --key ${key}.`, 2);
+  }
+  if (r.status >= 400) die(`Refused (${r.status}): ${r.json.error ?? 'error'}${(r.json.problems ?? []).length ? '\n  ' + r.json.problems.join('\n  ') : ''}`);
+  if (r.json.free) { console.log(`No payment needed (${r.json.status}). Content-Type: ${r.json.contentType || 'unknown'}`); console.log(r.json.body); }
+  else { show(r.json); console.log(`\nWaiting for the owner to approve and sign in Eupova. Check with: wait ${r.json.id}\nIdempotency key: ${key}`); }
 } else if (cmd === 'status' || cmd === 'wait') {
   const c = await need(); const id = args[0] ?? die('Give the request id.');
   const deadline = Date.now() + Number(opts.timeout ?? (cmd === 'wait' ? 900 : 0)) * 1000;
@@ -84,6 +97,6 @@ if (cmd === 'enrol') {
 } else if (cmd === 'forget') {
   await rm(CRED, {force: true}); await rm(PENDING, {force: true}); console.log('Local credential deleted. To stop it working everywhere, disconnect the tool in Eupova.');
 } else {
-  console.log('Commands: enrol --url URL --name NAME | enrol-wait | allowance | pay --service S --to ADDR --amount N [--max-fee N] [--key K] | status ID | wait ID | forget');
+  console.log('Commands: enrol --url URL --name NAME | enrol-wait | allowance | pay --service S --to ADDR --amount N [--max-fee N] [--key K] | x402 --url URL [--key K] | status ID | wait ID | forget');
   process.exit(cmd ? 1 : 0);
 }
