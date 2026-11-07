@@ -1,4 +1,5 @@
 import {createAdmin,isAccountAdmin} from './admin.mjs';
+import {requirementFor,checkPayment,settlementReceipt,receiptHeader,TEST_SELLER_PATH} from './x402-test-seller.mjs';
 import {contentSecurityPolicy} from './wallet-csp.mjs';
 import {configuredNativePrivy} from '../server/quote-first/native-privy-http.mjs';
 import {webTrackingEnabled} from './tracking-worker.mjs';
@@ -185,6 +186,24 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
     const event=verifyWebhook(await body(req,262144),req.headers,config.webhook);
     if(event.environment!=='SANDBOX')throw new InputError('Sandbox webhook required.',403);
     const accepted=await store.accept(event);return send(res,202,{accepted:true,...accepted});
+   }
+   // A test seller we own, so the first live payment can be made against something we control. Off unless the agent
+   // payments feature and a payee address are both configured. It checks the authorization it is given and delivers,
+   // but it does not settle: its receipt says so, and the buyer's ledger records that as a claim, not proof.
+   if(url.pathname===TEST_SELLER_PATH){
+    if(process.env.EUPOVA_X402_ENABLED!=='true')throw new InputError('Not found.',404);
+    const payTo=process.env.EUPOVA_X402_TEST_PAYTO??'';
+    if(!/^0x[0-9a-fA-F]{40}$/.test(payTo))throw new InputError('The test seller has no payee address.',503);
+    if(req.method!=='GET'&&req.method!=='POST')throw new InputError('Method not allowed.',405);
+    const asked=requirementFor({payTo,url:`https://${req.headers.host??'app.eupova.com'}${TEST_SELLER_PATH}`});
+    const offered=req.headers['payment-signature'];
+    const checked=checkPayment({header:offered,requirement:asked.accepts[0]});
+    if(!checked.ok){
+      res.setHeader('PAYMENT-REQUIRED',Buffer.from(JSON.stringify(asked),'utf8').toString('base64'));
+      return send(res,402,{error:checked.reason,accepts:asked.accepts});
+    }
+    res.setHeader('PAYMENT-RESPONSE',receiptHeader(settlementReceipt(checked)));
+    return send(res,200,{delivered:true,paidBy:checked.from,simulated:true,note:'Test seller: the authorization was checked, nothing was submitted on chain.'});
    }
    if(!url.pathname.startsWith('/api/')){
     if(req.method!=='GET')throw new InputError('Not found.',404);
