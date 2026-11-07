@@ -94,7 +94,7 @@
 .cw-amount{border-top:1px solid var(--border);padding-top:18px}
 .cw-amount-label{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:2px}
 .cw-amount-row{display:flex;align-items:baseline;gap:10px}
-.cw-amount-input{flex:1;min-width:0;border:0;background:transparent;padding:4px 0;font-size:44px;font-weight:650;letter-spacing:-1.6px;color:var(--ink);font-variant-numeric:tabular-nums}
+.cw-amount-input{flex:0 1 auto;width:auto;min-width:4ch;max-width:100%;field-sizing:content;border:0;background:transparent;padding:4px 0;font-size:44px;font-weight:650;letter-spacing:-1.6px;color:var(--ink);font-variant-numeric:tabular-nums}
 .cw-amount-input:focus{outline:0;border-radius:8px;box-shadow:0 0 0 3px #769b4340}
 .cw-amount-unit{font-size:18px;font-weight:600;color:var(--muted)}
 .cw-bridge-dest{display:grid;gap:8px;border-top:1px solid var(--border);padding-top:16px}
