@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync, readdirSync} from 'node:fs';
 
 const read = f => readFileSync(new URL('../' + f, import.meta.url), 'utf8');
-const SERVER = ['shared/wallet-model.mjs', 'hosted/wallet-providers.mjs', 'hosted/customer-wallet.mjs', 'hosted/wallet-payments.mjs', 'hosted/wallet-tools.mjs', 'hosted/wallet-fixtures.mjs', 'hosted/wallet-bridge.mjs', 'shared/wallet-bridge-route.mjs', 'hosted/x402-challenge.mjs', 'hosted/x402-eip3009.mjs'];
+const SERVER = ['shared/wallet-model.mjs', 'hosted/wallet-providers.mjs', 'hosted/customer-wallet.mjs', 'hosted/wallet-payments.mjs', 'hosted/wallet-tools.mjs', 'hosted/wallet-fixtures.mjs', 'hosted/wallet-bridge.mjs', 'shared/wallet-bridge-route.mjs', 'hosted/x402-challenge.mjs', 'hosted/x402-eip3009.mjs', 'hosted/x402-approval.mjs'];
 const BROWSER = ['src/wallet-view.mjs', 'src/circle-challenge.mjs', 'src/CustomerWallet.jsx', 'src/WalletApprovals.jsx', 'src/WalletConnectedTools.jsx', 'src/WalletProviderSettings.jsx'];
 
 test('the wallet code reads no environment, opens no network connection, holds no key, and logs nothing', () => {
