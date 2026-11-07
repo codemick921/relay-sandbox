@@ -3,7 +3,7 @@
 // under a per-wallet lock; the allowance row also carries a database CHECK (spent + reserved <= amount) as a
 // second line of defence. Execution fails closed: an uncertain outcome is never retried automatically.
 import {createHash, randomUUID} from 'node:crypto';
-import {canChallenge, completeApproval} from './x402-approval.mjs';
+import {canChallenge, completeApproval, prepareApproval} from './x402-approval.mjs';
 import {executeX402} from './x402-pay.mjs';
 import {InputError} from '../server/validation.mjs';
 import {
@@ -335,7 +335,12 @@ export function createWalletPayments({tx, query, provider, simulated, net, clock
           return {error: 'This request lapsed. Ask for a new one.', code: 409};
         }
         if (input.decision === 'decline') {
-          await c.query("UPDATE relay_cw_payments SET status='declined',decided_at=now(),updated_at=now() WHERE id=$1", [p.id]);
+          // An x402 approval reserves the allowance the moment it starts. Declining has to give that back, or a payment
+          // the customer never made quietly eats into what the tool is allowed to ask for.
+          if (p.kind === 'x402' && p.allowance_id && big(p.reserved_raw) > 0n) {
+            await c.query('UPDATE relay_cw_allowances SET reserved_raw=greatest(reserved_raw-$2,0),updated_at=now() WHERE id=$1', [p.allowance_id, big(p.reserved_raw).toString()]);
+          }
+          await c.query("UPDATE relay_cw_payments SET status='declined',decided_at=now(),reserved_raw=0,updated_at=now() WHERE id=$1", [p.id]);
           await note(c, owner, p.wallet_id, p.id, 'payment_declined', `${p.service}: you declined. Nothing was paid.`);
           return {id: p.id};
         }
@@ -343,7 +348,13 @@ export function createWalletPayments({tx, query, provider, simulated, net, clock
         // reserve first, then ask the wallet. The provider call happens outside this transaction, like run() does.
         if (p.kind === 'x402') {
           if (simulated) return {error: 'Agent payments do not exist in the simulated wallet.', code: 409};
-          const x = p.x402 ?? {};
+          let x = p.x402 ?? {};
+          // A challenge that lapsed is not a decision the customer made. Let the authorization be rebuilt rather than
+          // trapping the payment in a state nobody can move.
+          if (x.step === 'challenged' && Number(x.authorization?.validBefore) <= Math.floor(clock().getTime() / 1000)) {
+            const rebuilt = prepareApproval({requirement: x.requirement, walletAddress: w.address, nowSeconds: Math.floor(clock().getTime() / 1000), chainId: net.chainId});
+            x = {...rebuilt, step: 'prepared', host: x.host, method: x.method, body: x.body};
+          }
           const can = canChallenge({...x, step: x.step ?? 'prepared'});
           if (!can.ok) return {error: can.reason, code: 409};
           const capX = big(p.cap_raw);
