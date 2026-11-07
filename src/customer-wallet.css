@@ -83,6 +83,13 @@
 .cw-card .cw-net--real{background:#ffd9c9;color:#6b210f}
 .cw-row-status{font-size:12px;color:var(--muted);text-transform:capitalize;white-space:nowrap}
 
+/* The Arc card's header. These two classes had no rules at all, so the title, the environment pill and the
+   route pills sat flush against one another. Three separate bands, each with room: title, then pill, then route. */
+.cw-panel{padding:28px}
+.cw-panel-head{display:grid;justify-items:start;gap:10px;margin:0 0 24px}
+.cw-panel-head h2{margin:0;line-height:1.15}
+.cw-panel-head .cw-pill{margin:0}
+
 /* Move USDC to Arc, laid out like Circle's bridge: one card, a From/To route, the amount as the hero, one action.
    Spacing follows one scale: 8px rhythm for components (4/8/12/16), 24px between blocks, 20px above a rule. */
 .cw-bridge-form{display:grid;gap:24px;max-width:520px}
