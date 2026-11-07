@@ -109,24 +109,3 @@ test('Send refuses bad input, precision problems and overspend, and is idempoten
     assert.equal(tp.capUsdc, '0.000001');
   } finally { await f.close(); }
 });
-
-test('an x402 payment can be declined but can never be approved into the transfer path', async () => {
-  const f = await setup(); try {
-    const w = await funded(f, owner, 20000);
-    const sent = await send(f, owner, {amount: '1.00', maxFee: '0.05'});
-    // The same ledger row, marked as an x402 payment, is what the signing path will create.
-    await f.store.query("UPDATE relay_cw_payments SET kind='x402' WHERE id=$1", [sent.id]);
-    const before = (await f.cw.state(owner)).payments.find(p => p.id === sent.id);
-    assert.equal(before.status, 'awaiting_approval');
-    await assert.rejects(
-      () => f.cw.payments.decide(owner, {id: sent.id, decision: 'approve', bindingHash: before.fingerprint}),
-      /not switched on/i,
-      'approving an x402 payment must never fall through into the transfer path',
-    );
-    assert.equal((await f.cw.state(owner)).payments.find(p => p.id === sent.id).status, 'awaiting_approval', 'nothing was decided, nothing was sent');
-    // Declining still works: a customer can always say no.
-    await f.cw.payments.decide(owner, {id: sent.id, decision: 'decline', bindingHash: before.fingerprint});
-    assert.equal((await f.cw.state(owner)).payments.find(p => p.id === sent.id).status, 'declined');
-    assert.equal(w, w);
-  } finally { await f.close(); }
-});

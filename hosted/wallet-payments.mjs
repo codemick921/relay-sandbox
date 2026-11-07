@@ -3,6 +3,7 @@
 // under a per-wallet lock; the allowance row also carries a database CHECK (spent + reserved <= amount) as a
 // second line of defence. Execution fails closed: an uncertain outcome is never retried automatically.
 import {createHash, randomUUID} from 'node:crypto';
+import {canChallenge, completeApproval} from './x402-approval.mjs';
 import {InputError} from '../server/validation.mjs';
 import {
   WALLET_LIMITS, paymentBinding, canonicalPayment, parseUsdc, serviceName, checkNetworkToken,
@@ -35,7 +36,9 @@ export function createWalletPayments({tx, query, provider, simulated, net, clock
     const binding = r.binding;
     const awaiting = r.status === 'awaiting_approval' && new Date(r.expires_at) > clock();
     return {
-      id: r.id, origin: r.origin, service: r.service, destination: r.destination, network: net.label, networkId: r.network, token: r.token,
+      id: r.id, origin: r.origin, kind: r.kind ?? 'transfer', service: r.service, destination: r.destination, network: net.label, networkId: r.network, token: r.token,
+      // For an x402 payment the customer is approving a call, not a transfer: show the host and the single-use promise.
+      ...(r.kind === 'x402' ? {x402: {host: r.x402?.host ?? null, payTo: r.destination, validForSeconds: r.x402?.requirement?.maxTimeoutSeconds ?? null, step: r.x402?.step ?? null}} : {}),
       amountUsdc: units(r.amount_raw), maxFeeUsdc: units(r.max_fee_raw), capUsdc: units(r.cap_raw),
       fee: {asset: r.fee_asset ?? 'USDC', usdcMax: units(r.max_fee_raw), nativeMax: r.fee_asset === 'ETH' ? nativeText(r.native_fee_cap_wei) : null, nativeSymbol: net.nativeSymbol, sponsored: r.fee_asset === 'sponsored'},
       environment: net.environment, mainnet: net.environment === 'mainnet', tokenAddress: net.usdc,
@@ -302,9 +305,26 @@ export function createWalletPayments({tx, query, provider, simulated, net, clock
           await note(c, owner, p.wallet_id, p.id, 'payment_declined', `${p.service}: you declined. Nothing was paid.`);
           return {id: p.id};
         }
-        // An x402 payment is approved by signing an authorization, not by sending a transfer. Until that path is wired,
-        // refuse rather than fall through into the transfer code, which would try to move money the wrong way.
-        if (p.kind === 'x402') return {error: 'Agent payments are not switched on yet. Nothing has been signed or sent.', code: 409};
+        // An x402 payment is approved by signing an authorization, not by sending a transfer. Same order as a transfer:
+        // reserve first, then ask the wallet. The provider call happens outside this transaction, like run() does.
+        if (p.kind === 'x402') {
+          if (simulated) return {error: 'Agent payments do not exist in the simulated wallet.', code: 409};
+          const x = p.x402 ?? {};
+          const can = canChallenge({...x, step: x.step ?? 'prepared'});
+          if (!can.ok) return {error: can.reason, code: 409};
+          const capX = big(p.cap_raw);
+          let balX; try { balX = await balanceOf(c, w); } catch { return {error: rejectReasons.fee_unavailable, code: 503}; }
+          if (balX - (await reservedTotal(c, w.id)) < capX) return reject('insufficient_balance');
+          try {
+            if (p.allowance_id) await c.query('UPDATE relay_cw_allowances SET reserved_raw=reserved_raw+$2,updated_at=now() WHERE id=$1', [p.allowance_id, capX.toString()]);
+          } catch (e) {
+            if (e.code !== '23514') throw e;
+            return {error: rejectReasons.over_allowance, code: 409};
+          }
+          await c.query("UPDATE relay_cw_payments SET x402=$2,reserved_raw=$3,decided_at=now(),updated_at=now() WHERE id=$1", [p.id, {...x, step: 'challenged'}, capX.toString()]);
+          await note(c, owner, p.wallet_id, p.id, 'payment_approved', `${p.service}: you approved paying ${units(p.amount_raw)} USDC for one call. Waiting for your signature.`);
+          return {id: p.id, signX402: true};
+        }
         // Recheck everything now, against the live rows. Fail closed.
         const problem = await liveProblem(c, owner, p, w);
         if (problem) {
@@ -339,6 +359,44 @@ export function createWalletPayments({tx, query, provider, simulated, net, clock
       });
       if (result.error) throw new InputError(result.error, result.code);
       if (result.run) return {id: result.id, ...(await run(owner, result.id) ?? {})};
+      if (result.signX402) {
+        // Outside the lock, like every other provider call. A challenge, never a signature.
+        const row = (await query('SELECT x402, wallet_id, service, amount_raw FROM relay_cw_payments WHERE id=$1', [result.id])).rows[0];
+        const w = (await query('SELECT provider_ref FROM relay_cw_wallets WHERE id=$1', [row.wallet_id])).rows[0];
+        const challenge = await provider.signTypedData({
+          owner, walletRef: w.provider_ref, typedData: row.x402.typedData, refId: result.id,
+          memo: `${serviceName(row.service)}: ${units(row.amount_raw)} USDC for one call`,
+        });
+        return {id: result.id, challenge};
+      }
+      return {id: result.id};
+    },
+
+    // The customer completed the signing step. Verify it against the record we hold, then keep it. The signature is
+    // single-use and time-bound, so a failed check is a security event: fail closed, release the reservation, and do
+    // not offer a second attempt on the same authorization.
+    async completeX402(owner, input) {
+      if (!uuid(input?.id) || typeof input.signature !== 'string') throw new InputError('Check the request.');
+      const result = await tx(async c => {
+        const p = await lockPayment(c, owner, input.id);
+        if (!p) throw new InputError('Not found.', 404);
+        if (p.kind !== 'x402') throw new InputError('This payment does not use a signature.', 409);
+        if (p.x402?.step !== 'challenged') return {error: 'There is no signing step open for this payment.', code: 409};
+        const w = (await c.query('SELECT * FROM relay_cw_wallets WHERE id=$1', [p.wallet_id])).rows[0];
+        const check = await completeApproval({record: p.x402, signature: input.signature, walletAddress: w.address, nowSeconds: Math.floor(clock().getTime() / 1000)});
+        if (!check.ok) {
+          await c.query("UPDATE relay_cw_payments SET status='rejected',reject_reason='signature',reserved_raw=0,x402=$2,updated_at=now() WHERE id=$1",
+            [p.id, {...p.x402, step: 'rejected', reason: check.reason}]);
+          if (p.allowance_id) await c.query("UPDATE relay_cw_allowances SET reserved_raw=greatest(reserved_raw-$2,0),updated_at=now() WHERE id=$1", [p.allowance_id, big(p.cap_raw).toString()]);
+          await note(c, owner, p.wallet_id, p.id, 'payment_rejected', `${p.service}: the signature did not match this payment, so it was cancelled. Nothing was paid.`);
+          return {error: check.reason, code: 409};
+        }
+        await c.query("UPDATE relay_cw_payments SET status='approved',x402=$2,updated_at=now() WHERE id=$1",
+          [p.id, {...p.x402, step: 'signed', signature: input.signature, ref: check.ref}]);
+        await note(c, owner, p.wallet_id, p.id, 'payment_signed', `${p.service}: you signed one authorization for ${units(p.amount_raw)} USDC. It is single-use and expires shortly.`);
+        return {id: p.id};
+      });
+      if (result.error) throw new InputError(result.error, result.code);
       return {id: result.id};
     },
 

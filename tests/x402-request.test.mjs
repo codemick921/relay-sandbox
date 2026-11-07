@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
+import {privateKeyToAccount} from 'viem/accounts';
 import {fixture} from './fixtures/account-store.mjs';
 import {createCustomerWallet} from '../hosted/customer-wallet.mjs';
 import {liveProvider, FEE, ETH} from './fixtures/live-provider.mjs';
@@ -126,4 +127,77 @@ test('an unsafe URL is refused before any request is made', async () => {
     await assert.rejects(() => s.cw.tools.requestX402(s.tool, randomUUID(), {url: 'http://api.example.com/x'}), /https/);
     assert.equal(fakeFetch('paid').calls.length, 0);
   } finally { await s.f.close(); }
+});
+
+// A wallet address we actually hold the key for, so a real signature can be checked end to end.
+const signing = privateKeyToAccount('0x' + '55'.repeat(32));
+
+test('approving raises a signing challenge, and only the right signature turns it into a completed approval', async () => {
+  const f = await fixture();
+  const st = {calls: [], wallets: {}, usdc: {}, eth: {}, fee: FEE, found: {found: false}};
+  const base = liveProvider('base', st);
+  let challengeAsked = null;
+  const provider = {...base, signTypedData: async ({typedData, memo}) => { challengeAsked = {typedData, memo}; return {challengeId: 'sign-1', appId: 'a', userToken: 't', encryptionKey: 'k'}; }};
+  const cw = createCustomerWallet({store: f.store, provider, fetchImpl: fakeFetch('paid'), resolver: async () => [{address: '93.184.216.34', family: 4}]});
+  await cw.migrate();
+  await f.store.query("INSERT INTO relay_customers(id,email,name,password_hash,recovery_hash,email_verified_at) VALUES($1,$2,'Owner','x','y',now()) ON CONFLICT DO NOTHING", [owner.slice(9), 'sign-' + owner.slice(9) + '@example.invalid']);
+  await cw.createWallet(owner, {label: 'My Eupova wallet', requestId: randomUUID()});
+  // The wallet must be the address whose key we hold, because that is what recovery checks against.
+  st.wallets[owner] = {providerRef: 'w-' + owner.slice(-6), address: signing.address, state: 'ready'};
+  await cw.finishSetup(owner);
+  st.usdc[owner] = 50_000_000n; st.eth[owner] = ETH;
+  const e = await cw.tools.enrolStart({name: 'Paid API client', ip: '127.0.0.1'});
+  await cw.tools.approveEnrolment(owner, {userCode: e.userCode});
+  const got = await cw.tools.enrolPoll({enrolmentId: e.enrolmentId, deviceSecret: e.deviceSecret, ip: '127.0.0.1'});
+  const tool = await cw.tools.authenticate(got.token);
+  await cw.tools.setAllowance(owner, {toolId: tool.id, amount: '10', hours: 24, confirm: true, confirmation: ALLOWANCE_CONFIRMATION});
+  try {
+    const r = await cw.tools.requestX402(tool, randomUUID(), {url: 'https://api.example.com/premium'});
+    const p = await view(cw, r.id);
+    // Approving asks the wallet to sign: a challenge, never a signature.
+    const decided = await cw.payments.decide(owner, {id: r.id, decision: 'approve', bindingHash: p.fingerprint});
+    assert.equal(decided.challenge.challengeId, 'sign-1');
+    assert.ok(challengeAsked, 'the provider was asked to sign the stored typed data');
+    assert.equal((await view(cw, r.id)).status, 'awaiting_approval', 'still waiting: nothing is approved until the signature comes back');
+
+    // A signature from another wallet is refused and the approval is cancelled.
+    const stranger = privateKeyToAccount('0x' + '66'.repeat(32));
+    const wrongSignature = await stranger.signTypedData(challengeAsked.typedData);
+    await assert.rejects(() => cw.payments.completeX402(owner, {id: r.id, signature: wrongSignature}), /different wallet/i);
+    assert.equal((await view(cw, r.id)).status, 'rejected');
+  } finally { await f.close(); }
+});
+
+test('the signature the customer actually made completes the approval', async () => {
+  const f = await fixture();
+  const st = {calls: [], wallets: {}, usdc: {}, eth: {}, fee: FEE, found: {found: false}};
+  const base = liveProvider('base', st);
+  let typed = null;
+  const provider = {...base, signTypedData: async ({typedData}) => { typed = typedData; return {challengeId: 'sign-2', appId: 'a', userToken: 't', encryptionKey: 'k'}; }};
+  const cw = createCustomerWallet({store: f.store, provider, fetchImpl: fakeFetch('paid'), resolver: async () => [{address: '93.184.216.34', family: 4}]});
+  await cw.migrate();
+  await f.store.query("INSERT INTO relay_customers(id,email,name,password_hash,recovery_hash,email_verified_at) VALUES($1,$2,'Owner','x','y',now()) ON CONFLICT DO NOTHING", [owner.slice(9), 'sign2-' + owner.slice(9) + '@example.invalid']);
+  await cw.createWallet(owner, {label: 'My Eupova wallet', requestId: randomUUID()});
+  st.wallets[owner] = {providerRef: 'w-' + owner.slice(-6), address: signing.address, state: 'ready'};
+  await cw.finishSetup(owner);
+  st.usdc[owner] = 50_000_000n; st.eth[owner] = ETH;
+  const e = await cw.tools.enrolStart({name: 'Paid API client', ip: '127.0.0.1'});
+  await cw.tools.approveEnrolment(owner, {userCode: e.userCode});
+  const got = await cw.tools.enrolPoll({enrolmentId: e.enrolmentId, deviceSecret: e.deviceSecret, ip: '127.0.0.1'});
+  const tool = await cw.tools.authenticate(got.token);
+  await cw.tools.setAllowance(owner, {toolId: tool.id, amount: '10', hours: 24, confirm: true, confirmation: ALLOWANCE_CONFIRMATION});
+  try {
+    const r = await cw.tools.requestX402(tool, randomUUID(), {url: 'https://api.example.com/premium'});
+    const p = await view(cw, r.id);
+    await cw.payments.decide(owner, {id: r.id, decision: 'approve', bindingHash: p.fingerprint});
+    const signature = await signing.signTypedData(typed);
+    const done = await cw.payments.completeX402(owner, {id: r.id, signature});
+    assert.equal(done.id, r.id);
+    const after = await view(cw, r.id);
+    assert.equal(after.status, 'approved');
+    const row = (await f.store.query('SELECT x402, reserved_raw::text AS r FROM relay_cw_payments WHERE id=$1', [r.id])).rows[0];
+    assert.equal(row.x402.step, 'signed');
+    assert.equal(row.x402.signature, signature);
+    assert.equal(row.r, '50000', 'the money stays reserved until the call is actually made');
+  } finally { await f.close(); }
 });

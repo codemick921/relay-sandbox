@@ -8,10 +8,13 @@
 // Nothing here marks anything paid or ready: only the server does that, after it has checked Circle's own record.
 const STEP_PROBLEM = 'The wallet step was not completed, so nothing has been sent. You can continue where you left off.';
 
+import {challengeSignature} from './circle-challenge.mjs';
 export function createWalletFlow({act, runChallenge, newId = () => globalThis.crypto.randomUUID(), onProblem = () => {}}) {
+  // Returns the completed challenge rather than a bare boolean: a signing challenge carries a signature the server
+  // still has to verify, and throwing the result away would leave the payment stuck between approved and paid.
   const step = async challenge => {
-    try { await runChallenge(challenge); return true; }
-    catch (e) { onProblem(typeof e?.message === 'string' && e.message ? `${STEP_PROBLEM} (${e.message})` : STEP_PROBLEM); return false; }
+    try { return {ok: true, result: await runChallenge(challenge)}; }
+    catch (e) { onProblem(typeof e?.message === 'string' && e.message ? `${STEP_PROBLEM} (${e.message})` : STEP_PROBLEM); return {ok: false}; }
   };
   const finishSetup = async () => ({ok: !!(await act('wallet/finish-setup', {}))});
   return {
@@ -19,14 +22,14 @@ export function createWalletFlow({act, runChallenge, newId = () => globalThis.cr
       onProblem('');
       const s = await act('wallet/create', {label, requestId: newId()});
       if (!s) return {ok: false, step: 'create'};
-      if (s.walletChallenge && !(await step(s.walletChallenge))) return {ok: false, step: 'challenge', resumable: true};
+      if (s.walletChallenge && !(await step(s.walletChallenge)).ok) return {ok: false, step: 'challenge', resumable: true};
       return finishSetup();
     },
     async resumeSetup() {
       onProblem('');
       const s = await act('wallet/resume-setup', {});
       if (!s) return {ok: false, step: 'resume'};
-      if (s.walletChallenge && !(await step(s.walletChallenge))) return {ok: false, step: 'challenge', resumable: true};
+      if (s.walletChallenge && !(await step(s.walletChallenge)).ok) return {ok: false, step: 'challenge', resumable: true};
       return finishSetup();
     },
     checkSetup: finishSetup,
@@ -35,14 +38,28 @@ export function createWalletFlow({act, runChallenge, newId = () => globalThis.cr
       const s = await act('wallet/payments/decide', {id: payment.id, decision, bindingHash: payment.fingerprint});
       if (!s) return {ok: false, step: 'decide'};
       if (decision !== 'approve') return {ok: true};
-      if (s.walletChallenge && !(await step(s.walletChallenge))) { await act('wallet/payments/refresh', {id: payment.id}); return {ok: false, step: 'challenge', resumable: true}; }
+      if (s.walletChallenge) {
+        const ran = await step(s.walletChallenge);
+        if (!ran.ok) { await act('wallet/payments/refresh', {id: payment.id}); return {ok: false, step: 'challenge', resumable: true}; }
+        // A signing challenge answers with a signature. It goes to the server, which checks it against the exact
+        // authorization it prepared before anything is marked paid.
+        const signature = challengeSignature(ran.result);
+        if (signature) return {ok: !!(await act('wallet/x402/complete', {id: payment.id, signature}))};
+      }
       return {ok: !!(await act('wallet/payments/refresh', {id: payment.id}))};
     },
     async resumePayment(payment) {
       onProblem('');
       const s = await act('wallet/payments/resume', {id: payment.id});
       if (!s) return {ok: false, step: 'resume'};
-      if (s.walletChallenge && !(await step(s.walletChallenge))) { await act('wallet/payments/refresh', {id: payment.id}); return {ok: false, step: 'challenge', resumable: true}; }
+      if (s.walletChallenge) {
+        const ran = await step(s.walletChallenge);
+        if (!ran.ok) { await act('wallet/payments/refresh', {id: payment.id}); return {ok: false, step: 'challenge', resumable: true}; }
+        // A signing challenge answers with a signature. It goes to the server, which checks it against the exact
+        // authorization it prepared before anything is marked paid.
+        const signature = challengeSignature(ran.result);
+        if (signature) return {ok: !!(await act('wallet/x402/complete', {id: payment.id, signature}))};
+      }
       return {ok: !!(await act('wallet/payments/refresh', {id: payment.id}))};
     },
     async check(payment) { return {ok: !!(await act('wallet/payments/refresh', {id: payment.id}))}; },
