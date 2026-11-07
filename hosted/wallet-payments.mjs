@@ -173,7 +173,8 @@ export function createWalletPayments({tx, query, provider, simulated, net, clock
   // Starts the provider's work for a payment that is ALREADY saved as executing with its reservation committed.
   async function run(owner, id) {
     const p = await tx(async c => (await fullRow(c, owner, id)).rows[0]);
-    if (!p || p.status !== 'executing' || p.provider_state) return null;
+    if (!p || p.kind === 'x402') return null; // x402 is signed and retried, never transferred by Eupova
+    if (p.status !== 'executing' || p.provider_state) return null;
     const w = (await query('SELECT provider_ref FROM relay_cw_wallets WHERE id=$1', [p.wallet_id])).rows[0];
     // Live: read the exact USDC token id and save it (and that a submission is starting) BEFORE the request that creates the
     // transaction. If the process dies after that request, the payment can still be found by its reference and checked against this token.
@@ -220,7 +221,7 @@ export function createWalletPayments({tx, query, provider, simulated, net, clock
     normalise, view, STATUSES, run, finish, liveProblem, insert, detailsHash, sha, estimate, feeAsset,
     // Payments that were approved and reserved, but whose provider call never recorded a result (a crash): never re-sent.
     async sweepStuck(c, owner) {
-      const rows = (await c.query("UPDATE relay_cw_payments SET status='outcome_unknown',updated_at=now() WHERE owner=$1 AND status='executing' AND provider_state IS NULL AND updated_at < now() - interval '2 minutes' RETURNING id,wallet_id,service", [owner])).rows;
+      const rows = (await c.query("UPDATE relay_cw_payments SET status='outcome_unknown',updated_at=now() WHERE owner=$1 AND kind='transfer' AND status='executing' AND provider_state IS NULL AND updated_at < now() - interval '2 minutes' RETURNING id,wallet_id,service", [owner])).rows;
       for (const r of rows) await note(c, owner, r.wallet_id, r.id, 'payment_unknown', `${r.service}: the app stopped before the result was recorded. Funds stay reserved and nothing will be sent again automatically.`);
     },
     async migrate(c) {
@@ -301,6 +302,9 @@ export function createWalletPayments({tx, query, provider, simulated, net, clock
           await note(c, owner, p.wallet_id, p.id, 'payment_declined', `${p.service}: you declined. Nothing was paid.`);
           return {id: p.id};
         }
+        // An x402 payment is approved by signing an authorization, not by sending a transfer. Until that path is wired,
+        // refuse rather than fall through into the transfer code, which would try to move money the wrong way.
+        if (p.kind === 'x402') return {error: 'Agent payments are not switched on yet. Nothing has been signed or sent.', code: 409};
         // Recheck everything now, against the live rows. Fail closed.
         const problem = await liveProblem(c, owner, p, w);
         if (problem) {
