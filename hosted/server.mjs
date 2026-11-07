@@ -207,6 +207,14 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
     if(!(await ownerActive(tool.owner))||!(await walletAllowed(tool.owner)))throw new InputError('This account cannot use the wallet right now.',403);
     if(req.method==='GET'&&sub==='allowance')return send(res,200,await tools.allowanceFor(tool));
     if(req.method==='POST'&&sub==='payments'){const r=await tools.requestPayment(tool,req.headers['idempotency-key'],await readJson());return send(res,r.replay?200:202,{id:r.id,...await tools.getPayment(tool,r.id),poll:'/api/wallet-tool/v1/payments/'+r.id});}
+    // Paying for a service by URL. Off unless the deployment switches it on: dark by default, because the approval and
+    // execution halves are still being built and an accidental enable would put an unfinished path in front of money.
+    if(req.method==='POST'&&sub==='x402'){
+      if(process.env.EUPOVA_X402_ENABLED!=='true')throw new InputError('Not found.',404);
+      const r=await tools.requestX402(tool,req.headers['idempotency-key'],await readJson());
+      if(r.free)return send(res,200,r);
+      return send(res,r.replay?200:202,{id:r.id,...await tools.getPayment(tool,r.id),poll:'/api/wallet-tool/v1/payments/'+r.id});
+    }
     const one=/^payments\/([a-f0-9-]{36})$/.exec(sub);
     if(req.method==='GET'&&one)return send(res,200,await tools.getPayment(tool,one[1]));
     throw new InputError('Not found.',404);

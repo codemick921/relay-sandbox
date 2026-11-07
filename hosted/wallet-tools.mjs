@@ -10,6 +10,9 @@ import {rejectReasons} from '../shared/wallet-model.mjs';
 import {createHash, randomBytes, randomUUID, timingSafeEqual} from 'node:crypto';
 import {InputError} from '../server/validation.mjs';
 import {WALLET_LIMITS, parseUsdc, units} from '../shared/wallet-model.mjs';
+import {fetchPaidResource} from './x402-fetch.mjs';
+import {prepareApproval} from './x402-approval.mjs';
+import {formatUsdc6} from './x402-challenge.mjs';
 
 const sha = text => createHash('sha256').update(text).digest('hex');
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -26,7 +29,7 @@ async function lockedReadyWith(readyWallet, lockWallet, c, owner) {
   await lockWallet(c, w0.id);
   return readyWallet(c, owner, true);
 }
-export function createWalletTools({tx, query, rate, simulated, clock, note, lockWallet, lockOwner, balanceOf, reservedTotal, readyWallet, big, uuid, payments}) {
+export function createWalletTools({tx, query, rate, simulated, clock, note, lockWallet, lockOwner, balanceOf, reservedTotal, readyWallet, big, uuid, payments, net}) {
   const lockedReady = (c, owner) => lockedReadyWith(readyWallet, lockWallet, c, owner);
   const allowanceView = (a, now) => a && ({
     id: a.id, status: a.status, revision: a.revision, amountUsdc: units(a.amt), spentUsdc: units(a.spent), reservedUsdc: units(a.res),
@@ -97,6 +100,19 @@ export function createWalletTools({tx, query, rate, simulated, clock, note, lock
       query('UPDATE relay_cw_tools SET last_seen_at=now() WHERE id=$1', [t.id]).catch(() => {});
       return t;
     },
+    // One allowance rule for every request a tool can make, whether it is asked to send USDC or to pay for a call.
+    // Two copies of spent + reserved <= amount is how accounting drifts apart, so there is exactly one.
+    async assess(c, tool, w, n, feeProblem) {
+      const a = (await c.query(ALLOW_SQL + " WHERE tool_id=$1 AND status='active'", [tool.id])).rows[0] ?? null;
+      let reason = null;
+      if (!a) reason = 'no_allowance';
+      else if (new Date(a.expires_at) <= clock()) reason = 'allowance_expired';
+      else if (big(a.spent) + big(a.res) + n.capRaw > big(a.amt)) reason = 'over_allowance';
+      else if (feeProblem) reason = feeProblem;
+      else if ((await balanceOf(c, w)) - (await reservedTotal(c, w.id)) < n.capRaw) reason = 'insufficient_balance';
+      return {a, reason};
+    },
+
     async requestPayment(tool, idemKey, input) {
       if (!idemOk(idemKey)) throw new InputError('Send an Idempotency-Key header of 8 to 64 letters, digits or . _ : -', 400);
       if (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).some(k => !REQUEST_KEYS.has(k))) throw new InputError('Unknown or missing fields in the request.');
@@ -122,17 +138,53 @@ export function createWalletTools({tx, query, rate, simulated, clock, note, lock
         if (old) { if (old.details_hash !== payments.detailsHash(n)) throw new InputError('This Idempotency-Key was already used for different details.', 409); return {id: old.id, replay: true}; }
         const open = Number((await c.query("SELECT count(*) FROM relay_cw_payments WHERE tool_id=$1 AND status='awaiting_approval'", [tool.id])).rows[0].count);
         if (open >= WALLET_LIMITS.maxOpenRequestsPerTool) throw new InputError('Too many requests are waiting for approval.', 429);
-        const a = (await c.query(ALLOW_SQL + " WHERE tool_id=$1 AND status='active'", [tool.id])).rows[0] ?? null;
-        let reason = null;
-        if (!a) reason = 'no_allowance';
-        else if (new Date(a.expires_at) <= clock()) reason = 'allowance_expired';
-        else if (big(a.spent) + big(a.res) + n.capRaw > big(a.amt)) reason = 'over_allowance';
-        else if (feeProblem) reason = feeProblem;
-        else if ((await balanceOf(c, w)) - (await reservedTotal(c, w.id)) < n.capRaw) reason = 'insufficient_balance';
+        const {a, reason} = await this.assess(c, tool, w, n, feeProblem);
         const id = await payments.insertForTool(c, tool.owner, w, n, {origin: 'tool', requestId: idemKey, status: reason ? 'rejected' : 'awaiting_approval', reason, tool, allowance: a, fee: reason ? null : fee});
         return {id};
       });
     },
+    // Ask Eupova to pay for a URL on this tool's behalf. The tool never sees a price, a signature or a key: Eupova
+    // reads the 402, checks it, saves a request, and the customer decides. Off unless the deployment switches it on.
+    async requestX402(tool, idemKey, input) {
+      if (!idemOk(idemKey)) throw new InputError('Send an Idempotency-Key header of 8 to 64 letters, digits or . _ : -', 400);
+      if (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).some(k => !['url', 'method', 'body'].includes(k))) throw new InputError('Unknown or missing fields in the request.');
+      if (!(await this.customerOk(tool.owner))) throw new InputError('Unauthorised.', 401);
+      if (simulated) throw new InputError('Paying for services is not part of the simulated wallet.', 404);
+      await rate('toolx402:' + tool.id, 20, 60);
+      const w = (await query('SELECT * FROM relay_cw_wallets WHERE id=$1', [tool.wallet_id])).rows[0];
+      if (!w || w.status !== 'ready') throw new InputError('The wallet is not ready.', 409);
+      // The allowance bounds what may be asked for, so the fetch cannot be used to discover prices above it.
+      const allowance = (await query(ALLOW_SQL + " WHERE tool_id=$1 AND status='active'", [tool.id])).rows[0] ?? null;
+      if (!allowance) throw new InputError('This tool has no allowance. Ask the wallet owner for one first.', 403);
+      const remaining = big(allowance.amt) - big(allowance.spent) - big(allowance.res);
+      const paid = await fetchPaidResource({url: input.url, method: input.method, body: input.body, maxAmountRaw: remaining > 0n ? remaining : 0n});
+      if (!paid.ok) throw new InputError(paid.reason, paid.status === 402 ? 409 : 422);
+      if (paid.free) return {free: true, status: paid.status, body: paid.body, contentType: paid.contentType};
+      const req = paid.requirement;
+      let n0; try { n0 = payments.normalise({destination: req.payTo, amount: formatUsdc6(req.amountRaw), service: paid.host}, w); } catch (e) { throw new InputError(e.message); }
+      const prepared = prepareApproval({requirement: req, walletAddress: w.address, nowSeconds: Math.floor(clock().getTime() / 1000), chainId: net.chainId});
+      return tx(async c => {
+        await lockWallet(c, w.id);
+        const live = (await c.query('SELECT * FROM relay_cw_wallets WHERE id=$1 FOR UPDATE', [w.id])).rows[0];
+        if (!live || live.status !== 'ready') throw new InputError('The wallet is not ready.', 409);
+        const active = (await c.query('SELECT status FROM relay_cw_tools WHERE id=$1', [tool.id])).rows[0];
+        if (!active || active.status !== 'active') throw new InputError('Unauthorised.', 401);
+        const old = (await c.query("SELECT id,x402 FROM relay_cw_payments WHERE owner=$1 AND origin='tool' AND tool_id=$2 AND request_id=$3", [tool.owner, tool.id, idemKey])).rows[0];
+        if (old) {
+          if (old.x402?.requirementRef !== prepared.requirementRef) throw new InputError('This Idempotency-Key was already used for a different call.', 409);
+          return {id: old.id, replay: true};
+        }
+        const same = (await c.query("SELECT id FROM relay_cw_payments WHERE wallet_id=$1 AND kind='x402' AND x402->>'requirementRef'=$2 AND status IN ('awaiting_approval','approved','executing')", [w.id, prepared.requirementRef])).rows[0];
+        if (same) throw new InputError('There is already a pending request for this exact call.', 409);
+        const {a, reason} = await this.assess(c, tool, live, n0, null);
+        const id = await payments.insertForTool(c, tool.owner, live, n0, {
+          origin: 'tool', requestId: idemKey, status: reason ? 'rejected' : 'awaiting_approval', reason, tool, allowance: a,
+          kind: 'x402', x402: {...prepared, step: 'prepared', host: paid.host},
+        });
+        return {id};
+      });
+    },
+
     async getPayment(tool, id) {
       if (!uuid(id)) throw new InputError('Not found.', 404);
       if (!(await this.customerOk(tool.owner))) throw new InputError('Unauthorised.', 401);
