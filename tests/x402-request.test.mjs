@@ -26,6 +26,19 @@ function fakeFetch(kind, amount = '50000') {
   f.calls = calls;
   return f;
 }
+// A service that asks for payment first, then delivers once it has been given a signature.
+function paidThenDelivered(amount = '50000') {
+  let calls = 0;
+  const f = async (url, init) => {
+    calls += 1;
+    if (calls === 1) return new Response('', {status: 402, headers: {'PAYMENT-REQUIRED': b64(JSON.parse(choice(amount)))}});
+    if (!init?.headers?.['PAYMENT-SIGNATURE']) return new Response('no signature', {status: 402});
+    return new Response('{"delivered":true}', {status: 200, headers: {'content-type': 'application/json', 'PAYMENT-RESPONSE': b64({success: true, transaction: '0xfeed'})}});
+  };
+  f.calls = () => calls;
+  return f;
+}
+
 async function setup(fetchImpl) {
   const f = await fixture();
   const st = {calls: [], wallets: {}, usdc: {}, eth: {}, fee: FEE, found: {found: false}};
@@ -138,7 +151,8 @@ test('approving raises a signing challenge, and only the right signature turns i
   const base = liveProvider('base', st);
   let challengeAsked = null;
   const provider = {...base, signTypedData: async ({typedData, memo}) => { challengeAsked = {typedData, memo}; return {challengeId: 'sign-1', appId: 'a', userToken: 't', encryptionKey: 'k'}; }};
-  const cw = createCustomerWallet({store: f.store, provider, fetchImpl: fakeFetch('paid'), resolver: async () => [{address: '93.184.216.34', family: 4}]});
+  const service = paidThenDelivered();
+  const cw = createCustomerWallet({store: f.store, provider, fetchImpl: service, resolver: async () => [{address: '93.184.216.34', family: 4}]});
   await cw.migrate();
   await f.store.query("INSERT INTO relay_customers(id,email,name,password_hash,recovery_hash,email_verified_at) VALUES($1,$2,'Owner','x','y',now()) ON CONFLICT DO NOTHING", [owner.slice(9), 'sign-' + owner.slice(9) + '@example.invalid']);
   await cw.createWallet(owner, {label: 'My Eupova wallet', requestId: randomUUID()});
@@ -174,7 +188,8 @@ test('the signature the customer actually made completes the approval', async ()
   const base = liveProvider('base', st);
   let typed = null;
   const provider = {...base, signTypedData: async ({typedData}) => { typed = typedData; return {challengeId: 'sign-2', appId: 'a', userToken: 't', encryptionKey: 'k'}; }};
-  const cw = createCustomerWallet({store: f.store, provider, fetchImpl: fakeFetch('paid'), resolver: async () => [{address: '93.184.216.34', family: 4}]});
+  const service = paidThenDelivered();
+  const cw = createCustomerWallet({store: f.store, provider, fetchImpl: service, resolver: async () => [{address: '93.184.216.34', family: 4}]});
   await cw.migrate();
   await f.store.query("INSERT INTO relay_customers(id,email,name,password_hash,recovery_hash,email_verified_at) VALUES($1,$2,'Owner','x','y',now()) ON CONFLICT DO NOTHING", [owner.slice(9), 'sign2-' + owner.slice(9) + '@example.invalid']);
   await cw.createWallet(owner, {label: 'My Eupova wallet', requestId: randomUUID()});
@@ -193,11 +208,14 @@ test('the signature the customer actually made completes the approval', async ()
     const signature = await signing.signTypedData(typed);
     const done = await cw.payments.completeX402(owner, {id: r.id, signature});
     assert.equal(done.id, r.id);
+    // Signing completes the approval and the call goes out in the same step.
     const after = await view(cw, r.id);
-    assert.equal(after.status, 'approved');
+    assert.equal(after.status, 'succeeded');
+    assert.equal(after.receipt?.settlement?.transaction, '0xfeed');
     const row = (await f.store.query('SELECT x402, reserved_raw::text AS r FROM relay_cw_payments WHERE id=$1', [r.id])).rows[0];
-    assert.equal(row.x402.step, 'signed');
+    assert.equal(row.x402.step, 'done');
     assert.equal(row.x402.signature, signature);
-    assert.equal(row.r, '50000', 'the money stays reserved until the call is actually made');
+    assert.equal(row.r, '0', 'the reservation is settled once the call is delivered');
+    assert.equal(service.calls(), 2, 'one call to read the price, one to pay for it');
   } finally { await f.close(); }
 });

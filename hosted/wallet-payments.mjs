@@ -4,6 +4,7 @@
 // second line of defence. Execution fails closed: an uncertain outcome is never retried automatically.
 import {createHash, randomUUID} from 'node:crypto';
 import {canChallenge, completeApproval} from './x402-approval.mjs';
+import {executeX402} from './x402-pay.mjs';
 import {InputError} from '../server/validation.mjs';
 import {
   WALLET_LIMITS, paymentBinding, canonicalPayment, parseUsdc, serviceName, checkNetworkToken,
@@ -14,7 +15,7 @@ const sha = text => createHash('sha256').update(text).digest('hex');
 const STATUSES = "'awaiting_approval','declined','rejected','invalidated','expired','approved','executing','succeeded','failed','outcome_unknown','cancelled'";
 const idemOk = k => typeof k === 'string' && /^[A-Za-z0-9._:-]{8,64}$/.test(k);
 
-export function createWalletPayments({tx, query, provider, simulated, net, clock, note, lockWallet, ledgerBalance, balanceOf, reservedTotal, nativeReservedTotal, sponsor, big, uuid}) {
+export function createWalletPayments({tx, query, provider, simulated, net, clock, note, lockWallet, ledgerBalance, balanceOf, reservedTotal, nativeReservedTotal, sponsor, big, uuid, fetchImpl = fetch}) {
   const feeAsset = simulated ? 'USDC' : provider.feeModel.asset; // 'USDC' (simulation) | 'ETH' | 'sponsored'
 
   function normalise(input, wallet) {
@@ -168,6 +169,39 @@ export function createWalletPayments({tx, query, provider, simulated, net, clock
         // Uncertain, malformed or UNVERIFIED outcome: keep the reservation, never retry, never guess.
         await c.query("UPDATE relay_cw_payments SET status='outcome_unknown',updated_at=now() WHERE id=$1", [p.id]);
         await note(c, owner, p.wallet_id, p.id, 'payment_unknown', `${p.service}: the result is unknown${out?.reason ? ' (' + out.reason + ')' : ''}. Funds stay reserved and nothing will be retried automatically.`);
+      }
+      return view((await fullRow(c, owner, id)).rows[0]);
+    });
+  }
+
+  // The x402 counterpart of finish(): one attempt has been made, and this is what it produced.
+  async function finishX402(owner, id, out) {
+    return tx(async c => {
+      const p = await lockPayment(c, owner, id);
+      if (!p) throw new InputError('Not found.', 404);
+      if (p.status !== 'approved') return view((await fullRow(c, owner, id)).rows[0]);
+      const cap = big(p.cap_raw);
+      const release = async () => {
+        if (!p.allowance_id) return;
+        await c.query('UPDATE relay_cw_allowances SET reserved_raw=greatest(reserved_raw-$2,0),updated_at=now() WHERE id=$1', [p.allowance_id, cap.toString()]);
+      };
+      if (out.state === 'succeeded') {
+        await c.query("UPDATE relay_cw_payments SET status='succeeded',reserved_raw=0,receipt=$2,x402=$3,updated_at=now() WHERE id=$1",
+          [id, {source: 'service', claim: out.settledClaim ?? 'none', settlement: out.receipt ?? null, httpStatus: out.httpStatus ?? null},
+            {...p.x402, step: 'done', httpStatus: out.httpStatus ?? null, settledClaim: out.settledClaim ?? 'none'}]);
+        if (p.allowance_id) {
+          await c.query('UPDATE relay_cw_allowances SET reserved_raw=greatest(reserved_raw-$2,0),spent_raw=spent_raw+$2,updated_at=now() WHERE id=$1', [p.allowance_id, cap.toString()]);
+        }
+        await note(c, owner, p.wallet_id, p.id, 'payment_succeeded', `${p.service}: paid ${units(p.amount_raw)} USDC for one call.${out.settledClaim === 'none' ? ' The service confirmed delivery but sent no settlement receipt.' : ''}`);
+      } else if (out.state === 'outcome_unknown') {
+        await c.query("UPDATE relay_cw_payments SET status='outcome_unknown',x402=$2,updated_at=now() WHERE id=$1",
+          [id, {...p.x402, step: 'unknown', reason: out.reason ?? null}]);
+        await note(c, owner, p.wallet_id, p.id, 'payment_unknown', `${p.service}: the result is unknown${out.reason ? ' (' + out.reason + ')' : ''}. Funds stay reserved and nothing will be retried automatically.`);
+      } else {
+        await release();
+        await c.query("UPDATE relay_cw_payments SET status='failed',reserved_raw=0,reject_reason=$2,x402=$3,updated_at=now() WHERE id=$1",
+          [id, out.reason ?? 'The service did not deliver.', {...p.x402, step: 'failed', reason: out.reason ?? null, httpStatus: out.httpStatus ?? null}]);
+        await note(c, owner, p.wallet_id, p.id, 'payment_failed', `${p.service}: ${out.nothingSent ? 'the payment was refused' : 'the call failed'}. ${out.reason ?? ''} Nothing was delivered.`.trim());
       }
       return view((await fullRow(c, owner, id)).rows[0]);
     });
@@ -397,7 +431,10 @@ export function createWalletPayments({tx, query, provider, simulated, net, clock
         return {id: p.id};
       });
       if (result.error) throw new InputError(result.error, result.code);
-      return {id: result.id};
+      // The signature is saved and the money is reserved. Now the call itself, outside any transaction.
+      const row = await tx(async c => (await fullRow(c, owner, result.id)).rows[0]);
+      const outcome = await executeX402({payment: row, fetchImpl});
+      return finishX402(owner, result.id, outcome);
     },
 
     // A fresh browser session for a challenge that is already open (the page was closed mid-approval). Started by the customer only.
