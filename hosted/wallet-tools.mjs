@@ -157,7 +157,7 @@ export function createWalletTools({tx, query, rate, simulated, clock, note, lock
       const allowance = (await query(ALLOW_SQL + " WHERE tool_id=$1 AND status='active'", [tool.id])).rows[0] ?? null;
       if (!allowance) throw new InputError('This tool has no allowance. Ask the wallet owner for one first.', 403);
       const remaining = big(allowance.amt) - big(allowance.spent) - big(allowance.res);
-      const paid = await fetchPaidResource({url: input.url, method: input.method, body: input.body, maxAmountRaw: remaining > 0n ? remaining : 0n, fetchImpl, ...(resolver ? {resolver} : {})});
+      const paid = await fetchPaidResource({url: input.url, method: input.method, body: input.body, maxAmountRaw: remaining > 0n ? remaining : 0n, headers: {'X-Eupova-Payer': w.address}, fetchImpl, ...(resolver ? {resolver} : {})});
       if (!paid.ok) throw new InputError(paid.reason, paid.status === 402 ? 409 : 422);
       if (paid.free) return {free: true, status: paid.status, body: paid.body, contentType: paid.contentType};
       const req = paid.requirement;

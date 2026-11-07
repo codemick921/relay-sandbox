@@ -1,5 +1,6 @@
 import {createAdmin,isAccountAdmin} from './admin.mjs';
 import {requirementFor,checkPayment,settlementReceipt,receiptHeader,TEST_SELLER_PATH} from './x402-test-seller.mjs';
+import {x402Enabled} from './x402-switch.mjs';
 import {contentSecurityPolicy} from './wallet-csp.mjs';
 import {configuredNativePrivy} from '../server/quote-first/native-privy-http.mjs';
 import {webTrackingEnabled} from './tracking-worker.mjs';
@@ -191,9 +192,11 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
    // payments feature and a payee address are both configured. It checks the authorization it is given and delivers,
    // but it does not settle: its receipt says so, and the buyer's ledger records that as a claim, not proof.
    if(url.pathname===TEST_SELLER_PATH){
-    if(process.env.EUPOVA_X402_ENABLED!=='true')throw new InputError('Not found.',404);
-    const payTo=process.env.EUPOVA_X402_TEST_PAYTO??'';
-    if(!/^0x[0-9a-fA-F]{40}$/.test(payTo))throw new InputError('The test seller has no payee address.',503);
+    if(!x402Enabled())throw new InputError('Not found.',404);
+    // Paid at the caller's own address: the buyer tells us who it is, and the money could only go back to it. Set
+    // EUPOVA_X402_TEST_PAYTO to override with a fixed address.
+    const payTo=process.env.EUPOVA_X402_TEST_PAYTO||String(req.headers['x-eupova-payer']??'');
+    if(!/^0x[0-9a-fA-F]{40}$/.test(payTo))throw new InputError('The test seller needs a payee address.',400);
     if(req.method!=='GET'&&req.method!=='POST')throw new InputError('Method not allowed.',405);
     const asked=requirementFor({payTo,url:`https://${req.headers.host??'app.eupova.com'}${TEST_SELLER_PATH}`});
     const offered=req.headers['payment-signature'];
@@ -229,7 +232,7 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
     // Paying for a service by URL. Off unless the deployment switches it on: dark by default, because the approval and
     // execution halves are still being built and an accidental enable would put an unfinished path in front of money.
     if(req.method==='POST'&&sub==='x402'){
-      if(process.env.EUPOVA_X402_ENABLED!=='true')throw new InputError('Not found.',404);
+      if(!x402Enabled())throw new InputError('Not found.',404);
       const r=await tools.requestX402(tool,req.headers['idempotency-key'],await readJson());
       if(r.free)return send(res,200,r);
       return send(res,r.replay?200:202,{id:r.id,...await tools.getPayment(tool,r.id),poll:'/api/wallet-tool/v1/payments/'+r.id});
