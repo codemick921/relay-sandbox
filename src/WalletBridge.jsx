@@ -65,10 +65,10 @@ export default function WalletBridge({cw, act, busy, error}) {
       )}
       {(msg || error) && <Notice error>{msg || error}</Notice>}
       {b.items.length === 0 ? <p className="cw-empty">No moves yet.</p> : (
-        <ul className="cw-list">
+        <ul className="cw-list cw-moves">
           {b.items.map(i => (
-            <li key={i.id} className="cw-row">
-              <div>
+            <li key={i.id} className="cw-move">
+              <div className="cw-move-main">
                 <strong>{i.amountUsdc} USDC to {i.recipient.slice(0, 8)}…{i.recipient.slice(-6)}</strong>
                 <span className="cw-sub">{i.statusLabel} · {i.route}</span>
                 {i.status === 'awaiting_approval' && (

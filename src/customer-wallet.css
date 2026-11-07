@@ -83,22 +83,37 @@
 .cw-card .cw-net--real{background:#ffd9c9;color:#6b210f}
 .cw-row-status{font-size:12px;color:var(--muted);text-transform:capitalize;white-space:nowrap}
 
-/* Move USDC to Arc, laid out like Circle's bridge: one card, a From/To route, the amount as the hero, one action. */
-.cw-bridge-form{display:grid;gap:18px;max-width:520px}
-.cw-route{display:flex;align-items:center;gap:10px}
-.cw-route-pill{display:inline-flex;align-items:center;gap:9px;border:1px solid var(--border);border-radius:999px;padding:9px 16px;background:#fff;color:var(--ink);font-weight:600;font-size:15px}
+/* Move USDC to Arc, laid out like Circle's bridge: one card, a From/To route, the amount as the hero, one action.
+   Spacing follows one scale: 8px rhythm for components (4/8/12/16), 24px between blocks, 20px above a rule. */
+.cw-bridge-form{display:grid;gap:24px;max-width:520px}
+.cw-route{display:flex;align-items:center;gap:8px}
+.cw-route-pill{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:999px;padding:8px 16px;background:#fff;color:var(--ink);font-weight:600;font-size:15px;line-height:1}
 .cw-route-pill--to{border-color:#c9d5b3}
 .cw-route-dot{width:16px;height:16px;border-radius:50%;background:var(--green);display:inline-block;flex-shrink:0}
 .cw-route-dot--arc{background:#3f6fd8}
-.cw-route-arrow{color:var(--muted);font-size:17px;line-height:1}
-.cw-amount{border-top:1px solid var(--border);padding-top:18px}
-.cw-amount-label{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:2px}
-.cw-amount-row{display:flex;align-items:baseline;gap:10px}
-.cw-amount-input{flex:0 1 auto;width:auto;min-width:4ch;max-width:100%;field-sizing:content;border:0;background:transparent;padding:4px 0;font-size:44px;font-weight:650;letter-spacing:-1.6px;color:var(--ink);font-variant-numeric:tabular-nums}
+.cw-route-arrow{color:var(--muted);font-size:17px;line-height:1;padding:0 4px}
+
+.cw-amount{display:grid;gap:4px;border-top:1px solid var(--border);padding-top:20px}
+.cw-amount-label{margin:0;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.cw-amount-row{display:flex;align-items:baseline;gap:8px;margin:0}
+.cw-amount-input{flex:0 1 auto;width:auto;min-width:4ch;max-width:100%;field-sizing:content;border:0;background:transparent;padding:2px 0;font-size:44px;font-weight:650;letter-spacing:-1.6px;color:var(--ink);font-variant-numeric:tabular-nums;line-height:1.1}
 .cw-amount-input:focus{outline:0;border-radius:8px;box-shadow:0 0 0 3px #769b4340}
 .cw-amount-unit{font-size:18px;font-weight:600;color:var(--muted)}
-.cw-bridge-dest{display:grid;gap:8px;border-top:1px solid var(--border);padding-top:16px}
+
+.cw-bridge-dest{display:grid;gap:16px;border-top:1px solid var(--border);padding-top:20px}
 .cw-bridge-dest .field{margin:0}
-.cw-fee-note{font-size:12px;line-height:1.55}
-.cw-bridge-submit{width:100%;justify-content:center;margin-top:2px}
-@media (max-width:640px){.cw-amount-input{font-size:34px;letter-spacing:-1px}.cw-route-pill{padding:8px 13px;font-size:14px}}
+.cw-bridge-dest .cw-hint{margin:0}
+.cw-fee-note{margin:0;font-size:12.5px;line-height:1.6;color:var(--muted)}
+.cw-bridge-form .check{margin:0;font-size:13px;line-height:1.5;gap:12px}
+.cw-bridge-submit{width:100%;justify-content:center;min-height:52px;margin-top:4px}
+
+/* Moves. Its own two-column row: the payments list uses a three-column grid for icon, text and amount. */
+.cw-moves{margin:24px 0 0}
+.cw-move{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px 16px;align-items:start;padding:16px 0;border-top:1px solid var(--border)}
+.cw-move:first-child{border-top:0;padding-top:8px}
+.cw-move-main{display:grid;gap:4px;min-width:0}
+.cw-move-main strong{font-size:14px;line-height:1.4;overflow-wrap:anywhere}
+.cw-move-main .cw-sub{color:var(--muted);font-size:12px;line-height:1.45}
+.cw-move .cw-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+.cw-move .cw-detail{margin-top:8px;grid-template-columns:minmax(96px,auto) 1fr;gap:6px 12px;font-size:12px}
+@media (max-width:640px){.cw-amount-input{font-size:34px;letter-spacing:-1px}.cw-route-pill{padding:8px 13px;font-size:14px}.cw-move{grid-template-columns:1fr}.cw-move .cw-actions{justify-content:flex-start}.cw-bridge-form{gap:20px}}
