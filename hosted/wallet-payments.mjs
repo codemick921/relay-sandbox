@@ -55,7 +55,7 @@ export function createWalletPayments({tx, query, provider, simulated, net, clock
   }
   const fullRow = (c, owner, id) => c.query('SELECT *, amount_raw::text AS amount_raw, max_fee_raw::text AS max_fee_raw, cap_raw::text AS cap_raw, native_fee_cap_wei::text AS native_fee_cap_wei FROM relay_cw_payments WHERE id=$1 AND owner=$2 FOR UPDATE', [id, owner]);
 
-  async function insert(c, owner, w, n, {origin, requestId, status, reason = null, tool = null, allowance = null, fee = null}) {
+  async function insert(c, owner, w, n, {origin, requestId, status, reason = null, tool = null, allowance = null, fee = null, kind = 'transfer', x402 = null}) {
     const f = fee ?? {asset: feeAsset, maxFeeNativeWei: '0'};
     const binding = paymentBinding({
       origin, requestId, walletId: w.id, walletAddress: w.address, network: net.id, only: net.id, token: 'USDC', service: n.service, destination: n.destination,
@@ -64,10 +64,11 @@ export function createWalletPayments({tx, query, provider, simulated, net, clock
       toolId: tool?.id, allowanceId: allowance?.id ?? 'none', allowanceRevision: allowance?.revision ?? 0, rejected: status === 'rejected',
     });
     const id = randomUUID();
-    await c.query(`INSERT INTO relay_cw_payments(id,owner,wallet_id,origin,tool_id,allowance_id,allowance_revision,request_id,service,destination,network,token,amount_raw,max_fee_raw,cap_raw,status,reject_reason,binding,binding_hash,details_hash,expires_at,fee_asset,native_fee_cap_wei)
-      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'USDC',$12,$13,$14,$15,$16,$17,$18,$19, now() + ($20 || ' minutes')::interval,$21,$22)`,
+    if (kind === 'x402' && n.maxFeeRaw !== 0n) throw new RangeError('An x402 payment has no Eupova-side fee: the service pays the network fee.');
+    await c.query(`INSERT INTO relay_cw_payments(id,owner,wallet_id,origin,tool_id,allowance_id,allowance_revision,request_id,service,destination,network,token,amount_raw,max_fee_raw,cap_raw,status,reject_reason,binding,binding_hash,details_hash,expires_at,fee_asset,native_fee_cap_wei,kind,x402)
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'USDC',$12,$13,$14,$15,$16,$17,$18,$19, now() + ($20 || ' minutes')::interval,$21,$22,$23,$24)`,
       [id, owner, w.id, origin, tool?.id ?? null, allowance?.id ?? null, allowance?.revision ?? null, requestId, n.service, n.destination.toLowerCase(), net.id,
-        n.amountRaw.toString(), n.maxFeeRaw.toString(), n.capRaw.toString(), status, reason, binding, sha(canonicalPayment(binding)), detailsHash(n), String(WALLET_LIMITS.approvalWindowMinutes), f.asset, (f.maxFeeNativeWei ?? '0').toString()]);
+        n.amountRaw.toString(), n.maxFeeRaw.toString(), n.capRaw.toString(), status, reason, binding, sha(canonicalPayment(binding)), detailsHash(n), String(WALLET_LIMITS.approvalWindowMinutes), f.asset, (f.maxFeeNativeWei ?? '0').toString(), kind, x402]);
     await note(c, owner, w.id, id, status === 'rejected' ? 'payment_rejected' : 'payment_requested',
       status === 'rejected' ? `${origin === 'tool' ? 'A connected tool' : 'A payment'} was refused: ${rejectReasons[reason] ?? reason}` : `${n.service}: ${units(n.amountRaw)} USDC is waiting for your approval.`);
     return id;
@@ -240,6 +241,15 @@ export function createWalletPayments({tx, query, provider, simulated, net, clock
       await c.query("ALTER TABLE relay_cw_payments ADD CONSTRAINT relay_cw_payments_network_check CHECK(network IN ('base_sepolia','base'))");
       await c.query('ALTER TABLE relay_cw_payments DROP CONSTRAINT IF EXISTS relay_cw_payments_fee_asset_check');
       await c.query("ALTER TABLE relay_cw_payments ADD CONSTRAINT relay_cw_payments_fee_asset_check CHECK(fee_asset IN ('USDC','ETH','sponsored') AND (fee_asset='ETH' OR native_fee_cap_wei=0) AND (fee_asset='USDC' OR max_fee_raw=0))");
+      // x402 payments are the same ledger with a different kind: the same reservation, the same allowance arithmetic,
+      // the same approval. What differs is that the customer signs an EIP-3009 authorization instead of a transfer.
+      await c.query("ALTER TABLE relay_cw_payments ADD COLUMN IF NOT EXISTS kind text NOT NULL DEFAULT 'transfer'");
+      await c.query('ALTER TABLE relay_cw_payments DROP CONSTRAINT IF EXISTS relay_cw_payments_kind_check');
+      await c.query("ALTER TABLE relay_cw_payments ADD CONSTRAINT relay_cw_payments_kind_check CHECK(kind IN ('transfer','x402'))");
+      await c.query('ALTER TABLE relay_cw_payments ADD COLUMN IF NOT EXISTS x402 jsonb');
+      // One live authorization per requirement per wallet. Circle's SDK cannot deduplicate a signing request, so the
+      // database has to: a second prompt for the same requirement would otherwise be a second signable authorization.
+      await c.query("CREATE UNIQUE INDEX IF NOT EXISTS relay_cw_payments_x402_ref ON relay_cw_payments(wallet_id, (x402->>'requirementRef')) WHERE kind='x402' AND status IN ('awaiting_approval','approved','executing')");
       await c.query("CREATE UNIQUE INDEX IF NOT EXISTS relay_cw_payments_request ON relay_cw_payments(owner, origin, coalesce(tool_id::text,''), request_id)");
       await c.query('CREATE INDEX IF NOT EXISTS relay_cw_payments_wallet ON relay_cw_payments(wallet_id, created_at DESC)');
     },
