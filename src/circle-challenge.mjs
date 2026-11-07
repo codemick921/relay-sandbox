@@ -12,6 +12,20 @@ export async function runCircleChallenge(challenge, loadSdk = () => import('@cir
   if (typeof deviceId !== 'string' || deviceId.length === 0) throw new Error('The wallet step could not start (no device session).');
   sdk.setAuthentication({userToken, encryptionKey});
   return new Promise((resolve, reject) => {
-    sdk.execute(challengeId, (error, result) => (error ? reject(new Error(error.message || 'The wallet step was not completed.')) : resolve(result)));
+    sdk.execute(challengeId, (error, result) => {
+      if (error) return reject(new Error(error.message || 'The wallet step was not completed.'));
+      // A signing challenge completes with the signature in result.data.signature; the SDK's own signing result
+      // type covers both the message and typed-data variants. It is returned to the caller and sent straight to
+      // the server, which checks it recovers to this wallet before it is used. Nothing here stores it.
+      const signature = result?.data?.signature;
+      resolve(signature ? {...result, signature} : result);
+    });
   });
+}
+
+// True when a completed challenge produced a signature. Used by the flow to know whether the next step is a
+// server call to verify, rather than assuming any result carries one.
+export function challengeSignature(result) {
+  const s = result?.signature ?? result?.data?.signature;
+  return typeof s === 'string' && /^0x[0-9a-fA-F]{130}$/.test(s) ? s : null;
 }

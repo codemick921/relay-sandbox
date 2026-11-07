@@ -183,6 +183,23 @@ export function createCircleUserControlledProvider({config, sdkFactory}) {
       if (list.length > 1) throw new Error('More than one live wallet exists on this network for this customer.');
       return list[0] ? {providerRef: list[0].id, address: list[0].address, state: 'ready'} : null;
     },
+    // Ask the wallet to sign EIP-712 typed data. This is a CHALLENGE, not a signature: the customer completes it with
+    // their PIN in the browser and the signature comes back through the web SDK. Eupova never sees a key, and cannot
+    // sign without that step.
+    //
+    // Circle's SignTypedDataInput takes no idempotency key, unlike every other mutating call here, so the SDK cannot
+    // deduplicate this one. Duplicate prevention therefore has to live in our own records: one authorization row per
+    // request reference, and no second challenge while one is outstanding. A caller that retries must resolve the
+    // existing row rather than start again.
+    async signTypedData({owner, walletRef, typedData, refId, memo}) {
+      const s = await session(owner); await walletOf(owner, walletRef, s);
+      const r = (await client.signTypedData({
+        userToken: s.userToken, walletId: walletRef, data: JSON.stringify(typedData),
+        ...(memo ? {memo: String(memo).slice(0, 200)} : {}),
+      })).data;
+      if (!r?.challengeId) throw new Error('The wallet did not start the signing step.');
+      return browserSession(s, {challengeId: r.challengeId, refId: refId ?? null});
+    },
     // Spendable USDC (base units) from the provider. This is the only balance a live wallet has.
     async balance(owner, walletRef) {
       const s = await session(owner); await walletOf(owner, walletRef, s);

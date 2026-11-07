@@ -98,6 +98,7 @@ async function withStub(setup, run) {
     if (rec.method === 'get' && /\/balances$/.test(rec.path)) return ok({tokenBalances: page(st.balances, r => r.token.id)});
     if (rec.method === 'post' && rec.path === '/v1/w3s/user/transactions/transfer/estimateFee' || /estimateFee|transfer\/estimate/.test(rec.path)) return ok(st.estimate);
     if (rec.method === 'post' && rec.path === '/v1/w3s/user/transactions/transfer') return ok({challengeId: 'pay-' + body.idempotencyKey});
+    if (rec.method === 'post' && rec.path === '/v1/w3s/user/sign/typedData') return ok({challengeId: 'type-' + body.idempotencyKey});
     if (rec.method === 'get' && rec.path === '/v1/w3s/transactions') return ok({transactions: page(st.txs, t => t.id)});
     if (rec.method === 'post' && /contractExecution\/estimateFee|contract.*estimateFee|estimateFee.*contract/i.test(rec.path)) return ok(st.contractEstimate ?? {low: {networkFee: '0.00001'}, medium: {networkFee: '0.00002'}, high: {networkFee: '0.00003'}});
     if (rec.method === 'post' && /contract/i.test(rec.path)) return ok({challengeId: 'ct-' + body.idempotencyKey});
@@ -205,6 +206,28 @@ for (const [label, config] of [['Base Sepolia', GOOD], ['Base mainnet', MAIN]]) 
   });
 }
 
+test('signing typed data is a challenge, never a signature, and the typed data goes over the wire as one JSON string', { skip: !sdkPath }, async () => {
+  await withStub({chain: 'BASE', balances: []}, async ({calls, st}) => {
+    const p = build(MAIN);
+    const typedData = {domain: {name: 'USDC', version: '2', chainId: 8453, verifyingContract: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'}, types: {TransferWithAuthorization: [{name: 'from', type: 'address'}]}, primaryType: 'TransferWithAuthorization', message: {from: '0x' + 'a'.repeat(40)}};
+    const out = await p.signTypedData({owner: A, walletRef: 'w-' + p.userIdFor(A), typedData, refId: 'auth-1', memo: 'Pay for one API call'});
+    // The browser gets a challenge to run, the same shape the PIN step takes. There is no signature in this response.
+    assert.equal(typeof out.challengeId, 'string');
+    assert.equal(typeof out.userToken, 'string');
+    assert.equal(out.signature, undefined, 'a signature can only come back from the customer completing the challenge');
+    const sent = calls.filter(c => c.path === '/v1/w3s/user/sign/typedData').at(-1).body;
+    assert.equal(sent.walletId, 'w-' + p.userIdFor(A));
+    assert.equal(typeof sent.data, 'string', 'Circle takes the typed data as a JSON string');
+    assert.deepEqual(JSON.parse(sent.data), typedData);
+    assert.equal(sent.memo, 'Pay for one API call');
+    // Circle's SignTypedDataInput has no idempotency key, unlike its other mutating calls, so the SDK cannot dedupe a
+    // repeated signing request. That guarantee has to live in our own records, and this test records the absence so a
+    // future SDK change is noticed rather than assumed.
+    assert.equal(sent.idempotencyKey, undefined, 'the SDK declares no idempotency key for signing; dedupe belongs to our records');
+    assert.deepEqual(Object.keys(sent).sort(), ['data', 'memo', 'walletId'].concat('userToken' in sent ? ['userToken'] : []).sort());
+  });
+});
+
 test('sponsored fees: no ETH ceiling is invented, and sponsorship needs smart-contract accounts', { skip: !sdkPath }, async () => {
   const cfg = {...GOOD, gasModel: 'sponsored', accountType: 'SCA', gasDailyUsd: '5', gasPerTxUsd: '0.05'};
   assert.equal(validateWalletConfig(cfg).ready, true);
@@ -227,6 +250,15 @@ test('the browser challenge runner follows Circle\'s sequence and never starts w
   const challenge = {appId: 'app', userToken: 'ut', encryptionKey: 'ek', challengeId: 'ch'};
   assert.deepEqual(await runCircleChallenge(challenge, async () => ({W3SSdk: FakeSdk})), {type: 'TRANSACTION', status: 'COMPLETE'});
   assert.deepEqual(seen, [['new', {appSettings: {appId: 'app'}}], ['device'], ['auth', {userToken: 'ut', encryptionKey: 'ek'}], ['execute', 'ch']], 'getDeviceId comes before setAuthentication and execute');
+  // A signing challenge carries its signature in result.data; the runner surfaces it once, for the server to verify.
+  const typed = {appId: 'app', userToken: 'ut', encryptionKey: 'ek', challengeId: 'ch'};
+  class Signing extends FakeSdk { execute(id, cb) { cb(undefined, {type: 'SIGN_TYPEDDATA', status: 'COMPLETE', data: {signature: '0x' + 'ab'.repeat(65)}}); } }
+  const signed = await runCircleChallenge(typed, async () => ({W3SSdk: Signing}));
+  assert.equal(signed.signature, '0x' + 'ab'.repeat(65));
+  const {challengeSignature} = await import('../src/circle-challenge.mjs');
+  assert.equal(challengeSignature(signed), '0x' + 'ab'.repeat(65));
+  assert.equal(challengeSignature({type: 'TRANSACTION'}), null, 'a transaction challenge is not a signature');
+  assert.equal(challengeSignature({data: {signature: 'nonsense'}}), null, 'a malformed signature is not surfaced');
   class Failing extends FakeSdk { execute(id, cb) { cb({message: 'User closed the PIN step'}); } }
   await assert.rejects(runCircleChallenge(challenge, async () => ({W3SSdk: Failing})), /User closed the PIN step/);
   class NoDevice extends FakeSdk { async getDeviceId() { return ''; } }
