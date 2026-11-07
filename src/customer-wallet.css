@@ -82,3 +82,23 @@
 .cw-net--real{background:#fde8e1;color:#8c2f19;font-weight:600}
 .cw-card .cw-net--real{background:#ffd9c9;color:#6b210f}
 .cw-row-status{font-size:12px;color:var(--muted);text-transform:capitalize;white-space:nowrap}
+
+/* Move USDC to Arc, laid out like Circle's bridge: one card, a From/To route, the amount as the hero, one action. */
+.cw-bridge-form{display:grid;gap:18px;max-width:520px}
+.cw-route{display:flex;align-items:center;gap:10px}
+.cw-route-pill{display:inline-flex;align-items:center;gap:9px;border:1px solid var(--border);border-radius:999px;padding:9px 16px;background:#fff;color:var(--ink);font-weight:600;font-size:15px}
+.cw-route-pill--to{border-color:#c9d5b3}
+.cw-route-dot{width:16px;height:16px;border-radius:50%;background:var(--green);display:inline-block;flex-shrink:0}
+.cw-route-dot--arc{background:#3f6fd8}
+.cw-route-arrow{color:var(--muted);font-size:17px;line-height:1}
+.cw-amount{border-top:1px solid var(--border);padding-top:18px}
+.cw-amount-label{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:2px}
+.cw-amount-row{display:flex;align-items:baseline;gap:10px}
+.cw-amount-input{flex:1;min-width:0;border:0;background:transparent;padding:4px 0;font-size:44px;font-weight:650;letter-spacing:-1.6px;color:var(--ink);font-variant-numeric:tabular-nums}
+.cw-amount-input:focus{outline:0;border-radius:8px;box-shadow:0 0 0 3px #769b4340}
+.cw-amount-unit{font-size:18px;font-weight:600;color:var(--muted)}
+.cw-bridge-dest{display:grid;gap:8px;border-top:1px solid var(--border);padding-top:16px}
+.cw-bridge-dest .field{margin:0}
+.cw-fee-note{font-size:12px;line-height:1.55}
+.cw-bridge-submit{width:100%;justify-content:center;margin-top:2px}
+@media (max-width:640px){.cw-amount-input{font-size:34px;letter-spacing:-1px}.cw-route-pill{padding:8px 13px;font-size:14px}}

@@ -41,13 +41,26 @@ export default function WalletBridge({cw, act, busy, error}) {
       {!b.available ? (
         <Notice><strong>Not available yet.</strong> {b.reason} Nothing has been changed, and your wallet works as usual.</Notice>
       ) : (
-        <form className="cw-form" onSubmit={review}>
-          <Field label="Arc address you control" hint="Check it carefully: USDC sent to an Arc address you do not control cannot be recovered. A smart-account wallet's Base address is not automatically yours on Arc."><input value={form.recipient} onChange={e => setForm({...form, recipient: e.target.value})} placeholder="0x…" spellCheck="false" autoComplete="off" /></Field>
-          <p className="cw-hint"><strong>Destination network:</strong> {b.route?.destination} {mainnet ? '(mainnet, real money)' : '(test network)'} · chain {b.route?.chainId}. This is where the USDC will arrive, and it is a different network from your Base wallet.</p>
+        <form className="cw-form cw-bridge-form" onSubmit={review}>
+          <div className="cw-route" aria-label="Base to Arc">
+            <span className="cw-route-pill"><span className="cw-route-dot" aria-hidden="true"/>Base</span>
+            <span className="cw-route-arrow" aria-hidden="true">→</span>
+            <span className="cw-route-pill cw-route-pill--to"><span className="cw-route-dot cw-route-dot--arc" aria-hidden="true"/>Arc</span>
+          </div>
+          <div className="cw-amount">
+            <label className="cw-amount-label" htmlFor="cw-bridge-amount">Amount</label>
+            <div className="cw-amount-row">
+              <input id="cw-bridge-amount" className="cw-amount-input" inputMode="decimal" value={form.amount} onChange={e => setForm({...form, amount: e.target.value})} placeholder="0.00" autoComplete="off" aria-describedby="cw-bridge-fee-note"/>
+              <span className="cw-amount-unit">USDC</span>
+            </div>
+          </div>
+          <div className="cw-bridge-dest">
+            <Field label="Arc address you control" hint="Check it carefully: USDC sent to an Arc address you do not control cannot be recovered. A smart-account wallet's Base address is not automatically yours on Arc."><input value={form.recipient} onChange={e => setForm({...form, recipient: e.target.value})} placeholder="0x…" spellCheck="false" autoComplete="off" /></Field>
+            <p className="cw-hint"><strong>Destination network:</strong> {b.route?.destination} {mainnet ? '(mainnet, real money)' : '(test network)'} · chain {b.route?.chainId}. This is where the USDC will arrive, and it is a different network from your Base wallet.</p>
+          </div>
           <Check checked={form.confirmed} onChange={e => setForm({...form, confirmed: e.target.checked})}>I control this address on {b.route?.destination ?? 'Arc'} and have checked every character. I understand USDC sent to an address I do not control cannot be recovered.</Check>
-          <Field label="Amount in USDC"><input inputMode="decimal" value={form.amount} onChange={e => setForm({...form, amount: e.target.value})} placeholder="10.00" /></Field>
-          <p className="cw-hint">You approve the exact move first, then confirm each step in your wallet. The USDC fee is taken from the amount and shown before you approve. {cw.fees?.asset === 'sponsored' ? "The network fee is covered by Eupova through Circle's Gas Station while today's sponsorship lasts; if it runs out the move is not started." : `The network fee is paid in ${cw.network.nativeSymbol} from your wallet, as an estimate.`}</p>
-          <Button type="submit" disabled={busy || !form.amount || !/^0x[0-9a-fA-F]{40}$/.test(form.recipient.trim()) || !form.confirmed}>{busy ? 'Working…' : 'Review move'}</Button>
+          <p className="cw-hint cw-fee-note" id="cw-bridge-fee-note">You approve the exact move first, then confirm each step in your wallet. The USDC fee is taken from the amount and shown before you approve. {cw.fees?.asset === 'sponsored' ? "The network fee is covered by Eupova through Circle's Gas Station while today's sponsorship lasts; if it runs out the move is not started." : `The network fee is paid in ${cw.network.nativeSymbol} from your wallet, as an estimate.`}</p>
+          <Button className="cw-bridge-submit" type="submit" disabled={busy || !form.amount || !/^0x[0-9a-fA-F]{40}$/.test(form.recipient.trim()) || !form.confirmed}>{busy ? 'Working…' : 'Review move'}</Button>
         </form>
       )}
       {(msg || error) && <Notice error>{msg || error}</Notice>}
