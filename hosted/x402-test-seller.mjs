@@ -12,6 +12,9 @@ import {BASE_MAINNET, BASE_USDC} from './x402-challenge.mjs';
 
 export const TEST_SELLER_PATH = '/x402-test/premium';
 export const TEST_SELLER_AMOUNT = '10000'; // 0.01 USDC: small enough that a mistake is cheap.
+// A burn address, used only because a wallet will not pay itself and this seller never settles anything. It is the
+// honest choice: an address nobody controls, for a payment that is never submitted. EUPOVA_X402_TEST_PAYTO overrides.
+export const TEST_SELLER_PAYEE = '0x000000000000000000000000000000000000dEaD';
 
 const b64 = v => Buffer.from(JSON.stringify(v), 'utf8').toString('base64');
 

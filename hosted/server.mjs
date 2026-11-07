@@ -1,5 +1,5 @@
 import {createAdmin,isAccountAdmin} from './admin.mjs';
-import {requirementFor,checkPayment,settlementReceipt,receiptHeader,TEST_SELLER_PATH} from './x402-test-seller.mjs';
+import {requirementFor,checkPayment,settlementReceipt,receiptHeader,TEST_SELLER_PATH,TEST_SELLER_PAYEE} from './x402-test-seller.mjs';
 import {x402Enabled} from './x402-switch.mjs';
 import {contentSecurityPolicy} from './wallet-csp.mjs';
 import {configuredNativePrivy} from '../server/quote-first/native-privy-http.mjs';
@@ -193,9 +193,9 @@ export function createHostedServer({store,config,pay=createSandboxPayService(),s
    // but it does not settle: its receipt says so, and the buyer's ledger records that as a claim, not proof.
    if(url.pathname===TEST_SELLER_PATH){
     if(!x402Enabled())throw new InputError('Not found.',404);
-    // Paid at the caller's own address: the buyer tells us who it is, and the money could only go back to it. Set
-    // EUPOVA_X402_TEST_PAYTO to override with a fixed address.
-    const payTo=process.env.EUPOVA_X402_TEST_PAYTO||String(req.headers['x-eupova-payer']??'');
+    // A burn address by default. A wallet refuses to pay itself, so pointing at the caller was never going to work,
+    // and that refusal is a good rule worth keeping. Nothing is submitted on chain, so this address receives nothing.
+    const payTo=process.env.EUPOVA_X402_TEST_PAYTO||TEST_SELLER_PAYEE;
     if(!/^0x[0-9a-fA-F]{40}$/.test(payTo))throw new InputError('The test seller needs a payee address.',400);
     if(req.method!=='GET'&&req.method!=='POST')throw new InputError('Method not allowed.',405);
     const asked=requirementFor({payTo,url:`https://${req.headers.host??'app.eupova.com'}${TEST_SELLER_PATH}`});
