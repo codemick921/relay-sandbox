@@ -29,7 +29,7 @@ async function lockedReadyWith(readyWallet, lockWallet, c, owner) {
   await lockWallet(c, w0.id);
   return readyWallet(c, owner, true);
 }
-export function createWalletTools({tx, query, rate, simulated, clock, note, lockWallet, lockOwner, balanceOf, reservedTotal, readyWallet, big, uuid, payments, net}) {
+export function createWalletTools({tx, query, rate, simulated, clock, note, lockWallet, lockOwner, balanceOf, reservedTotal, readyWallet, big, uuid, payments, net, fetchImpl = fetch, resolver = null}) {
   const lockedReady = (c, owner) => lockedReadyWith(readyWallet, lockWallet, c, owner);
   const allowanceView = (a, now) => a && ({
     id: a.id, status: a.status, revision: a.revision, amountUsdc: units(a.amt), spentUsdc: units(a.spent), reservedUsdc: units(a.res),
@@ -157,7 +157,7 @@ export function createWalletTools({tx, query, rate, simulated, clock, note, lock
       const allowance = (await query(ALLOW_SQL + " WHERE tool_id=$1 AND status='active'", [tool.id])).rows[0] ?? null;
       if (!allowance) throw new InputError('This tool has no allowance. Ask the wallet owner for one first.', 403);
       const remaining = big(allowance.amt) - big(allowance.spent) - big(allowance.res);
-      const paid = await fetchPaidResource({url: input.url, method: input.method, body: input.body, maxAmountRaw: remaining > 0n ? remaining : 0n});
+      const paid = await fetchPaidResource({url: input.url, method: input.method, body: input.body, maxAmountRaw: remaining > 0n ? remaining : 0n, fetchImpl, ...(resolver ? {resolver} : {})});
       if (!paid.ok) throw new InputError(paid.reason, paid.status === 402 ? 409 : 422);
       if (paid.free) return {free: true, status: paid.status, body: paid.body, contentType: paid.contentType};
       const req = paid.requirement;
@@ -179,6 +179,9 @@ export function createWalletTools({tx, query, rate, simulated, clock, note, lock
         const {a, reason} = await this.assess(c, tool, live, n0, null);
         const id = await payments.insertForTool(c, tool.owner, live, n0, {
           origin: 'tool', requestId: idemKey, status: reason ? 'rejected' : 'awaiting_approval', reason, tool, allowance: a,
+          // No Eupova-side fee exists here: in the x402 exact scheme the service's facilitator pays the network fee, and
+          // the customer authorises only the amount. Recording it as sponsored with a zero cap says exactly that.
+          fee: {asset: 'sponsored', maxFeeNativeWei: '0'},
           kind: 'x402', x402: {...prepared, step: 'prepared', host: paid.host},
         });
         return {id};

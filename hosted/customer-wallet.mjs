@@ -18,7 +18,7 @@ const uuid = x => typeof x === 'string' && /^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-
 export const big = x => BigInt(String(x ?? '0'));
 const amount6 = a => (Array.isArray(a) && a.length === 1 && /^\d{1,12}(\.\d{1,6})?$/.test(a[0]) ? (a[0].includes('.') ? a[0].padEnd(a[0].indexOf('.') + 7, '0') : a[0] + '.000000') : null);
 
-export function createCustomerWallet({store, provider = createSimulatedWalletProvider(), clock = () => new Date(), config = {}, bridgeTransport = null}) {
+export function createCustomerWallet({store, provider = createSimulatedWalletProvider(), clock = () => new Date(), config = {}, bridgeTransport = null, fetchImpl = fetch, resolver = null}) {
   if (!provider || typeof provider.executeTransfer !== 'function') throw new Error('A wallet provider is required.');
   if (provider.simulated !== true && !(provider.id === 'circle_ucw' && provider.live === true && WALLET_NETWORKS[provider.network?.id])) throw new Error('Unknown wallet provider.');
   const {tx, query} = store;
@@ -83,7 +83,8 @@ export function createCustomerWallet({store, provider = createSimulatedWalletPro
   // Spendable balance: the ledger for the simulation, the provider's own figure for a real wallet.
   // NOTE for live wallets this is a network read: callers must not hold a transaction open across it unless unavoidable.
   const balanceOf = async (c, w) => simulated ? ledgerBalance(c, w.id) : big(await provider.balance(w.owner, w.provider_ref));
-  const ctx = {tx, query, rate, provider, simulated, net, clock, note, lockWallet, lockOwner, ledgerBalance, balanceOf, reservedTotal, nativeReservedTotal, sponsor, readyWallet, big, uuid};
+  // fetchImpl is injected so the paid-URL fetch can be tested without a network. Production passes the global fetch.
+  const ctx = {tx, query, rate, provider, simulated, net, clock, note, lockWallet, lockOwner, ledgerBalance, balanceOf, reservedTotal, nativeReservedTotal, sponsor, readyWallet, big, uuid, fetchImpl, resolver};
   const payments = createWalletPayments(ctx);
   const tools = createWalletTools({...ctx, payments});
   const bridge = createWalletBridge({...ctx, networkId: net.id, transport: simulated ? null : bridgeTransport});
