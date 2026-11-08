@@ -78,11 +78,11 @@ export function createWalletBridge({tx, query, clock, note, lockWallet, balanceO
       if (!ADDR.test(recipient) || /^0x0{40}$/i.test(recipient) || recipient.toLowerCase() === route.destination.usdc.toLowerCase()) throw new BridgeError('Enter a valid Arc address.');
       // A smart-contract (SCA) wallet's address on Base is NOT automatically controlled by the customer on Arc: USDC minted there could be unreachable.
       // The customer must name an Arc address they control; the wallet's own Base address is refused for SCA accounts.
-      const w1 = (await query('SELECT address FROM relay_cw_wallets WHERE owner=$1', [owner])).rows[0];
+      const w1 = (await query("SELECT address FROM relay_cw_wallets WHERE owner=$1 AND purpose='main'", [owner])).rows[0];
       if (provider?.feeModel?.accountType === 'SCA' && w1 && recipient.toLowerCase() === String(w1.address).toLowerCase()) throw new BridgeError('A smart-account address on Base is not automatically yours on Arc. Enter an Arc address you control.', 409);
       let amountRaw; try { amountRaw = parseUsdc(input?.amount); } catch (e) { throw new BridgeError(e.message); }
       if (amountRaw > parseUsdc(BRIDGE_LIMITS.maxAmountUsdc)) throw new BridgeError('That is more than this wallet allows per move.');
-      const w0 = (await query('SELECT * FROM relay_cw_wallets WHERE owner=$1', [owner])).rows[0];
+      const w0 = (await query("SELECT * FROM relay_cw_wallets WHERE owner=$1 AND purpose='main'", [owner])).rows[0];
       if (!w0 || w0.status !== 'ready') throw new BridgeError('Finish creating your wallet first.', 409);
       // The destination must be an address the customer says they control on Arc, confirmed explicitly. The Base wallet's own address is refused: it is
       // (for a smart account) a Base contract account, and nothing here establishes that it is deployed on, or controlled from, Arc. Funds minted to an

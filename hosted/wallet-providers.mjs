@@ -177,11 +177,30 @@ export function createCircleUserControlledProvider({config, sdkFactory}) {
         return browserSession(s, {challengeId: r.challengeId});
       } catch (e) { if (apiCode(e) === 155106) return {alreadyInitialized: true}; throw e; }
     },
-    async findWallet(owner) {
+    // The agent-payments wallet. It is deliberately an EOA: an x402 payment is an EIP-3009 authorization, and USDC
+    // checks that with ecrecover against the payer's address. A smart contract account has no key, so nothing can
+    // recover to it, which is why the main wallet cannot pay for calls. The facilitator pays the gas, so this wallet
+    // needs USDC and no ETH.
+    async beginAgentWalletSetup({owner, requestId}) {
+      const s = await session(owner);
+      const r = (await client.createUserPinWithWallets({userToken: s.userToken, blockchains: [net.circleChain], accountType: 'EOA', idempotencyKey: uuidFrom('agent-setup:' + owner + ':' + requestId)})).data;
+      if (!r?.challengeId) throw new Error('The wallet did not start the PIN step.');
+      return browserSession(s, {challengeId: r.challengeId});
+    },
+    // `expectedRef` is what we have stored. Without it we only accept an unambiguous answer, never a guess.
+    async findWallet(owner, expectedRef = null) {
       const s = await session(owner);
       const list = (await listAllWallets(s)).filter(x => x.blockchain === net.circleChain && x.state === 'LIVE');
-      if (list.length > 1) throw new Error('More than one live wallet exists on this network for this customer.');
-      return list[0] ? {providerRef: list[0].id, address: list[0].address, state: 'ready'} : null;
+      const found = expectedRef ? list.find(x => x.id === expectedRef) : list.length === 1 ? list[0] : null;
+      return found ? {providerRef: found.id, address: found.address, state: 'ready'} : null;
+    },
+    // Any live wallet that is not the main one is the agent wallet. Its reference is stored at setup, so a later read
+    // matches rather than guesses.
+    async findAgentWallet(owner, mainRef, expectedRef = null) {
+      const s = await session(owner);
+      const list = (await listAllWallets(s)).filter(x => x.blockchain === net.circleChain && x.state === 'LIVE' && x.id !== mainRef);
+      const found = expectedRef ? list.find(x => x.id === expectedRef) : list.length === 1 ? list[0] : null;
+      return found ? {providerRef: found.id, address: found.address, state: 'ready'} : null;
     },
     // Ask the wallet to sign EIP-712 typed data. This is a CHALLENGE, not a signature: the customer completes it with
     // their PIN in the browser and the signature comes back through the web SDK. Eupova never sees a key, and cannot

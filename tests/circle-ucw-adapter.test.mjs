@@ -170,7 +170,12 @@ for (const [label, config] of [['Base Sepolia', GOOD], ['Base mainnet', MAIN]]) 
       st.balances = [tok(net, {amount: '1.1234567'})]; await assert.rejects(p.balance(A, 'w-' + p.userIdFor(A)), /precision/);
       st.balances = [tok(net, {amount: 'abc'})]; await assert.rejects(p.balance(A, 'w-' + p.userIdFor(A)), /Unreadable/);
       st.wallets = [{id: 'w1', address: '0x' + 'a'.repeat(40), blockchain: net.circleChain, state: 'LIVE'}, {id: 'w2', address: '0x' + 'b'.repeat(40), blockchain: net.circleChain, state: 'LIVE'}];
-      await assert.rejects(p.findWallet(A), /More than one live wallet/);
+      // A customer may now hold a main wallet and an agent wallet. Without a stored reference the answer is ambiguous,
+      // and an ambiguous answer is null rather than a guess. With the stored reference it is exact.
+      assert.equal(await p.findWallet(A), null, 'two live wallets and no reference is never a guess');
+      assert.equal((await p.findWallet(A, 'w2')).address, '0x' + 'b'.repeat(40));
+      const agent = await p.findAgentWallet(A, 'w2');
+      assert.equal(agent.address, '0x' + 'a'.repeat(40), 'the agent wallet is the live wallet that is not the main one');
       st.wallets = [{id: 'w1', address: '0x' + 'a'.repeat(40), blockchain: net.circleChain, state: 'FROZEN'}, {id: 'w9', address: '0x' + 'c'.repeat(40), blockchain: 'ETH', state: 'LIVE'}];
       assert.equal(await p.findWallet(A), null);
       assert.ok(calls.every(c => c.hasAuth)); assert.ok(!JSON.stringify(calls.map(c => ({...c, userToken: undefined}))).includes('API_KEY'), 'the API key is only ever in a header');
@@ -293,8 +298,9 @@ test('wallets and the transaction lookup also walk every page; a wallet on page 
   await withStub({chain: 'BASE-SEPOLIA', wallets: [...Array.from({length: 60}, (_, i) => other(i)), {id: 'w-' + uid, address: '0x' + 'a'.repeat(40), blockchain: 'BASE-SEPOLIA', state: 'LIVE'}], txs}, async () => {
     const found = await p.findTransaction({owner, walletRef: 'w-' + uid, refId: 'pay-1', destination: dest});
     assert.equal(found.found, true); assert.equal(found.tx.id, 'tx-target');
-    const w = await p.findWallet(owner).catch(e => e);
-    assert.ok(w instanceof Error, 'sixty-one live wallets is not one wallet: refused');
+    // No reference means no answer. An ambiguous list returns null rather than picking one, which is safer than a
+    // throw here: the caller then says "not ready" instead of failing a page.
+    assert.equal(await p.findWallet(owner), null, 'sixty-one live wallets is not one wallet: null, never a guess');
   });
 });
 

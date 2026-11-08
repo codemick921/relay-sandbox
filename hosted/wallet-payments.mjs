@@ -303,7 +303,7 @@ export function createWalletPayments({tx, query, provider, simulated, net, clock
     // Customer-started payment ("Send"): still individually approved, but needs no allowance.
     async send(owner, input) {
       if (!uuid(input?.requestId)) throw new InputError('Refresh and try again.');
-      const w0 = (await query('SELECT * FROM relay_cw_wallets WHERE owner=$1', [owner])).rows[0];
+      const w0 = (await query("SELECT * FROM relay_cw_wallets WHERE owner=$1 AND purpose='main'", [owner])).rows[0];
       if (!w0 || w0.status !== 'ready') throw new InputError('Create your wallet first.', 409);
       let n; try { n = normalise({...input, service: input.service ?? 'Send'}, w0); } catch (e) { throw new InputError(e.message); }
       const fee = await estimate(owner, w0, n); // read-only, before anything is saved

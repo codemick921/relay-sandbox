@@ -75,7 +75,7 @@ export function createCustomerWallet({store, provider = createSimulatedWalletPro
     return big(p.n) + big(b.n);
   }
   async function readyWallet(c, owner, forUpdate = false) {
-    const w = (await c.query(`SELECT * FROM relay_cw_wallets WHERE owner=$1 ${forUpdate ? 'FOR UPDATE' : ''}`, [owner])).rows[0];
+    const w = (await c.query(`SELECT * FROM relay_cw_wallets WHERE owner=$1 AND purpose='main' ${forUpdate ? 'FOR UPDATE' : ''}`, [owner])).rows[0];
     if (!w || w.status !== 'ready') throw new InputError('Create your wallet first.', 409);
     return w;
   }
@@ -124,10 +124,16 @@ export function createCustomerWallet({store, provider = createSimulatedWalletPro
       await tx(async c => {
         await c.query('SELECT pg_advisory_xact_lock(431931)');
         await c.query(`CREATE TABLE IF NOT EXISTS relay_cw_wallets(
-          id uuid PRIMARY KEY, owner text NOT NULL UNIQUE, request_id uuid NOT NULL, provider text NOT NULL CHECK(provider IN ('simulated','circle_ucw')),
+          id uuid PRIMARY KEY, owner text NOT NULL, request_id uuid NOT NULL, provider text NOT NULL CHECK(provider IN ('simulated','circle_ucw')),
           simulated boolean NOT NULL, label text NOT NULL, address text, provider_ref text, agent_id uuid,
           network text NOT NULL DEFAULT 'base_sepolia' CHECK(network IN ('base_sepolia','base')), status text NOT NULL CHECK(status IN ('pending_setup','ready','failed')),
           created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(), UNIQUE(owner,request_id))`);
+        // A customer keeps one main wallet and may add one agent-payments wallet beside it. Every existing row is main.
+        await c.query("ALTER TABLE relay_cw_wallets ADD COLUMN IF NOT EXISTS purpose text NOT NULL DEFAULT 'main'");
+        await c.query('ALTER TABLE relay_cw_wallets DROP CONSTRAINT IF EXISTS relay_cw_wallets_purpose_check');
+        await c.query("ALTER TABLE relay_cw_wallets ADD CONSTRAINT relay_cw_wallets_purpose_check CHECK(purpose IN ('main','agent'))");
+        await c.query('ALTER TABLE relay_cw_wallets DROP CONSTRAINT IF EXISTS relay_cw_wallets_owner_key');
+        await c.query('CREATE UNIQUE INDEX IF NOT EXISTS relay_cw_wallets_owner_purpose ON relay_cw_wallets(owner, purpose)');
         await c.query(`CREATE TABLE IF NOT EXISTS relay_cw_ledger(
           id uuid PRIMARY KEY, wallet_id uuid NOT NULL REFERENCES relay_cw_wallets(id), owner text NOT NULL,
           kind text NOT NULL CHECK(kind IN ('pay_credit','test_credit','payment','fee')), direction text NOT NULL CHECK(direction IN ('in','out')),
@@ -150,7 +156,7 @@ export function createCustomerWallet({store, provider = createSimulatedWalletPro
       if (label.length < 2 || label.length > 40 || /[<>\u0000-\u001f]/.test(label)) throw new InputError('Give your wallet a name of 2 to 40 characters.');
       const stored = await tx(async c => {
         await lockOwner(c, owner);
-        const old = (await c.query('SELECT * FROM relay_cw_wallets WHERE owner=$1', [owner])).rows[0];
+        const old = (await c.query("SELECT * FROM relay_cw_wallets WHERE owner=$1 AND purpose='main'", [owner])).rows[0];
         if (old) {
           if (old.request_id === input.requestId) return {id: old.id, again: true, status: old.status};
           throw new InputError('You already have a wallet. Eupova gives each customer one wallet.', 409);
@@ -177,10 +183,53 @@ export function createCustomerWallet({store, provider = createSimulatedWalletPro
       return {id: stored.id, challenge: setup.alreadyInitialized ? null : setup};
     },
 
+    // A second wallet, deliberately an EOA, used only to pay for agent calls. The main wallet is a smart contract
+    // account, and an EIP-3009 authorization cannot be signed by one: USDC recovers the payer from an ECDSA signature,
+    // and a contract has no key. This wallet is the payer for x402 and nothing else.
+    async createAgentWallet(owner, input) {
+      if (simulated || typeof provider.beginAgentWalletSetup !== 'function') throw new InputError('Not found.', 404);
+      if (!uuid(input?.requestId)) throw new InputError('Refresh and try again.');
+      const label = typeof input.label === 'string' && input.label.trim() ? input.label.trim().replace(/\s+/g, ' ').slice(0, 40) : 'Agent payments';
+      const stored = await tx(async c => {
+        await lockOwner(c, owner);
+        const main = (await c.query("SELECT id,status FROM relay_cw_wallets WHERE owner=$1 AND purpose='main'", [owner])).rows[0];
+        if (!main || main.status !== 'ready') throw new InputError('Open your main wallet first.', 409);
+        const old = (await c.query("SELECT * FROM relay_cw_wallets WHERE owner=$1 AND purpose='agent'", [owner])).rows[0];
+        if (old) {
+          if (old.request_id === input.requestId) return {id: old.id, again: true, status: old.status};
+          throw new InputError('You already have an agent payments wallet.', 409);
+        }
+        const id = randomUUID();
+        await c.query("INSERT INTO relay_cw_wallets(id,owner,request_id,provider,simulated,label,network,status,purpose) VALUES($1,$2,$3,$4,false,$5,$6,'pending_setup','agent')", [id, owner, input.requestId, provider.id, label, net.id]);
+        await note(c, owner, id, null, 'agent_wallet_setup_started', `Agent payments wallet "${label}" is being set up. Finish the PIN step to open it.`);
+        return {id, live: true};
+      });
+      if (stored.again && stored.status !== 'pending_setup') return {id: stored.id};
+      const setup = await provider.beginAgentWalletSetup({owner, requestId: input.requestId});
+      return {id: stored.id, challenge: setup};
+    },
+
+    // After the PIN step: read the new wallet back and store its reference, so a later read matches rather than guesses.
+    async finishAgentSetup(owner) {
+      if (simulated || typeof provider.findAgentWallet !== 'function') throw new InputError('Not found.', 404);
+      const main = (await query("SELECT provider_ref FROM relay_cw_wallets WHERE owner=$1 AND purpose='main'", [owner])).rows[0];
+      const w0 = (await query("SELECT id,status,provider_ref FROM relay_cw_wallets WHERE owner=$1 AND purpose='agent'", [owner])).rows[0];
+      if (!w0) throw new InputError('Set up the agent wallet first.', 409);
+      if (w0.status === 'ready') return {id: w0.id, address: (await query('SELECT address FROM relay_cw_wallets WHERE id=$1', [w0.id])).rows[0]?.address ?? null};
+      const found = await provider.findAgentWallet(owner, main?.provider_ref ?? null, w0.provider_ref ?? null);
+      if (!found) throw new InputError('The wallet is not ready yet. Finish the PIN step, then try again.', 409);
+      return tx(async c => {
+        await lockOwner(c, owner);
+        await c.query("UPDATE relay_cw_wallets SET status='ready',address=$2,provider_ref=$3,updated_at=now() WHERE id=$1", [w0.id, found.address, found.providerRef]);
+        await note(c, owner, w0.id, null, 'agent_wallet_ready', 'Your agent payments wallet is ready. Move USDC into it to pay for calls.');
+        return {id: w0.id, address: found.address};
+      });
+    },
+
     // The customer closed the page mid-setup: ask again (idempotent by the original request id) and run the step again.
     async resumeSetup(owner) {
       if (simulated || typeof provider.beginWalletSetup !== 'function') throw new InputError('Not found.', 404);
-      const w = (await query("SELECT id,request_id,status FROM relay_cw_wallets WHERE owner=$1", [owner])).rows[0];
+      const w = (await query("SELECT id,request_id,status FROM relay_cw_wallets WHERE owner=$1 AND purpose='main'", [owner])).rows[0];
       if (!w) throw new InputError('Create your wallet first.', 409);
       if (w.status !== 'pending_setup') return {id: w.id};
       const setup = await provider.beginWalletSetup({owner, requestId: w.request_id});
@@ -190,14 +239,14 @@ export function createCustomerWallet({store, provider = createSimulatedWalletPro
     // Real provider only: after the customer finished the PIN step, read the wallet back from the provider.
     async finishSetup(owner) {
       if (simulated || typeof provider.findWallet !== 'function') throw new InputError('Not found.', 404);
-      const w0 = (await query("SELECT id,status FROM relay_cw_wallets WHERE owner=$1", [owner])).rows[0];
+      const w0 = (await query("SELECT id,status FROM relay_cw_wallets WHERE owner=$1 AND purpose='main'", [owner])).rows[0];
       if (!w0) throw new InputError('Create your wallet first.', 409);
       if (w0.status === 'ready') return {id: w0.id};
       const found = await provider.findWallet(owner); // read-only, outside any transaction
       if (!found) throw new InputError('Your wallet is not ready yet. Finish the PIN step, then try again.', 409);
       return tx(async c => {
         await lockOwner(c, owner);
-        const w = (await c.query("SELECT * FROM relay_cw_wallets WHERE owner=$1 FOR UPDATE", [owner])).rows[0];
+        const w = (await c.query("SELECT * FROM relay_cw_wallets WHERE owner=$1 AND purpose='main' FOR UPDATE", [owner])).rows[0];
         if (w.status === 'ready') return {id: w.id};
         const agentId = await saveReceivingWallet(c, owner, w.label, found.address);
         await c.query("UPDATE relay_cw_wallets SET status='ready',address=$2,provider_ref=$3,agent_id=$4,updated_at=now() WHERE id=$1", [w.id, found.address, found.providerRef, agentId]);
@@ -233,14 +282,15 @@ export function createCustomerWallet({store, provider = createSimulatedWalletPro
       if (!simulated) { await payments.reconcileOpen(owner).catch(() => 0); await bridge.reconcileOpen(owner).catch(() => 0); }
       // 1. Database only, under the lock. 2. Provider reads, outside any transaction. A slow provider never holds a lock.
       const data = await tx(async c => {
-        const w = (await c.query('SELECT * FROM relay_cw_wallets WHERE owner=$1', [owner])).rows[0] ?? null;
+        const w = (await c.query("SELECT * FROM relay_cw_wallets WHERE owner=$1 AND purpose='main'", [owner])).rows[0] ?? null;
         if (w) { await lockWallet(c, w.id); await syncPayCredits(c, owner, w); }
         await c.query("UPDATE relay_cw_payments SET status='expired',updated_at=now() WHERE owner=$1 AND status='awaiting_approval' AND expires_at<=now()", [owner]);
         await payments.sweepStuck(c, owner);
-        if (!w) return {w: null};
+        const aw = (await c.query("SELECT id,status,address FROM relay_cw_wallets WHERE owner=$1 AND purpose='agent'", [owner])).rows[0] ?? null;
+        if (!w) return {w: null, aw};
         const reserved = await reservedTotal(c, w.id);
         const ledger = (await c.query('SELECT id,kind,direction,amount_raw::text AS a,label,simulated,payment_id,created_at FROM relay_cw_ledger WHERE wallet_id=$1 ORDER BY created_at DESC, id LIMIT 60', [w.id])).rows;
-        return {w, reserved, ledger, bal: simulated ? await ledgerBalance(c, w.id) : undefined};
+        return {w, reserved, ledger, bal: simulated ? await ledgerBalance(c, w.id) : undefined, aw};
       });
       const live = data.w && !simulated && data.w.status === 'ready';
       let bal = data.bal ?? 0n, balanceError = false, history = [], usdcTokenId = null;
@@ -261,6 +311,12 @@ export function createCustomerWallet({store, provider = createSimulatedWalletPro
       };
       if (data.w && balanceError) return {...base, wallet: walletView(data.w), balance: {unavailable: true, raw: '0', usdc: '0.000000', reservedUsdc: '0.000000', availableUsdc: '0.000000', simulated: false}, activity: [], pendingApprovals: [], payments: [], tools: [], notice: 'We could not read your balance just now. Nothing was changed. Try again in a moment.'};
       if (!data.w) return {...base, wallet: null, balance: null, activity: [], pendingApprovals: [], payments: [], tools: [], enrolmentCode: null};
+      // The agent-payments wallet, shown separately: it holds the money that pays for calls, and it is not the main
+      // wallet. A balance is only read when it is ready.
+      let agentWallet = data.aw ? {status: data.aw.status, address: data.aw.address ?? null, balanceUsdc: null, ready: data.aw.status === 'ready'} : null;
+      if (agentWallet?.ready) {
+        try { agentWallet = {...agentWallet, balanceUsdc: units(await provider.balance(owner, (await query('SELECT provider_ref FROM relay_cw_wallets WHERE id=$1', [data.aw.id])).rows[0].provider_ref))}; } catch { agentWallet = {...agentWallet, balanceUnavailable: true}; }
+      }
       const pay = await payments.list(owner, data.w.id);
       const toolState = await tools.list(owner, data.w.id);
       // Activity. Only money that really moved shows as an amount. Waiting, declined, lapsed and failed requests show their
@@ -286,7 +342,7 @@ export function createCustomerWallet({store, provider = createSimulatedWalletPro
       return {
         ...base, wallet: walletView(data.w),
         balance: {raw: bal.toString(), usdc: units(bal), reservedUsdc: units(data.reserved), availableUsdc: units(bal > data.reserved ? bal - data.reserved : 0n), simulated: data.w.simulated},
-        activity, pendingApprovals: pay.filter(p => p.status === 'awaiting_approval' || p.status === 'outcome_unknown'), payments: pay, tools: toolState,
+        activity, agentWallet, pendingApprovals: pay.filter(p => p.status === 'awaiting_approval' || p.status === 'outcome_unknown'), payments: pay, tools: toolState,
         bridge: simulated ? {available: false, reason: 'Not part of the simulated wallet. The simulated Base Sepolia to Arc Testnet bridge is on the Bridge and recovery page.', items: []} : await bridge.state(owner),
       };
     },
