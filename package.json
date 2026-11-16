@@ -24,6 +24,7 @@
   },
   "dependencies": {
     "@circle-fin/adapter-viem-v2": "1.20.0",
+    "@circle-fin/app-kit": "1.21.0",
     "@circle-fin/bridge-kit": "1.17.0",
     "@circle-fin/user-controlled-wallets": "10.8.1",
     "@circle-fin/w3s-pw-web-sdk": "1.1.11",

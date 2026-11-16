@@ -20,6 +20,17 @@ export default function FundingOptions({state,open,onClose,selected,fundingPrese
    </section>
    {state.fundingCalculator?.enabled&&<section className="funding-option"><div className="funding-option-heading"><h3>Plan a USDC target</h3><span className="funding-option-status">Price comparison</span></div><p>Check direct Peer price estimates for the USDC you need. These prices are separate from merchant checkout.</p><Button secondary className="full" onClick={()=>open('target-calculator')}>Compare USDC target prices</Button></section>}
    <details className="funding-option-tests"><summary>Peer payment methods</summary><p>Choose a currency in the funding form to see matching methods. PayPal is excluded.</p><ul>{fundingCatalog.methods.map(m=><li key={m.id}><strong>{m.label}</strong>: {m.currencies.join(', ')}. {m.checkoutSupported?'Checkout integration available; Peer checks account access and offers.':'Not connected to Eupova checkout yet.'}</li>)}</ul></details>
+   {state.circleOnramp?.enabled?<section className="funding-option" aria-labelledby="circle-option-title">
+    <div className="funding-option-heading"><h3 id="circle-option-title">Circle Onramp</h3><span className="funding-option-status">Sandbox · no real funds</span></div>
+    <p>Buy USDC with a card or bank transfer in Circle’s hosted checkout. USDC on Base is delivered to a wallet you saved in Eupova.</p>
+    <dl className="details"><div><dt>Payment methods</dt><dd>Shown in Circle’s checkout</dd></div><div><dt>Your wallet receives</dt><dd>USDC on Base</dd></div></dl>
+    <p className="fine-print">Sandbox test only. Circle shows its own price, fees and identity checks, and Eupova does not see your payment details. Eupova does not confirm delivery from this screen: check your wallet balance on Base.</p>
+    {state.agents?.length?<Button className="full" onClick={()=>open('circle-onramp',selected)}>Try Circle checkout in sandbox</Button>:<Button secondary className="full" onClick={()=>open('wallet',undefined,{continueFunding:true})}>Add a receiving wallet first</Button>}
+   </section>:<section className="funding-option funding-option-unavailable" aria-labelledby="circle-option-title">
+    <div className="funding-option-heading"><h3 id="circle-option-title">Circle Onramp</h3><span className="funding-option-status">Not connected</span></div>
+    <p>Circle’s card and bank checkout is not switched on for this Eupova service yet.</p>
+    <p className="fine-print">It needs a Circle sandbox key to be added to the service before it can open.</p>
+   </section>}
    <section className="funding-option funding-option-unavailable" aria-labelledby="ramp-option-title">
     <div className="funding-option-heading"><h3 id="ramp-option-title">Ramp Network</h3><span className="funding-option-status">Not connected</span></div>
     <p>Ramp cannot accept payments through Eupova yet. There is no live Ramp checkout to open.</p>
